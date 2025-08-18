@@ -17,9 +17,9 @@ While these can be approximated by combining StatefulSets (size 1), Services, an
 
 ## Desired Sandbox Characteristics
 
-We aim for the Sandbox to be vendor-neutral, supporting various runtimes (e.g., gVisor, Kata Containers). Key characteristics include:
+We aim for the Sandbox to be vendor-neutral, supporting various runtimes. Key characteristics include:
 
-*   **Scale-to-zero:** Idle Sandboxes consuming near-zero resources.
+*   **Strong Isolation:** Supporting different runtimes like gVisor or Kata Containers to provide enhanced security and isolation between the sandbox and the host, including both kernel and network isolation. This is crucial for running untrusted code or multi-tenant scenarios.
 *   **Deep hibernation:** Saving state to persistent storage and potentially archiving the Sandbox object.
 *   **Automatic resume:** Resuming a sandbox on network connection.
 *   **Efficient persistence:** Elastic and rapidly provisioned storage.
