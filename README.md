@@ -2,7 +2,7 @@
 
 **agent-sandbox enables easy management of isolated, stateful, singleton workloads, ideal for use cases like AI agent runtimes.**
 
-This project is developing a `Sandbox` Custom Resource Definition (CRD) and controller for Kubernetes, under the umbrella of SIG Apps. The goal is to provide a declarative, standardized API for managing workloads that require the characteristics of a long-running, stateful, singleton container with a stable identity, much like a lightweight, single-container VM experience built on Kubernetes primitives.
+This project is developing a `Sandbox` Custom Resource Definition (CRD) and controller for Kubernetes, under the umbrella of [SIG Apps](https://github.com/kubernetes/community/tree/master/sig-apps). The goal is to provide a declarative, standardized API for managing workloads that require the characteristics of a long-running, stateful, singleton container with a stable identity, much like a lightweight, single-container VM experience built on Kubernetes primitives.
 
 ## Motivation
 
@@ -10,7 +10,7 @@ Kubernetes excels at managing stateless, replicated applications (Deployments) a
 
 *   **Development Environments:** Isolated, persistent, network-accessible cloud environments for developers.
 *   **AI Agent Runtimes:** Isolated environments for executing untrusted, LLM-generated code.
-*   **Notebooks and Research Tools:** Persistent, single-container sessions for tools like JupyterHub.
+*   **Notebooks and Research Tools:** Persistent, single-container sessions for tools like Jupyter Notebooks.
 *   **Stateful Single-Pod Services:** Hosting single-instance applications (e.g., build agents, small databases) needing a stable identity without StatefulSet overhead.
 
 While these can be approximated by combining StatefulSets (size 1), Services, and PersistentVolumeClaims, this approach is cumbersome and lacks specialized lifecycle management like hibernation.
