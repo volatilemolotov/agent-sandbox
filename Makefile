@@ -8,7 +8,6 @@ generate: install-generate-tools
 .PHONY: install-generate-tools
 install-generate-tools:
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-	go install github.com/B1NARY-GR0UP/nwa@latest
 
 .PHONY: build
 build:
