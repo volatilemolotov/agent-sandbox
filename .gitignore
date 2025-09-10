@@ -1,1 +1,4 @@
 bin/
+
+# Ignore python cache files
+**/__pycache__/
