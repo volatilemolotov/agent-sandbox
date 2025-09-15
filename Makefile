@@ -1,13 +1,9 @@
 .PHONY: all
-all: generate build
+all: fix-go-generate build
 
-.PHONY: generate
-generate: install-generate-tools
-	go generate
-
-.PHONY: install-generate-tools
-install-generate-tools:
-	go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+.PHONY: fix-go-generate
+fix-go-generate:
+	dev/tools/fix-go-generate
 
 .PHONY: build
 build:

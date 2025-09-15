@@ -28,7 +28,7 @@ def main():
     repo_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 
     print(f"Running go generate ./... in {repo_root}")
-    subprocess.check_call(["go", "generate", "./..."], cwd=repo_root)
+    subprocess.check_call(["go", "generate", "-v", "./..."], cwd=repo_root)
 
 if __name__ == "__main__":
     main()
