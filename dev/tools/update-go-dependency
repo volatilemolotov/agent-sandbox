@@ -20,9 +20,11 @@ import sys
 import argparse
 import glob
 
-def find_repo_root():
-    """Finds the repository root from the script's location."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(script_dir)
+
+from shared import golang
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -31,18 +33,12 @@ def main():
     parser.add_argument("dependency", help="The go dependency to update, e.g. 'k8s.io/client-go@v0.29.0'")
     args = parser.parse_args()
 
-    repo_root = find_repo_root()
-
-    mod_files = []
-    for pattern in ['go.mod', 'tools.mod']:
-        search_pattern = os.path.join(repo_root, '**', pattern)
-        mod_files.extend(glob.glob(search_pattern, recursive=True))
+    repo_root = golang.find_repo_root()
+    mod_files = golang.find_go_mod_files(mod_name_patterns=['go.mod', 'tools.mod'])
 
     if not mod_files:
         print("No go.mod or tools.mod files found.")
         return
-
-    mod_files.sort()
 
     print(f"Found mod files:")
     for f in mod_files:
