@@ -3,7 +3,7 @@ kind: Sandbox
 metadata:
   name: sandbox-example
 spec:
-  template:
+  podTemplate:
     spec:
       containers:
       - name: my-container
