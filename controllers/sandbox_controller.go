@@ -183,7 +183,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 				sandboxLabel: nameHash,
 			},
 		},
-		Spec: sandbox.Spec.Template.Spec,
+		Spec: sandbox.Spec.PodTemplate.Spec,
 	}
 	pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
 	if err := ctrl.SetControllerReference(sandbox, pod, r.Scheme); err != nil {
