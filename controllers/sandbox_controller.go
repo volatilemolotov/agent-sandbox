@@ -16,11 +16,14 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -64,7 +67,7 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	sandbox := &sandboxv1alpha1.Sandbox{}
 	if err := r.Get(ctx, req.NamespacedName, sandbox); err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			log.Info("sandbox resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
@@ -76,22 +79,97 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
+	oldStatus := sandbox.Status.DeepCopy()
+
 	// Create a hash from the sandbox.Name and use it as label value
 	nameHash := NameHash(sandbox.Name)
-	_, err := r.reconcilePod(ctx, sandbox, nameHash)
-	if err != nil {
-		return ctrl.Result{}, err
+
+	var allErrors error
+
+	// Reconcile Pod
+	pod, err := r.reconcilePod(ctx, sandbox, nameHash)
+	allErrors = errors.Join(err)
+
+	// Reconcile Service
+	svc, err := r.reconcileService(ctx, sandbox, nameHash)
+	allErrors = errors.Join(allErrors, err)
+
+	// compute and set overall Ready condition
+	readyCondition := r.computeReadyCondition(sandbox.Generation, allErrors, svc, pod)
+	meta.SetStatusCondition(&sandbox.Status.Conditions, readyCondition)
+
+	// Update status
+	err = r.updateStatus(ctx, oldStatus, sandbox)
+	allErrors = errors.Join(allErrors, err)
+
+	// return errors seen
+	return ctrl.Result{}, allErrors
+}
+
+func (r *SandboxReconciler) computeReadyCondition(generation int64, err error, svc *corev1.Service, pod *corev1.Pod) metav1.Condition {
+	readyCondition := metav1.Condition{
+		Type:               string(sandboxv1alpha1.SandboxConditionReady),
+		ObservedGeneration: generation,
+		Message:            "",
+		Status:             metav1.ConditionFalse,
+		Reason:             "DependenciesNotReady",
 	}
 
-	_, err = r.reconcileService(ctx, sandbox, nameHash)
 	if err != nil {
-		return ctrl.Result{}, err
+		readyCondition.Reason = "ReconcilerError"
+		readyCondition.Message = "Error seen: " + err.Error()
+		return readyCondition
 	}
 
-	// Update the sandbox status
-	// TODO: Update the sandbox status
+	message := "Pod or Service not ready"
+	podReady := false
+	if pod != nil {
+		message = "Pod exists with phase: " + string(pod.Status.Phase)
+		// Check if pod Ready condition is true
+		if pod.Status.Phase == corev1.PodRunning {
+			message = "Pod is Running but not Ready"
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == corev1.PodReady {
+					if condition.Status == corev1.ConditionTrue {
+						message = "Pod is Ready"
+						podReady = true
+					}
+					break
+				}
+			}
+		}
+	}
 
-	return ctrl.Result{}, nil
+	svcReady := false
+	if svc != nil {
+		message += "; Service Exists"
+		svcReady = true
+	}
+
+	readyCondition.Message = message
+	if podReady && svcReady {
+		readyCondition.Status = metav1.ConditionTrue
+		readyCondition.Reason = "DependenciesReady"
+		return readyCondition
+	}
+
+	return readyCondition
+}
+
+func (r *SandboxReconciler) updateStatus(ctx context.Context, oldStatus *sandboxv1alpha1.SandboxStatus, sandbox *sandboxv1alpha1.Sandbox) error {
+	log := log.FromContext(ctx)
+
+	if reflect.DeepEqual(oldStatus, &sandbox.Status) {
+		return nil
+	}
+
+	if err := r.Status().Update(ctx, sandbox); err != nil {
+		log.Error(err, "Failed to update sandbox status")
+		return err
+	}
+
+	// Surface error
+	return nil
 }
 
 // NameHash generates an FNV-1a hash from a string and returns
@@ -109,17 +187,12 @@ func NameHash(objectName string) string {
 func (r *SandboxReconciler) reconcileService(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox, nameHash string) (*corev1.Service, error) {
 	log := log.FromContext(ctx)
 	service := &corev1.Service{}
-	found := false
 	if err := r.Get(ctx, types.NamespacedName{Name: sandbox.Name, Namespace: sandbox.Namespace}, service); err != nil {
-		if !errors.IsNotFound(err) {
+		if !k8serrors.IsNotFound(err) {
 			log.Error(err, "Failed to get Service")
-			return nil, err
+			return nil, fmt.Errorf("Service Get Failed: %w", err)
 		}
 	} else {
-		found = true
-	}
-
-	if found {
 		log.Info("Found Service", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
 		return service, nil
 	}
@@ -142,31 +215,31 @@ func (r *SandboxReconciler) reconcileService(ctx context.Context, sandbox *sandb
 	}
 	service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 	if err := ctrl.SetControllerReference(sandbox, service, r.Scheme); err != nil {
-		return nil, err
+		log.Error(err, "Failed to set controller reference")
+		return nil, fmt.Errorf("SetControllerReference for Service failed: %w", err)
 	}
 
-	if err := r.Create(ctx, service, client.FieldOwner("sandbox-controller")); err != nil {
+	err := r.Create(ctx, service, client.FieldOwner("sandbox-controller"))
+	if err != nil {
 		log.Error(err, "Failed to create", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
 		return nil, err
 	}
+
+	// TODO(barney-s) : hardcoded to svc.cluster.local which is the default. Need a way to change it.
+	sandbox.Status.ServiceFQDN = service.Name + "." + service.Namespace + ".svc.cluster.local"
+	sandbox.Status.Service = service.Name
 	return service, nil
 }
 
 func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox, nameHash string) (*corev1.Pod, error) {
 	log := log.FromContext(ctx)
-	found := false
 	pod := &corev1.Pod{}
 	if err := r.Get(ctx, types.NamespacedName{Name: sandbox.Name, Namespace: sandbox.Namespace}, pod); err != nil {
-		// If the pod is not found, we should create it.
-		if !errors.IsNotFound(err) {
-			return nil, err
+		if !k8serrors.IsNotFound(err) {
+			log.Error(err, "Failed to get Pod")
+			return nil, fmt.Errorf("Pod Get Failed: %w", err)
 		}
-		// All other errors are actual errors.
 	} else {
-		found = true
-	}
-
-	if found {
 		log.Info("Found Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		// TODO - Do we enfore (change) spec if a pod exists ?
 		// r.Patch(ctx, pod, client.Apply, client.ForceOwnership, client.FieldOwner("sandbox-controller"))
@@ -187,9 +260,10 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 	}
 	pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
 	if err := ctrl.SetControllerReference(sandbox, pod, r.Scheme); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("SetControllerReference for Pod failed: %w", err)
 	}
-	if err := r.Create(ctx, pod, client.FieldOwner("sandbox-controller")); err != nil {
+	err := r.Create(ctx, pod, client.FieldOwner("sandbox-controller"))
+	if err != nil {
 		log.Error(err, "Failed to create", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		return nil, err
 	}

@@ -19,6 +19,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ConditionType is a type of condition for a resource.
+type ConditionType string
+
+func (c ConditionType) String() string { return string(c) }
+
+const (
+	// SandboxConditionReady indicates readiness for Sandbox
+	SandboxConditionReady ConditionType = "Ready"
+)
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // Important: Run "make" to regenerate code after modifying this file
 
@@ -34,6 +44,16 @@ type SandboxSpec struct {
 
 // SandboxStatus defines the observed state of Sandbox.
 type SandboxStatus struct {
+	// FQDN that is valid for default cluster settings
+	// Limitation: Hardcoded to the domain .cluster.local
+	// e.g. sandbox-example.default.svc.cluster.local
+	ServiceFQDN string `json:"serviceFQDN,omitempty"`
+
+	// e.g. sandbox-example
+	Service string `json:"service,omitempty"`
+
+	// status conditions array
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
