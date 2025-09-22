@@ -11,7 +11,7 @@ ADD controllers/ /workspace/controllers/
 
 WORKDIR /workspace
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /agent-sandbox-controller ./cmd/
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o /agent-sandbox-controller ./cmd/agent-sandbox-controller
 
 
 # The controller image
