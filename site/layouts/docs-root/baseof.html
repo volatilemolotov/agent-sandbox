@@ -1,0 +1,39 @@
+<!doctype html>
+<html itemscope itemtype="http://schema.org/WebPage"
+    {{- with .Site.Language.LanguageDirection }} dir="{{ . }}" {{- end -}}
+    {{ with .Site.Language.Lang }} lang="{{ . }}" {{- end }} {{/**/ -}}
+    class="no-js">
+  <head>
+    {{ partial "head.html" . }}
+  </head>
+  <body class="td-{{ .Kind }}{{ with .Page.Params.body_class }} {{ . }}{{ end }}">
+    {{ partial "hooks/body-start.html" . }}
+    <header>
+      {{ partial "navbar.html" . }}
+      {{ partial "callout-footer.html" . }}
+    </header>
+    <div class="container-fluid td-outer">
+      <div class="td-main">
+        <div class="row flex-xl-nowrap">
+          <aside class="col-12 col-md-3 col-xl-2 td-sidebar d-print-none">
+            {{ partial "sidebar.html" . }}
+          </aside>
+          <main class="col-12 col-md-9 col-xl-10 ps-md-3" role="main">
+            {{ partial "version-banner.html" . }}
+            <div class="top-nav-bar">{{ if not (.Param "ui.breadcrumb_disable") -}}
+              {{ partial "breadcrumb.html" . -}}
+            {{ end -}}
+            {{ partial "article-metadata.html" . }}
+          </div>
+            
+            {{ block "main" . }}{{ end }}
+            <div class="ms-n3 pt-3" style="width: calc(100% + 28px);">{{ partial "tags.html" . -}}</div>
+          </main>
+        </div>
+      </div>
+      {{ partial "footer.html" . }}
+    </div>
+    {{ partial "user-satisfaction.html" . }}
+    {{ partial "scripts.html" . }}
+  </body>
+</html>

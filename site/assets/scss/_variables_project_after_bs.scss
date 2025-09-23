@@ -1,0 +1,25 @@
+$custom-colors: (
+  'primary-light': #fafafa,
+  'primary-home': #1d7db3,
+);
+
+$theme-colors: map-merge($theme-colors, $custom-colors);
+
+
+@include media-breakpoint-up(sm) { 
+  section:first-of-type.td-box {
+    padding-top: 80px!important;
+  }
+ }
+
+ .td-max-width-on-larger-screens {
+  @include media-breakpoint-up(lg) {
+    max-width: 95%!important;
+  }
+}
+
+.callout-footer {
+  @include media-breakpoint-down(md) {
+    display: none;
+  }
+}
