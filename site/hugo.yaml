@@ -17,18 +17,17 @@ languageCode: en-us
 title: GKE AI Labs
 baseUrl: https://gke-ai-labs.dev/
 
-docsDir: site
-enableGitInfo: true
+enableGitInfo: false
 enableRobotsTXT: true
 
-contentDir: site/content
-publishDir: site/public
-layoutDir: site/layouts
-dataDir: site/data
-resourceDir: site/resources
-assetDir: site/assets
-i18nDir: site/i18n
-staticDir: site/static
+contentDir: content
+publishDir: public
+layoutDir: layouts
+dataDir: data
+resourceDir: resources
+assetDir: assets
+i18nDir: i18n
+staticDir: static
 taxonomies:
   tags: tags
 
