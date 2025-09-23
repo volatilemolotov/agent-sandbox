@@ -71,16 +71,3 @@ params:
     ul_show: 2
     navbar_translucent_over_cover_disable: true
     breadcrumb_disable: false
-    
-    # showLightDarkModeMenu: true
-    feedback:
-          enable: true
-          # The responses that the user sees after clicking "yes" (the page was helpful) or "no" (the page was not helpful).
-          'yes': >-
-            Thank you for your feedback.
-          'no': >-
-            Thank you for your feedback.
-
-services:
-  googleAnalytics:
-    id: G-7BN0PBFHK1
