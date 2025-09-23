@@ -1,6 +1,6 @@
 [build]
   base = "site"
-  publish = "site/"
+  publish = "site/public"
   command = "npm ci && hugo build -e production"
 
 [build.environment]
