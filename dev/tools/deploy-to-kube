@@ -35,6 +35,12 @@ def find_and_replace_images(doc, service_name, image_prefix, image_tag):
                 v2 = f"{image_prefix}{image_and_tag[0]}:{image_tag}"
                 print(f"{v}: replaced image with {v2}")
                 v = v2
+            if v.startswith("ko://"):
+                # ko://foo/bar/command-name -> image_prefix + command-name + image_tag
+                command_name = v.split("/")[-1]
+                v2 = f"{image_prefix}{command_name}:{image_tag}"
+                print(f"{v}: replaced image with {v2}")
+                v = v2
         return v
     walk_object(doc, fn)
 
