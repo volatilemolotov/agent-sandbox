@@ -259,6 +259,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 		annotations[k] = v
 	}
 
+	mutatedSpec := r.mutatedPodSpec(&sandbox.Spec.PodTemplate.Spec)
 	pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        sandbox.Name,
@@ -266,7 +267,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 			Labels:      labels,
 			Annotations: annotations,
 		},
-		Spec: sandbox.Spec.PodTemplate.Spec,
+		Spec: *mutatedSpec,
 	}
 	pod.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Pod"))
 	if err := ctrl.SetControllerReference(sandbox, pod, r.Scheme); err != nil {
@@ -278,6 +279,16 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 		return nil, err
 	}
 	return pod, nil
+}
+
+func (r *SandboxReconciler) mutatedPodSpec(originalSpec *corev1.PodSpec) *corev1.PodSpec {
+	spec := originalSpec.DeepCopy()
+
+	// Force opting out of API credential automounting
+	automount := false
+	spec.AutomountServiceAccountToken = &automount
+
+	return spec
 }
 
 // SetupWithManager sets up the controller with the Manager.
