@@ -7,4 +7,4 @@ fix-go-generate:
 
 .PHONY: build
 build:
-	go build -o bin/manager cmd/main.go
+	go build -o bin/manager cmd/agent-sandbox-controller/main.go
