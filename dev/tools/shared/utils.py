@@ -38,15 +38,14 @@ def get_image_tag():
     """Gets the image tag based on the git commit."""
     return f"git-{get_git_commit_short()}"
 
-def get_image_prefix():
+def get_image_prefix(args):
     """Constructs the image prefix for a container image."""
-    if os.environ.get('IMAGE_PREFIX'):
-        return os.environ.get('IMAGE_PREFIX')
-    # TODO: Default to per-user configuration?
-    raise Exception("IMAGE_PREFIX environment variable is not set")
+    if args.image_prefix:
+        return args.image_prefix
+    raise Exception(f"--image-prefix arg or IMAGE_PREFIX environment variable must be set")
 
-def get_full_image_name(image_id):
+def get_full_image_name(args, image_id):
     """Constructs the full GCR image name for an image."""
-    image_prefix = get_image_prefix()
+    image_prefix = get_image_prefix(args)
     tag = get_image_tag()
     return f"{image_prefix}{image_id}:{tag}"
