@@ -3,11 +3,10 @@
 FROM --platform=$BUILDPLATFORM golang:1.25.1 AS builder
 ARG TARGETARCH
 
-ADD go.mod /workspace/
-ADD go.sum /workspace/
-ADD api/ /workspace/api/
-ADD cmd/ /workspace/cmd/
-ADD controllers/ /workspace/controllers/
+COPY go.mod go.sum /workspace/
+COPY api/ /workspace/api/
+COPY cmd/ /workspace/cmd/
+COPY controllers/ /workspace/controllers/
 
 WORKDIR /workspace
 
