@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"reflect"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -93,7 +94,26 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	oldStatus := sandbox.Status.DeepCopy()
+	var err error
 
+	expired, requeueAfter := r.processSandboxExpiry(sandbox)
+
+	// Check if sandbox has expired
+	if expired {
+		log.Info("Sandbox has expired, deleting pod and service")
+		err = r.deleteChildResources(ctx, sandbox)
+	} else {
+		err = r.reconcileChildResources(ctx, sandbox)
+	}
+
+	// Update status
+	err = errors.Join(err, r.updateStatus(ctx, oldStatus, sandbox))
+
+	// return errors seen
+	return ctrl.Result{RequeueAfter: requeueAfter}, err
+}
+
+func (r *SandboxReconciler) reconcileChildResources(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox) error {
 	// Create a hash from the sandbox.Name and use it as label value
 	nameHash := NameHash(sandbox.Name)
 
@@ -115,12 +135,7 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	readyCondition := r.computeReadyCondition(sandbox.Generation, allErrors, svc, pod)
 	meta.SetStatusCondition(&sandbox.Status.Conditions, readyCondition)
 
-	// Update status
-	err = r.updateStatus(ctx, oldStatus, sandbox)
-	allErrors = errors.Join(allErrors, err)
-
-	// return errors seen
-	return ctrl.Result{}, allErrors
+	return allErrors
 }
 
 func (r *SandboxReconciler) computeReadyCondition(generation int64, err error, svc *corev1.Service, pod *corev1.Pod) metav1.Condition {
@@ -340,6 +355,64 @@ func (r *SandboxReconciler) reconcilePVCs(ctx context.Context, sandbox *sandboxv
 		}
 	}
 	return nil
+}
+
+func (r *SandboxReconciler) deleteChildResources(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox) error {
+	var allErrors error
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sandbox.Name,
+			Namespace: sandbox.Namespace,
+		},
+	}
+	if err := r.Delete(ctx, pod); err != nil && !k8serrors.IsNotFound(err) {
+		allErrors = errors.Join(allErrors, fmt.Errorf("failed to delete pod: %w", err))
+	}
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sandbox.Name,
+			Namespace: sandbox.Namespace,
+		},
+	}
+	if err := r.Delete(ctx, service); err != nil && !k8serrors.IsNotFound(err) {
+		allErrors = errors.Join(allErrors, fmt.Errorf("failed to delete service: %w", err))
+	}
+
+	// Update status to remove Ready condition
+	meta.SetStatusCondition(&sandbox.Status.Conditions, metav1.Condition{
+		Type:               string(sandboxv1alpha1.SandboxConditionReady),
+		Status:             metav1.ConditionFalse,
+		ObservedGeneration: sandbox.Generation,
+		Reason:             "SandboxExpired",
+		Message:            "Sandbox has expired",
+	})
+
+	return allErrors
+}
+
+// checks if the sandbox has expired
+// returns true if expired, false otherwise
+// if not expired, also returns the duration to requeue after
+func (r *SandboxReconciler) processSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox) (bool, time.Duration) {
+	if sandbox.Spec.ShutdownTime == nil {
+		return false, 0
+	}
+
+	expiryTime := sandbox.Spec.ShutdownTime.Time
+	if time.Now().After(expiryTime) {
+		return true, 0
+	}
+
+	// Calculate remaining time
+	remainingTime := time.Until(expiryTime)
+
+	// TODO(barney-s): Do we need a inverse exponential backoff here ?
+	//requeueAfter := max(remainingTime/2, 2*time.Second)
+
+	// Requeue at expiry time or in 2 seconds whichever is later
+	requeueAfter := max(remainingTime, 2*time.Second)
+	return false, requeueAfter
 }
 
 // SetupWithManager sets up the controller with the Manager.

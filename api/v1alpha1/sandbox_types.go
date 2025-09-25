@@ -83,6 +83,11 @@ type SandboxSpec struct {
 	// +optional
 	// +kubebuilder:validation:Optional
 	VolumeClaimTemplates []PersistentVolumeClaimTemplate `json:"volumeClaimTemplates,omitempty" protobuf:"bytes,4,rep,name=volumeClaimTemplates"`
+
+	// ShutdownTime - Absolute time when the sandbox is deleted.
+	// If a time in the past is provided, the sandbox will be deleted immediately.
+	// +kubebuilder:validation:Format="date-time"
+	ShutdownTime *metav1.Time `json:"shutdownTime,omitempty"`
 }
 
 // SandboxStatus defines the observed state of Sandbox.
