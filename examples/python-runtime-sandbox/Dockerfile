@@ -1,10 +1,9 @@
-# docker build -t us-docker.pkg.dev/karo-prod/karo/sandbox-runtime:latest .
-# docker push us-docker.pkg.dev/karo-prod/karo/sandbox-runtime:latest
-
+# Use the official Python image from the Docker Hub as the base image.  
 FROM python:3.11-slim
 
 WORKDIR /app
 
+# Installation of dependencies for python runtime sandbox.
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --require-hashes -r requirements.txt
