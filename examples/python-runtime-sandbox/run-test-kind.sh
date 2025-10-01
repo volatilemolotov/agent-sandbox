@@ -18,7 +18,7 @@ set -e
 
 export KIND_CLUSTER_NAME="agent-sandbox"
 
-# follow dev guide to make and deploy agent-sandbox to kind cluster
+# following develop guide to make and deploy agent-sandbox to kind cluster
 cd ../../
 make build 
 make deploy-kind
@@ -36,11 +36,14 @@ kubectl apply -f sandbox-python-kind.yaml
 
 # Cleanup function
 cleanup() {
-    echo "Cleaning up sandbox..."
+    echo "Cleaning up python-runtime and sandbox controller..."
     kubectl delete --ignore-not-found -f sandbox-python-kind.yaml
     kubectl delete --ignore-not-found statefulset agent-sandbox-controller -n agent-sandbox-system
     kubectl delete --ignore-not-found crd sandboxes.agents.x-k8s.io
-    docker exec "${KIND_CLUSTER_NAME}-control-plane" crictl rmi sandbox-runtime:latest || true
+    echo "Deleting kind cluster..." 
+    cd ../../
+    make delete-kind
+    cd examples/python-runtime-sandbox
 }
 trap cleanup EXIT
 
