@@ -58,6 +58,17 @@ type PodTemplate struct {
 	ObjectMeta PodMetadata `json:"metadata" protobuf:"bytes,3,opt,name=metadata"`
 }
 
+type PersistentVolumeClaimTemplate struct {
+	// Metadata is the Pod's metadata. Only labels and annotations are used.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Optional
+	ObjectMeta metav1.ObjectMeta `json:"metadata" protobuf:"bytes,3,opt,name=metadata"`
+
+	// Spec is the Pod's spec
+	// +kubebuilder:validation:Required
+	Spec corev1.PersistentVolumeClaimSpec `json:"spec" protobuf:"bytes,3,opt,name=spec"`
+}
+
 // SandboxSpec defines the desired state of Sandbox
 type SandboxSpec struct {
 	// The following markers will use OpenAPI v3 schema to validate the value
@@ -66,6 +77,12 @@ type SandboxSpec struct {
 	// PodTemplate describes the pod spec that will be used to create an agent sandbox.
 	// +kubebuilder:validation:Required
 	PodTemplate PodTemplate `json:"podTemplate" protobuf:"bytes,3,opt,name=podTemplate"`
+
+	// VolumeClaimTemplates is a list of claims that the sandbox pod is allowed to reference.
+	// Every claim in this list must have at least one matching access mode with a provisioner volume.
+	// +optional
+	// +kubebuilder:validation:Optional
+	VolumeClaimTemplates []PersistentVolumeClaimTemplate `json:"volumeClaimTemplates,omitempty" protobuf:"bytes,4,rep,name=volumeClaimTemplates"`
 }
 
 // SandboxStatus defines the observed state of Sandbox.
