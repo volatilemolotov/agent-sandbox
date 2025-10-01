@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2025 The Kubernetes Authors.
+# Copyright 2025 The Kubernetes Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,15 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-
-from shared import utils
-
-
-def main():
-    """ invokes go linter """
-    return utils.run_dev_tool("lint-go")
+import os
+import subprocess
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def get_repo_root():
+    """ Gets the absolute path to the repo root directory """
+    presubmit_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    return os.path.dirname(os.path.dirname(os.path.dirname(presubmit_dir)))
+
+
+def run_dev_tool(tool_name):
+    repo_root = get_repo_root()
+    result = subprocess.run([f"{repo_root}/dev/tools/{tool_name}"])
+    return result.returncode

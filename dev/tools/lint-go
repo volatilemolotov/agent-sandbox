@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import subprocess
 import sys
 
 from shared import utils
@@ -20,7 +21,13 @@ from shared import utils
 
 def main():
     """ invokes go linter """
-    return utils.run_dev_tool("lint-go")
+    repo_root = utils.get_repo_root()
+    result = subprocess.run(utils.go_tool_args(
+        "golangci-lint", "run",
+        f"--config={repo_root}/dev/tools/.golangci.yaml",
+    ), cwd=repo_root)
+
+    return result.returncode
 
 
 if __name__ == "__main__":

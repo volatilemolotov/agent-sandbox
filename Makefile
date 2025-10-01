@@ -1,5 +1,5 @@
 .PHONY: all
-all: fix-go-generate build
+all: fix-go-generate build lint-go test-unit
 
 .PHONY: fix-go-generate
 fix-go-generate:
@@ -24,3 +24,7 @@ delete-kind:
 .PHONY: test-unit
 test-unit:
 	./dev/tools/test-unit
+
+.PHONY: lint-go
+lint-go:
+	./dev/tools/lint-go

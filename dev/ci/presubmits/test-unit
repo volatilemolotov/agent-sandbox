@@ -15,14 +15,9 @@
 
 import os
 import shutil
-import subprocess
 import sys
 
-
-def get_repo_root():
-    """ returns the absolute path to the repo root directory """
-    presubmit_dir = os.path.dirname(os.path.realpath(__file__))
-    return os.path.dirname(os.path.dirname(os.path.dirname(presubmit_dir)))
+from shared import utils
 
 
 def main():
@@ -30,14 +25,14 @@ def main():
 
     The ARTIFACTS environment variable is set by prow.
     """
-    repo_root = get_repo_root()
-    result = subprocess.run([f"{repo_root}/dev/tools/test-unit"])
+    repo_root = utils.get_repo_root()
+    exit_code = utils.run_dev_tool("test-unit")
 
     artifact_dir = os.getenv("ARTIFACTS")
     if artifact_dir:
         shutil.copy(f"{repo_root}/bin/junit.xml", f"{artifact_dir}/junit.xml")
 
-    return result.returncode
+    return exit_code
 
 
 if __name__ == "__main__":

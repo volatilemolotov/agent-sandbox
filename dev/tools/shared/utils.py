@@ -13,30 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import os
 import subprocess
 
-def find_srcdir():
-    """Finds the project root directory by looking for go.mod."""
-    p = os.path.dirname(os.path.abspath(__file__))
-    while True:
-        # We go up two levels to get out of dev/tools/shared
-        p = os.path.dirname(os.path.dirname(os.path.dirname(p)))
-        if os.path.exists(os.path.join(p, "go.mod")):
-            return p
-        parent = os.path.dirname(p)
-        if parent == p:
-            raise Exception("could not find go.mod in any parent directory")
-        p = parent
 
 def get_git_commit_short():
     """Gets the short git commit hash for HEAD."""
     return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
 
+
 def get_image_tag():
     """Gets the image tag based on the git commit."""
     return f"git-{get_git_commit_short()}"
+
 
 def get_image_prefix(args):
     """Constructs the image prefix for a container image."""
@@ -44,8 +33,21 @@ def get_image_prefix(args):
         return args.image_prefix
     raise Exception(f"--image-prefix arg or IMAGE_PREFIX environment variable must be set")
 
+
 def get_full_image_name(args, image_id):
     """Constructs the full GCR image name for an image."""
     image_prefix = get_image_prefix(args)
     tag = get_image_tag()
     return f"{image_prefix}{image_id}:{tag}"
+
+
+def get_repo_root():
+    """ Gets the absolute path to the repo root directory """
+    tools_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    return os.path.dirname(os.path.dirname(tools_dir))
+
+
+def go_tool_args(*args):
+    """ Constructs command line arguments to run a go tool """
+    repo_root = get_repo_root()
+    return ["go", "tool", f"-modfile={repo_root}/dev/tools/go.mod", *args]
