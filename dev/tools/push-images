@@ -49,13 +49,16 @@ def build_and_push_image_with_docker_buildx(args, image_name, srcdir, dockerfile
         "buildx",
         "build",
         f"--output=type={args.docker_build_output_type}",
-        "--platform=" + platforms,
+    ]
+    if args.docker_build_output_type == "registry":
+        build_cmd.append("--platform=" + platforms)
+    build_cmd.extend([
         "-t",
         image_name,
         "-f",
         dockerfile_path,
         ".",
-    ]
+    ])
     subprocess.run(build_cmd, cwd=srcdir, check=True)
     print(f"pushed image {image_name}")
 
