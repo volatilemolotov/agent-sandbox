@@ -1,4 +1,4 @@
-apiVersion: kyverno.io/v1
+apiVersion: kyverno.io/v2beta1
 kind: ClusterPolicy
 metadata:
   name: prevent-sandbox-sa-binding
@@ -30,7 +30,7 @@ spec:
         context:
         - name: matchingSandboxes
           apiCall:
-            urlPath: "/apis/karo.io/v1/namespaces/{{element.namespace}}/sandboxes"
-            jmesPath: "items[?spec.serviceAccountRef.name == '{{element.name}}'] | length(@)"
+            urlPath: "/apis/agents.x-k8s.io/v1alpha1/namespaces/{{element.namespace}}/sandboxes"
+            jmesPath: "items[?spec.serviceAccountName == '{{element.name}}'] | length(@)"
         pattern:
           matchingSandboxes: 0
