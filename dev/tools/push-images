@@ -13,15 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import argparse
 import os
 import subprocess
-import sys
-import argparse
 
-# Add shared directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), "shared"))
-import utils
+from shared import utils
 
 
 def create_buildx_builder_if_not_exists():
@@ -62,6 +58,7 @@ def build_and_push_image_with_docker_buildx(args, image_name, srcdir, dockerfile
     subprocess.run(build_cmd, cwd=srcdir, check=True)
     print(f"pushed image {image_name}")
 
+
 def load_kind_image(cluster_name, image_name, srcdir):
     build_cmd = [
         "kind",
@@ -74,6 +71,7 @@ def load_kind_image(cluster_name, image_name, srcdir):
     subprocess.run(build_cmd, cwd=srcdir, check=True)
     print(f"loaded image {image_name} into kind cluster {args.kind_cluster_name}")
 
+
 def build_and_push_image(args, image_name, srcdir, dockerfile_path):
     build_and_push_image_with_docker_buildx(args, image_name, srcdir, dockerfile_path)
     if args.kind_cluster_name:
@@ -82,8 +80,8 @@ def build_and_push_image(args, image_name, srcdir, dockerfile_path):
 
 def main(args):
     """Builds and pushes docker images."""
-    srcdir = utils.find_srcdir()
-    images_dir = os.path.join(srcdir, "images")
+    repo_root = utils.get_repo_root()
+    images_dir = os.path.join(repo_root, "images")
 
     if not os.path.isdir(images_dir):
         print("images directory not found")
@@ -102,7 +100,7 @@ def main(args):
             print(f"create Docker buildx builder for {service_name}")
             create_buildx_builder_if_not_exists()
             print(f"building image for {service_name} with tag {image_name}")
-            build_and_push_image(args, image_name, srcdir, dockerfile_path)
+            build_and_push_image(args, image_name, repo_root, dockerfile_path)
 
 
 if __name__ == "__main__":

@@ -13,18 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import argparse
+import io
 import os
 import subprocess
-import sys
-import io
-import argparse
-
 import yaml
 
-# Add shared directory to Python path
-sys.path.append(os.path.join(os.path.dirname(__file__), "shared"))
-import utils
+from shared import utils
+
 
 def find_and_replace_images(doc, service_name, image_prefix, image_tag):
     """Recursively finds and replaces container images in a Kubernetes manifest."""
@@ -45,6 +41,7 @@ def find_and_replace_images(doc, service_name, image_prefix, image_tag):
         return v
     walk_object(doc, fn)
 
+
 def walk_object(obj, fn, field_path=""):
     """Recursively walks an object, and calls fn with the field_path to allow for value replacement."""
     if isinstance(obj, dict):
@@ -60,10 +57,11 @@ def walk_object(obj, fn, field_path=""):
     else:
         raise Exception(f"unexpected type: {type(obj)}")
 
-def main(args):
-    srcdir = utils.find_srcdir()
 
-    manifests_path = os.path.join(srcdir, "k8s")
+def main(args):
+    repo_root = utils.get_repo_root()
+
+    manifests_path = os.path.join(repo_root, "k8s")
 
     if not os.path.isdir(manifests_path):
         print("k8s directory not found")
@@ -96,11 +94,12 @@ def main(args):
             yaml.dump_all(docs, string_stream)
             modified_content = string_stream.getvalue()
 
-            rel_path = os.path.relpath(path, srcdir)
+            rel_path = os.path.relpath(path, repo_root)
             print(f"applying manifest {rel_path}")
 
             cmd = ["kubectl", "apply", "-f", "-"]
-            subprocess.run(cmd, cwd=srcdir, check=True, input=modified_content, text=True)
+            subprocess.run(cmd, cwd=repo_root, check=True, input=modified_content, text=True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deploy manifests under k8s/ to Kubernetes cluster")
