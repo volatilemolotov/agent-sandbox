@@ -294,9 +294,9 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 	mutatedSpec := sandbox.Spec.PodTemplate.Spec.DeepCopy()
 
 	for _, pvcTemplate := range sandbox.Spec.VolumeClaimTemplates {
-		pvcName := pvcTemplate.ObjectMeta.Name + "-" + sandbox.Name
+		pvcName := pvcTemplate.Name + "-" + sandbox.Name
 		mutatedSpec.Volumes = append(mutatedSpec.Volumes, corev1.Volume{
-			Name: pvcTemplate.ObjectMeta.Name,
+			Name: pvcTemplate.Name,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvcName,
@@ -329,7 +329,7 @@ func (r *SandboxReconciler) reconcilePVCs(ctx context.Context, sandbox *sandboxv
 	log := log.FromContext(ctx)
 	for _, pvcTemplate := range sandbox.Spec.VolumeClaimTemplates {
 		pvc := &corev1.PersistentVolumeClaim{}
-		pvcName := pvcTemplate.ObjectMeta.Name + "-" + sandbox.Name
+		pvcName := pvcTemplate.Name + "-" + sandbox.Name
 		err := r.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: sandbox.Namespace}, pvc)
 		if err != nil {
 			if k8serrors.IsNotFound(err) {

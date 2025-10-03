@@ -29,10 +29,32 @@ const (
 	SandboxConditionReady ConditionType = "Ready"
 )
 
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-// Important: Run "make" to regenerate code after modifying this file
-
 type PodMetadata struct {
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// and services.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,1,rep,name=labels"`
+
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
+}
+
+type EmbeddedObjectMetadata struct {
+	// Name must be unique within a namespace. Is required when creating resources, although
+	// some resources may allow a client to request the generation of an appropriate name
+	// automatically. Name is primarily intended for creation idempotence and configuration
+	// definition.
+	// Cannot be updated.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+
 	// Map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects. May match selectors of replication controllers
 	// and services.
@@ -60,9 +82,8 @@ type PodTemplate struct {
 
 type PersistentVolumeClaimTemplate struct {
 	// Metadata is the Pod's metadata. Only labels and annotations are used.
-	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Optional
-	ObjectMeta metav1.ObjectMeta `json:"metadata" protobuf:"bytes,3,opt,name=metadata"`
+	EmbeddedObjectMetadata `json:"metadata" protobuf:"bytes,3,opt,name=metadata"`
 
 	// Spec is the Pod's spec
 	// +kubebuilder:validation:Required
