@@ -13,26 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import shutil
+import subprocess
 import sys
 
 from shared import utils
 
 
 def main():
-    """ invokes e2e tests and outputs a junit report in the ARTIFACTS dir
-
-    The ARTIFACTS environment variable is set by prow.
-    """
+    """ invokes unit tests and outputs a junit results file """
     repo_root = utils.get_repo_root()
-    exit_code = utils.run_dev_tool("test-e2e")
 
-    artifact_dir = os.getenv("ARTIFACTS")
-    if artifact_dir:
-        shutil.copy(f"{repo_root}/bin/e2e-junit.xml", f"{artifact_dir}/junit.xml")
+    result = subprocess.run(["make", "deploy-kind"], cwd=repo_root)
+    if result.returncode != 0:
+        return result.returncode
 
-    return exit_code
+    result = subprocess.run(utils.go_tool_args(
+        "gotestsum", f"--junitfile={repo_root}/bin/e2e-junit.xml",
+        "--", "./test/e2e/...", "--parallel=1"
+    ), cwd=repo_root)
+    return result.returncode
 
 
 if __name__ == "__main__":
