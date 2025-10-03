@@ -30,7 +30,7 @@ def main():
 
     artifact_dir = os.getenv("ARTIFACTS")
     if artifact_dir:
-        shutil.copy(f"{repo_root}/bin/junit.xml", f"{artifact_dir}/junit.xml")
+        shutil.copy(f"{repo_root}/bin/unit-junit.xml", f"{artifact_dir}/junit.xml")
 
     return exit_code
 
