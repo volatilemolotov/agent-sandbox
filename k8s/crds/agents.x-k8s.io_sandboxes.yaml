@@ -3814,6 +3814,11 @@ spec:
                 required:
                 - spec
                 type: object
+              replicas:
+                format: int32
+                maximum: 1
+                minimum: 0
+                type: integer
               shutdownTime:
                 format: date-time
                 type: string
@@ -3966,10 +3971,17 @@ spec:
                   - type
                   type: object
                 type: array
+              replicas:
+                format: int32
+                type: integer
+              selector:
+                type: string
               service:
                 type: string
               serviceFQDN:
                 type: string
+            required:
+            - replicas
             type: object
         required:
         - spec
@@ -3977,4 +3989,8 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        labelSelectorPath: .status.selector
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}

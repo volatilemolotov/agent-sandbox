@@ -109,6 +109,14 @@ type SandboxSpec struct {
 	// If a time in the past is provided, the sandbox will be deleted immediately.
 	// +kubebuilder:validation:Format="date-time"
 	ShutdownTime *metav1.Time `json:"shutdownTime,omitempty"`
+
+	// Replicas is the number of desired replicas.
+	// The only allowed values are 0 and 1.
+	// Defaults to 1.
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // SandboxStatus defines the observed state of Sandbox.
@@ -123,10 +131,18 @@ type SandboxStatus struct {
 
 	// status conditions array
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Replicas is the number of actual replicas.
+	Replicas int32 `json:"replicas"`
+
+	// LabelSelector is the label selector for pods.
+	// +optional
+	LabelSelector string `json:"selector,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas,selectorpath=.status.selector
 // +kubebuilder:resource:scope=Namespaced,shortName=sandbox
 // Sandbox is the Schema for the sandboxes API
 type Sandbox struct {
