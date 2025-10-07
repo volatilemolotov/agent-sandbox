@@ -2,3 +2,6 @@ bin/
 
 # Ignore python cache files
 **/__pycache__/
+
+# Local Netlify folder
+.netlify
