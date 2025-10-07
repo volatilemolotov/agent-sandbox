@@ -88,6 +88,11 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
+	if sandbox.Spec.Replicas == nil {
+		replicas := int32(1)
+		sandbox.Spec.Replicas = &replicas
+	}
+
 	if !sandbox.ObjectMeta.DeletionTimestamp.IsZero() {
 		log.Info("Sandbox is being deleted")
 		return ctrl.Result{}, nil
@@ -96,18 +101,21 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	oldStatus := sandbox.Status.DeepCopy()
 	var err error
 
-	expired, requeueAfter := r.processSandboxExpiry(sandbox)
+	expired, requeueAfter := r.checkSandboxExpiry(sandbox)
 
 	// Check if sandbox has expired
 	if expired {
 		log.Info("Sandbox has expired, deleting pod and service")
-		err = r.deleteChildResources(ctx, sandbox)
+		err = r.handleSandboxExpiry(ctx, sandbox)
 	} else {
 		err = r.reconcileChildResources(ctx, sandbox)
 	}
 
 	// Update status
-	err = errors.Join(err, r.updateStatus(ctx, oldStatus, sandbox))
+	if statusUpdateErr := r.updateStatus(ctx, oldStatus, sandbox); statusUpdateErr != nil {
+		// Surface update error
+		err = errors.Join(err, statusUpdateErr)
+	}
 
 	// return errors seen
 	return ctrl.Result{RequeueAfter: requeueAfter}, err
@@ -126,22 +134,26 @@ func (r *SandboxReconciler) reconcileChildResources(ctx context.Context, sandbox
 	// Reconcile Pod
 	pod, err := r.reconcilePod(ctx, sandbox, nameHash)
 	allErrors = errors.Join(allErrors, err)
+	if pod != nil {
+		sandbox.Status.Replicas = 1
+	}
+	sandbox.Status.LabelSelector = fmt.Sprintf("%s=%s", sandboxLabel, NameHash(sandbox.Name))
 
 	// Reconcile Service
 	svc, err := r.reconcileService(ctx, sandbox, nameHash)
 	allErrors = errors.Join(allErrors, err)
 
 	// compute and set overall Ready condition
-	readyCondition := r.computeReadyCondition(sandbox.Generation, allErrors, svc, pod)
+	readyCondition := r.computeReadyCondition(sandbox, allErrors, svc, pod)
 	meta.SetStatusCondition(&sandbox.Status.Conditions, readyCondition)
 
 	return allErrors
 }
 
-func (r *SandboxReconciler) computeReadyCondition(generation int64, err error, svc *corev1.Service, pod *corev1.Pod) metav1.Condition {
+func (r *SandboxReconciler) computeReadyCondition(sandbox *sandboxv1alpha1.Sandbox, err error, svc *corev1.Service, pod *corev1.Pod) metav1.Condition {
 	readyCondition := metav1.Condition{
 		Type:               string(sandboxv1alpha1.SandboxConditionReady),
-		ObservedGeneration: generation,
+		ObservedGeneration: sandbox.Generation,
 		Message:            "",
 		Status:             metav1.ConditionFalse,
 		Reason:             "DependenciesNotReady",
@@ -153,7 +165,7 @@ func (r *SandboxReconciler) computeReadyCondition(generation int64, err error, s
 		return readyCondition
 	}
 
-	message := "Pod or Service not ready"
+	message := ""
 	podReady := false
 	if pod != nil {
 		message = "Pod exists with phase: " + string(pod.Status.Phase)
@@ -170,12 +182,22 @@ func (r *SandboxReconciler) computeReadyCondition(generation int64, err error, s
 				}
 			}
 		}
+	} else {
+		if sandbox.Spec.Replicas != nil && *sandbox.Spec.Replicas == 0 {
+			message = "Pod does not exist, replicas is 0"
+			// This is intended behaviour. So marking it ready.
+			podReady = true
+		} else {
+			message = "Pod does not exist"
+		}
 	}
 
 	svcReady := false
 	if svc != nil {
 		message += "; Service Exists"
 		svcReady = true
+	} else {
+		message += "; Service does not exist"
 	}
 
 	readyCondition.Message = message
@@ -266,12 +288,31 @@ func (r *SandboxReconciler) reconcileService(ctx context.Context, sandbox *sandb
 func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox, nameHash string) (*corev1.Pod, error) {
 	log := log.FromContext(ctx)
 	pod := &corev1.Pod{}
-	if err := r.Get(ctx, types.NamespacedName{Name: sandbox.Name, Namespace: sandbox.Namespace}, pod); err != nil {
+	err := r.Get(ctx, types.NamespacedName{Name: sandbox.Name, Namespace: sandbox.Namespace}, pod)
+	if err != nil {
 		if !k8serrors.IsNotFound(err) {
 			log.Error(err, "Failed to get Pod")
 			return nil, fmt.Errorf("Pod Get Failed: %w", err)
 		}
-	} else {
+		pod = nil
+	}
+
+	// if replicas is 0, delete the pod if it exists
+	if *sandbox.Spec.Replicas == 0 {
+		if pod != nil {
+			if pod.ObjectMeta.DeletionTimestamp.IsZero() {
+				log.Info("Deleting Pod because .Spec.Replicas is 0", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+				if err := r.Delete(ctx, pod); err != nil {
+					return nil, fmt.Errorf("failed to delete pod: %w", err)
+				}
+			} else {
+				log.Info("Pod is already being deleted", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+			}
+		}
+		return nil, nil
+	}
+
+	if pod != nil {
 		log.Info("Found Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		// TODO - Do we enfore (change) spec if a pod exists ?
 		// r.Patch(ctx, pod, client.Apply, client.ForceOwnership, client.FieldOwner("sandbox-controller"))
@@ -317,8 +358,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 	if err := ctrl.SetControllerReference(sandbox, pod, r.Scheme); err != nil {
 		return nil, fmt.Errorf("SetControllerReference for Pod failed: %w", err)
 	}
-	err := r.Create(ctx, pod, client.FieldOwner("sandbox-controller"))
-	if err != nil {
+	if err := r.Create(ctx, pod, client.FieldOwner("sandbox-controller")); err != nil {
 		log.Error(err, "Failed to create", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		return nil, err
 	}
@@ -357,7 +397,7 @@ func (r *SandboxReconciler) reconcilePVCs(ctx context.Context, sandbox *sandboxv
 	return nil
 }
 
-func (r *SandboxReconciler) deleteChildResources(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox) error {
+func (r *SandboxReconciler) handleSandboxExpiry(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox) error {
 	var allErrors error
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -388,13 +428,16 @@ func (r *SandboxReconciler) deleteChildResources(ctx context.Context, sandbox *s
 		Message:            "Sandbox has expired",
 	})
 
+	sandbox.Status.Replicas = 0
+	sandbox.Status.LabelSelector = ""
+
 	return allErrors
 }
 
 // checks if the sandbox has expired
 // returns true if expired, false otherwise
 // if not expired, also returns the duration to requeue after
-func (r *SandboxReconciler) processSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox) (bool, time.Duration) {
+func (r *SandboxReconciler) checkSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox) (bool, time.Duration) {
 	if sandbox.Spec.ShutdownTime == nil {
 		return false, 0
 	}

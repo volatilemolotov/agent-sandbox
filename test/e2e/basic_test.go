@@ -15,6 +15,8 @@
 package e2e
 
 import (
+	"fmt"
+	"hash/fnv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -25,6 +27,18 @@ import (
 	"sigs.k8s.io/agent-sandbox/test/e2e/framework"
 	"sigs.k8s.io/agent-sandbox/test/e2e/framework/predicates"
 )
+
+// NameHash generates an FNV-1a hash from a string and returns
+// it as a fixed-length hexadecimal string.
+func NameHash(objectName string) string {
+	h := fnv.New32a()
+	h.Write([]byte(objectName))
+	hashValue := h.Sum32()
+
+	// Convert the uint32 to a hexadecimal string.
+	// This results in an 8-character string (e.g., "a5b3c2d1").
+	return fmt.Sprintf("%08x", hashValue)
+}
 
 func simpleSandbox(ns string) *sandboxv1alpha1.Sandbox {
 	sandboxObj := &sandboxv1alpha1.Sandbox{}
@@ -58,11 +72,14 @@ func TestSimpleSandbox(t *testing.T) {
 	sandboxObj := simpleSandbox(ns.Name)
 	require.NoError(t, tc.CreateWithCleanup(t.Context(), sandboxObj))
 
+	nameHash := NameHash(sandboxObj.Name)
 	// Assert Sandbox object status reconciles as expected
 	p := []predicates.ObjectPredicate{
 		predicates.SandboxHasStatus(sandboxv1alpha1.SandboxStatus{
-			Service:     "my-sandbox",
-			ServiceFQDN: "my-sandbox.my-sandbox-ns.svc.cluster.local",
+			Service:       "my-sandbox",
+			ServiceFQDN:   "my-sandbox.my-sandbox-ns.svc.cluster.local",
+			Replicas:      1,
+			LabelSelector: "agents.x-k8s.io/sandbox-name-hash=" + nameHash,
 			Conditions: []metav1.Condition{
 				{
 					Message:            "Pod is Ready; Service Exists",
