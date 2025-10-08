@@ -16,23 +16,36 @@
 import os
 import shutil
 import sys
+import subprocess
 
 from shared import utils
 
 
 def main():
-    """ invokes e2e tests and outputs a junit report in the ARTIFACTS dir
+    """ invokes e2e tests in kind cluster and outputs a junit report in the ARTIFACTS dir
 
     The ARTIFACTS environment variable is set by prow.
     """
     repo_root = utils.get_repo_root()
-    exit_code = utils.run_dev_tool("test-e2e")
 
+    result = subprocess.run([f"{repo_root}/dev/tools/create-kind-cluster", "e2e-test", "--recreate", "--kubeconfig", f"{repo_root}/bin/KUBECONFIG"])
+    if result.returncode != 0:
+        return result.returncode
+    result = subprocess.run([f"{repo_root}/dev/tools/push-images", "--kind-cluster-name", "e2e-test", "--image-prefix", "kind.local/"])
+    if result.returncode != 0:
+        return result.returncode
+    result = subprocess.run([f"{repo_root}/dev/tools/deploy-to-kube", "--image-prefix", "kind.local/"])
+    if result.returncode != 0:
+        return result.returncode
+    result = subprocess.run([f"{repo_root}/dev/tools/test-e2e"])
+    if result.returncode != 0:
+        return result.returncode
+    
     artifact_dir = os.getenv("ARTIFACTS")
     if artifact_dir:
         shutil.copy(f"{repo_root}/bin/e2e-junit.xml", f"{artifact_dir}/junit.xml")
 
-    return exit_code
+    return 0
 
 
 if __name__ == "__main__":
