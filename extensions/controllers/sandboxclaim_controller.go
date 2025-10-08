@@ -67,32 +67,34 @@ func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	originalClaimStatus := claim.Status.DeepCopy()
 	var combinedErrors error
 
-	// Try getting template and sandbox, collect errors if any
+	// Try getting template
 	template, err := r.getTemplate(ctx, claim)
-	// We ignore the not found error and handle it via template being nil
 	if k8errors.IsNotFound(err) {
+		// This is to differentiate from other get errors.
+		// template not found case still needs to be handled by the controller.
 		template = nil
 		err = nil
 	}
+	// accumulate any error. We still want to continue processing to check if sandbox exists
 	combinedErrors = errors.Join(combinedErrors, err)
+
+	// Try getting sandbox
 	sandbox, err := r.getSandbox(ctx, claim)
 	if k8errors.IsNotFound(err) {
+		// This is to differentiate from other get errors.
 		// We ignore the not found error and handle it via sandbox being nil
 		sandbox = nil
 		err = nil
 	}
 	combinedErrors = errors.Join(combinedErrors, err)
 
+	// If any errors getting template or sandbox, skip further processing and update status and return error
+	// controller will retry on error
 	if combinedErrors == nil {
-		if template == nil {
-			err := fmt.Errorf("sandboxtemplate %q not found", claim.Spec.TemplateRef.Name)
-			logger.Error(err, "Missing sandbox template")
-			combinedErrors = errors.Join(combinedErrors, err)
-		}
 		if sandbox != nil {
 			logger.Info("sandbox already exists, skipping update", "name", sandbox.Name)
 			if !r.isControlledByClaim(sandbox, claim) {
-				err := fmt.Errorf("sandbox %q is not controlled by claim %q", sandbox.Name, claim.Name)
+				err := fmt.Errorf("sandbox %q is not controlled by claim %q. Please use a different claim name or delete the sandbox manually", sandbox.Name, claim.Name)
 				logger.Error(err, "Sandbox controller mismatch")
 				combinedErrors = errors.Join(combinedErrors, err)
 			}
@@ -186,14 +188,12 @@ func (r *SandboxClaimReconciler) computeAndSetStatus(claim *extensionsv1alpha1.S
 
 func (r *SandboxClaimReconciler) isControlledByClaim(sandbox *v1alpha1.Sandbox, claim *extensionsv1alpha1.SandboxClaim) bool {
 	// Check if the existing sandbox is owned by this claim
-	controlledBy := false
 	for _, ownerRef := range sandbox.OwnerReferences {
 		if ownerRef.UID == claim.UID && ownerRef.Controller != nil && *ownerRef.Controller {
-			controlledBy = true
-			break
+			return true
 		}
 	}
-	return controlledBy
+	return false
 }
 
 func (r *SandboxClaimReconciler) createSandbox(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim, template *extensionsv1alpha1.SandboxTemplate) (*v1alpha1.Sandbox, error) {
