@@ -216,6 +216,6 @@ func newScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
-func ignoreTimestamp(a, b metav1.Time) bool {
+func ignoreTimestamp(_, _ metav1.Time) bool {
 	return true
 }
