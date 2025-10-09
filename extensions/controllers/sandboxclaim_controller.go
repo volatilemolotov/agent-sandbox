@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 
 	k8errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -27,7 +28,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"sigs.k8s.io/agent-sandbox/api/v1alpha1"
@@ -49,8 +49,6 @@ type SandboxClaimReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	logger := log.FromContext(ctx)
-
 	claim := &extensionsv1alpha1.SandboxClaim{}
 	if err := r.Get(ctx, req.NamespacedName, claim); err != nil {
 		if k8errors.IsNotFound(err) {
@@ -65,56 +63,35 @@ func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// cache the original status from sandboxclaim
 	originalClaimStatus := claim.Status.DeepCopy()
-	var combinedErrors error
+	var err error
+	var sandbox *v1alpha1.Sandbox
+	var template *extensionsv1alpha1.SandboxTemplate
 
 	// Try getting template
-	template, err := r.getTemplate(ctx, claim)
-	if k8errors.IsNotFound(err) {
-		// This is to differentiate from other get errors.
-		// template not found case still needs to be handled by the controller.
-		template = nil
-		err = nil
-	}
-	// accumulate any error. We still want to continue processing to check if sandbox exists
-	combinedErrors = errors.Join(combinedErrors, err)
-
-	// Try getting sandbox
-	sandbox, err := r.getSandbox(ctx, claim)
-	if k8errors.IsNotFound(err) {
-		// This is to differentiate from other get errors.
-		// We ignore the not found error and handle it via sandbox being nil
-		sandbox = nil
-		err = nil
-	}
-	combinedErrors = errors.Join(combinedErrors, err)
-
-	// If any errors getting template or sandbox, skip further processing and update status and return error
-	// controller will retry on error
-	if combinedErrors == nil {
-		if sandbox != nil {
-			logger.Info("sandbox already exists, skipping update", "name", sandbox.Name)
-			if !r.isControlledByClaim(sandbox, claim) {
-				err := fmt.Errorf("sandbox %q is not controlled by claim %q. Please use a different claim name or delete the sandbox manually", sandbox.Name, claim.Name)
-				logger.Error(err, "Sandbox controller mismatch")
-				combinedErrors = errors.Join(combinedErrors, err)
-			}
-		} else {
-			sandbox, err = r.createSandbox(ctx, claim, template)
-			combinedErrors = errors.Join(combinedErrors, err)
-		}
+	if template, err = r.getTemplate(ctx, claim); err == nil {
+		// Try getting sandbox
+		// At this point template may be nil if not found
+		sandbox, err = r.getOrCreateSandbox(ctx, claim, template)
 	}
 
 	// Update claim status
-	r.computeAndSetStatus(claim, sandbox, template, combinedErrors)
-	if err := r.updateStatus(ctx, originalClaimStatus, claim); err != nil {
-		combinedErrors = errors.Join(combinedErrors, err)
+	r.computeAndSetStatus(claim, sandbox, template, err)
+	if updateErr := r.updateStatus(ctx, originalClaimStatus, claim); updateErr != nil {
+		err = errors.Join(err, updateErr)
 	}
 
-	return ctrl.Result{}, combinedErrors
+	return ctrl.Result{}, err
 }
 
 func (r *SandboxClaimReconciler) updateStatus(ctx context.Context, oldStatus *extensionsv1alpha1.SandboxClaimStatus, claim *extensionsv1alpha1.SandboxClaim) error {
 	log := log.FromContext(ctx)
+
+	sort.Slice(oldStatus.Conditions, func(i, j int) bool {
+		return oldStatus.Conditions[i].Type < oldStatus.Conditions[j].Type
+	})
+	sort.Slice(claim.Status.Conditions, func(i, j int) bool {
+		return claim.Status.Conditions[i].Type < claim.Status.Conditions[j].Type
+	})
 
 	if reflect.DeepEqual(oldStatus, &claim.Status) {
 		return nil
@@ -181,8 +158,6 @@ func (r *SandboxClaimReconciler) computeAndSetStatus(claim *extensionsv1alpha1.S
 
 	if sandbox != nil {
 		claim.Status.SandboxStatus.Name = sandbox.Name
-		claim.Status.SandboxStatus.ServiceFQDN = sandbox.Status.ServiceFQDN
-		claim.Status.SandboxStatus.Service = sandbox.Status.Service
 	}
 }
 
@@ -198,12 +173,6 @@ func (r *SandboxClaimReconciler) isControlledByClaim(sandbox *v1alpha1.Sandbox, 
 
 func (r *SandboxClaimReconciler) createSandbox(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim, template *extensionsv1alpha1.SandboxTemplate) (*v1alpha1.Sandbox, error) {
 	logger := log.FromContext(ctx)
-	if template == nil {
-		err := fmt.Errorf("sandboxtemplate not found")
-		logger.Error(err, "cannot create sandbox")
-		// returning nil error here since computeStatus will surface this in ready condition
-		return nil, nil
-	}
 
 	logger.Info("creating sandbox from template", "template", template.Name)
 	sandbox := &v1alpha1.Sandbox{
@@ -216,7 +185,7 @@ func (r *SandboxClaimReconciler) createSandbox(ctx context.Context, claim *exten
 	sandbox.Spec.PodTemplate.ObjectMeta.Labels = template.Spec.PodTemplate.Labels
 	sandbox.Spec.PodTemplate.ObjectMeta.Annotations = template.Spec.PodTemplate.Annotations
 	if err := controllerutil.SetControllerReference(claim, sandbox, r.Scheme); err != nil {
-		err := fmt.Errorf("failed to set controller reference for sandbox: %w", err)
+		err = fmt.Errorf("failed to set controller reference for sandbox: %w", err)
 		logger.Error(err, "Error creating sandbox for claim: %q", claim.Name)
 		return nil, err
 	}
@@ -230,22 +199,40 @@ func (r *SandboxClaimReconciler) createSandbox(ctx context.Context, claim *exten
 	return sandbox, nil
 }
 
-func (r *SandboxClaimReconciler) getSandbox(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim) (*v1alpha1.Sandbox, error) {
+func (r *SandboxClaimReconciler) getOrCreateSandbox(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim, template *extensionsv1alpha1.SandboxTemplate) (*v1alpha1.Sandbox, error) {
+	logger := log.FromContext(ctx)
 	sandbox := &v1alpha1.Sandbox{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: claim.Namespace,
 			Name:      claim.Name,
 		},
 	}
-	var err error
-	if err = r.Get(ctx, client.ObjectKeyFromObject(sandbox), sandbox); err != nil {
+	if err := r.Get(ctx, client.ObjectKeyFromObject(sandbox), sandbox); err != nil {
 		sandbox = nil
 		if !k8errors.IsNotFound(err) {
 			err = fmt.Errorf("failed to get sandbox %q: %w", claim.Name, err)
+			return nil, err
 		}
 	}
 
-	return sandbox, err
+	if sandbox != nil {
+		logger.Info("sandbox already exists, skipping update", "name", sandbox.Name)
+		if !r.isControlledByClaim(sandbox, claim) {
+			err := fmt.Errorf("sandbox %q is not controlled by claim %q. Please use a different claim name or delete the sandbox manually", sandbox.Name, claim.Name)
+			logger.Error(err, "Sandbox controller mismatch")
+			return nil, err
+		}
+		return sandbox, nil
+	}
+
+	if template == nil {
+		err := fmt.Errorf("sandboxtemplate not found")
+		logger.Error(err, "cannot create sandbox")
+		// returning nil error here since computeStatus will surface this in ready condition
+		return nil, nil
+	}
+
+	return r.createSandbox(ctx, claim, template)
 }
 
 func (r *SandboxClaimReconciler) getTemplate(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim) (*extensionsv1alpha1.SandboxTemplate, error) {
@@ -255,21 +242,24 @@ func (r *SandboxClaimReconciler) getTemplate(ctx context.Context, claim *extensi
 			Name:      claim.Spec.TemplateRef.Name,
 		},
 	}
-	var err error
-	if err = r.Get(ctx, client.ObjectKeyFromObject(template), template); err != nil {
-		template = nil
+	if err := r.Get(ctx, client.ObjectKeyFromObject(template), template); err != nil {
 		if !k8errors.IsNotFound(err) {
 			err = fmt.Errorf("failed to get sandbox template %q: %w", claim.Spec.TemplateRef.Name, err)
+		} else {
+			// This is to differentiate from other get errors.
+			// template not found case still needs to be handled by the controller.
+			err = nil
 		}
+		return nil, err
 	}
 
-	return template, err
+	return template, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SandboxClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&extensionsv1alpha1.SandboxClaim{}).
-		Watches(&sandboxv1alpha1.Sandbox{}, &handler.EnqueueRequestForObject{}).
+		Owns(&sandboxv1alpha1.Sandbox{}).
 		Complete(r)
 }

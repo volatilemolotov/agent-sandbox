@@ -72,6 +72,11 @@ func TestSandboxClaimReconcile(t *testing.T) {
 			Name:      "test-claim",
 			Namespace: "default",
 		},
+		Spec: v1alpha1.SandboxSpec{
+			PodTemplate: v1alpha1.PodTemplate{
+				Spec: template.Spec.PodTemplate.Spec,
+			},
+		},
 	}
 
 	controlledSandbox := &v1alpha1.Sandbox{
@@ -87,6 +92,19 @@ func TestSandboxClaimReconcile(t *testing.T) {
 					Controller: func(b bool) *bool { return &b }(true),
 				},
 			},
+		},
+		Spec: v1alpha1.SandboxSpec{
+			PodTemplate: v1alpha1.PodTemplate{
+				Spec: template.Spec.PodTemplate.Spec,
+			},
+		},
+	}
+
+	readySandbox := controlledSandbox.DeepCopy()
+	readySandbox.Status.Conditions = []metav1.Condition{
+		{
+			Type:   string(sandboxv1alpha1.SandboxConditionReady),
+			Status: metav1.ConditionTrue,
 		},
 	}
 
@@ -125,9 +143,10 @@ func TestSandboxClaimReconcile(t *testing.T) {
 			expectSandbox:   true,
 			expectError:     true,
 			expectedCondition: metav1.Condition{
-				Type:   string(sandboxv1alpha1.SandboxConditionReady),
-				Status: metav1.ConditionFalse,
-				Reason: "ReconcilerError",
+				Type:    string(sandboxv1alpha1.SandboxConditionReady),
+				Status:  metav1.ConditionFalse,
+				Reason:  "ReconcilerError",
+				Message: "Error seen: sandbox \"test-claim\" is not controlled by claim \"test-claim\". Please use a different claim name or delete the sandbox manually",
 			},
 		},
 		{
@@ -139,6 +158,28 @@ func TestSandboxClaimReconcile(t *testing.T) {
 				Status:  metav1.ConditionFalse,
 				Reason:  "SandboxNotReady",
 				Message: "Sandbox is not ready",
+			},
+		},
+		{
+			name:            "sandbox exists but template is not found",
+			existingObjects: []client.Object{claim, readySandbox},
+			expectSandbox:   true,
+			expectedCondition: metav1.Condition{
+				Type:    string(sandboxv1alpha1.SandboxConditionReady),
+				Status:  metav1.ConditionTrue,
+				Reason:  "SandboxReady",
+				Message: "Sandbox is ready",
+			},
+		},
+		{
+			name:            "sandbox is ready",
+			existingObjects: []client.Object{template, claim, readySandbox},
+			expectSandbox:   true,
+			expectedCondition: metav1.Condition{
+				Type:    string(sandboxv1alpha1.SandboxConditionReady),
+				Status:  metav1.ConditionTrue,
+				Reason:  "SandboxReady",
+				Message: "Sandbox is ready",
 			},
 		},
 	}
@@ -193,10 +234,9 @@ func TestSandboxClaimReconcile(t *testing.T) {
 				if condition.Reason != "ReconcilerError" {
 					t.Errorf("expected condition reason %q, got %q", "ReconcilerError", condition.Reason)
 				}
-			} else {
-				if diff := cmp.Diff(tc.expectedCondition, condition, cmp.Comparer(ignoreTimestamp)); diff != "" {
-					t.Errorf("unexpected condition:\n%s", diff)
-				}
+			}
+			if diff := cmp.Diff(tc.expectedCondition, condition, cmp.Comparer(ignoreTimestamp)); diff != "" {
+				t.Errorf("unexpected condition:\n%s", diff)
 			}
 		})
 	}

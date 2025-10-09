@@ -80,10 +80,6 @@ spec:
                 properties:
                   Name:
                     type: string
-                  service:
-                    type: string
-                  serviceFQDN:
-                    type: string
                 type: object
             type: object
         required:

@@ -64,17 +64,6 @@ type SandboxStatus struct {
 	// SandboxName is the name of the Sandbox created from this claim
 	// +optional
 	Name string `json:"Name,omitempty"`
-
-	//
-	// FQDN that is valid for default cluster settings
-	// Limitation: Hardcoded to the domain .cluster.local
-	// e.g. sandbox-example.default.svc.cluster.local
-	// +optional
-	ServiceFQDN string `json:"serviceFQDN,omitempty"`
-
-	// e.g. sandbox-example
-	// +optional
-	Service string `json:"service,omitempty"`
 }
 
 // +kubebuilder:object:root=true
