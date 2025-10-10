@@ -130,6 +130,7 @@ func TestSandboxClaimReconcile(t *testing.T) {
 			name:            "sandbox is not created when template is not found",
 			existingObjects: []client.Object{claim},
 			expectSandbox:   false,
+			expectError:     true,
 			expectedCondition: metav1.Condition{
 				Type:    string(sandboxv1alpha1.SandboxConditionReady),
 				Status:  metav1.ConditionFalse,

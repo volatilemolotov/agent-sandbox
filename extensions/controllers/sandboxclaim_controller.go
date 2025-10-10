@@ -35,6 +35,9 @@ import (
 	extensionsv1alpha1 "sigs.k8s.io/agent-sandbox/extensions/api/v1alpha1"
 )
 
+// ErrTemplateNotFound is a sentinel error indicating a SandboxTemplate was not found.
+var ErrTemplateNotFound = errors.New("SandboxTemplate not found")
+
 // SandboxClaimReconciler reconciles a SandboxClaim object
 type SandboxClaimReconciler struct {
 	client.Client
@@ -68,14 +71,14 @@ func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	var template *extensionsv1alpha1.SandboxTemplate
 
 	// Try getting template
-	if template, err = r.getTemplate(ctx, claim); err == nil {
-		// Try getting sandbox
-		// At this point template may be nil if not found
+	if template, err = r.getTemplate(ctx, claim); err == nil || k8errors.IsNotFound(err) {
+		// Try getting sandbox even if template is not found
+		// It is possible that the template was deleted after the sandbox was created
 		sandbox, err = r.getOrCreateSandbox(ctx, claim, template)
 	}
 
 	// Update claim status
-	r.computeAndSetStatus(claim, sandbox, template, err)
+	r.computeAndSetStatus(claim, sandbox, err)
 	if updateErr := r.updateStatus(ctx, originalClaimStatus, claim); updateErr != nil {
 		err = errors.Join(err, updateErr)
 	}
@@ -105,7 +108,7 @@ func (r *SandboxClaimReconciler) updateStatus(ctx context.Context, oldStatus *ex
 	return nil
 }
 
-func (r *SandboxClaimReconciler) computeReadyCondition(claim *extensionsv1alpha1.SandboxClaim, sandbox *v1alpha1.Sandbox, template *extensionsv1alpha1.SandboxTemplate, err error) metav1.Condition {
+func (r *SandboxClaimReconciler) computeReadyCondition(claim *extensionsv1alpha1.SandboxClaim, sandbox *v1alpha1.Sandbox, err error) metav1.Condition {
 	readyCondition := metav1.Condition{
 		Type:               string(sandboxv1alpha1.SandboxConditionReady),
 		ObservedGeneration: claim.Generation,
@@ -114,46 +117,36 @@ func (r *SandboxClaimReconciler) computeReadyCondition(claim *extensionsv1alpha1
 
 	// Reconciler errors take precedence. They are expected to be transient.
 	if err != nil {
+		if errors.Is(err, ErrTemplateNotFound) {
+			readyCondition.Reason = "TemplateNotFound"
+			readyCondition.Message = fmt.Sprintf("SandboxTemplate %q not found", claim.Spec.TemplateRef.Name)
+			return readyCondition
+		}
 		readyCondition.Reason = "ReconcilerError"
 		readyCondition.Message = "Error seen: " + err.Error()
 		return readyCondition
 	}
 
-	if sandbox == nil && template == nil {
-		readyCondition.Reason = "TemplateNotFound"
-		readyCondition.Message = fmt.Sprintf("SandboxTemplate %q not found", claim.Spec.TemplateRef.Name)
-		return readyCondition
-	}
-
-	if sandbox != nil {
-		sandboxReady := false
-		for _, condition := range sandbox.Status.Conditions {
-			if condition.Type == string(sandboxv1alpha1.SandboxConditionReady) {
-				if condition.Status == metav1.ConditionTrue {
-					sandboxReady = true
-				}
-				break
+	// Sanbox should be non-nil if err is nil
+	for _, condition := range sandbox.Status.Conditions {
+		if condition.Type == string(sandboxv1alpha1.SandboxConditionReady) {
+			if condition.Status == metav1.ConditionTrue {
+				readyCondition.Status = metav1.ConditionTrue
+				readyCondition.Reason = "SandboxReady"
+				readyCondition.Message = "Sandbox is ready"
+				return readyCondition
 			}
 		}
-		if sandboxReady {
-			readyCondition.Status = metav1.ConditionTrue
-			readyCondition.Reason = "SandboxReady"
-			readyCondition.Message = "Sandbox is ready"
-		} else {
-			readyCondition.Reason = "SandboxNotReady"
-			readyCondition.Message = "Sandbox is not ready"
-		}
-	} else {
-		readyCondition.Reason = "SandboxNotFound"
-		readyCondition.Message = "Sandbox not found"
 	}
 
+	readyCondition.Reason = "SandboxNotReady"
+	readyCondition.Message = "Sandbox is not ready"
 	return readyCondition
 }
 
-func (r *SandboxClaimReconciler) computeAndSetStatus(claim *extensionsv1alpha1.SandboxClaim, sandbox *v1alpha1.Sandbox, template *extensionsv1alpha1.SandboxTemplate, err error) {
+func (r *SandboxClaimReconciler) computeAndSetStatus(claim *extensionsv1alpha1.SandboxClaim, sandbox *v1alpha1.Sandbox, err error) {
 	// compute and set overall Ready condition
-	readyCondition := r.computeReadyCondition(claim, sandbox, template, err)
+	readyCondition := r.computeReadyCondition(claim, sandbox, err)
 	meta.SetStatusCondition(&claim.Status.Conditions, readyCondition)
 
 	if sandbox != nil {
@@ -173,6 +166,11 @@ func (r *SandboxClaimReconciler) isControlledByClaim(sandbox *v1alpha1.Sandbox, 
 
 func (r *SandboxClaimReconciler) createSandbox(ctx context.Context, claim *extensionsv1alpha1.SandboxClaim, template *extensionsv1alpha1.SandboxTemplate) (*v1alpha1.Sandbox, error) {
 	logger := log.FromContext(ctx)
+
+	if template == nil {
+		logger.Error(ErrTemplateNotFound, "cannot create sandbox")
+		return nil, ErrTemplateNotFound
+	}
 
 	logger.Info("creating sandbox from template", "template", template.Name)
 	sandbox := &v1alpha1.Sandbox{
@@ -225,13 +223,6 @@ func (r *SandboxClaimReconciler) getOrCreateSandbox(ctx context.Context, claim *
 		return sandbox, nil
 	}
 
-	if template == nil {
-		err := fmt.Errorf("sandboxtemplate not found")
-		logger.Error(err, "cannot create sandbox")
-		// returning nil error here since computeStatus will surface this in ready condition
-		return nil, nil
-	}
-
 	return r.createSandbox(ctx, claim, template)
 }
 
@@ -245,10 +236,6 @@ func (r *SandboxClaimReconciler) getTemplate(ctx context.Context, claim *extensi
 	if err := r.Get(ctx, client.ObjectKeyFromObject(template), template); err != nil {
 		if !k8errors.IsNotFound(err) {
 			err = fmt.Errorf("failed to get sandbox template %q: %w", claim.Spec.TemplateRef.Name, err)
-		} else {
-			// This is to differentiate from other get errors.
-			// template not found case still needs to be handled by the controller.
-			err = nil
 		}
 		return nil, err
 	}
