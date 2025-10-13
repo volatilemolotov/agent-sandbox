@@ -37,7 +37,7 @@
       <div class="text-center">
         <div>
           {{ with .Get "title" }}<h1 class="display-1 mt-0 mt-md-5 pb-4 pt-5">{{ $title := . }}{{ with $logo_image }}{{ $logo_image_resized := (.Fit (printf "70x70 %s" $logo_anchor)) }}<img class="td-cover-logo" src="{{ $logo_image_resized.RelPermalink }}" alt="{{ $title | html }} Logo">{{ end }}{{ $title | html }}</h1>{{ end }}
-          {{ with .Get "subtitle" }}<h2 class="display-2">{{ . | html }}<a class="home-link" href="https://cloud.google.com/kubernetes-engine/docs/integrations/ai-infra">Google Kubernetes Engine (GKE)</a></h2>{{ end }}  
+          {{ with .Get "subtitle" }}<h2 class="display-2">{{ . | html }}{{ end }}  
           {{ if eq .Page.File.Ext "md" }}
               {{ .Inner | markdownify }}
           {{ else }}

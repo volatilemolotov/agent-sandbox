@@ -14,8 +14,8 @@
 # limitations under the License.
 
 languageCode: en-us
-title: GKE AI Labs
-baseUrl: https://gke-ai-labs.dev/
+title: Agent Sandbox Site
+baseUrl: https://LINKHERE/
 
 enableGitInfo: false
 enableRobotsTXT: true
@@ -44,12 +44,13 @@ markup:
 module:
   imports:
     - path: github.com/google/docsy
+
 params:
-  github_repo: https://github.com/ai-on-gke/website
+  github_repo: https://github.com/volatilemolotov/agent-sandbox
   prism_syntax_highlighting: true
   path_base_for_github_subdir: /site
   github_branch: main
-  github_project_repo: https://github.com/ai-on-gke/website
+  github_project_repo: https://github.com/volatilemolotov/agent-sandbox
   copyright:
     authors: Website Authors | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0) |
     from_year: 2018

@@ -1,6 +1,6 @@
 ---
-title: "Tutorials & Notebooks"
-linkTitle: "Tutorials & Notebooks"
+title: "Documentation"
+linkTitle: "Documentation"
 weight: 30
 type: docs-root
 notoc: true
