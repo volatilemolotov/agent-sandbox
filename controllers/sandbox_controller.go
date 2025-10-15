@@ -101,7 +101,7 @@ func (r *SandboxReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	oldStatus := sandbox.Status.DeepCopy()
 	var err error
 
-	expired, requeueAfter := r.checkSandboxExpiry(sandbox)
+	expired, requeueAfter := checkSandboxExpiry(sandbox)
 
 	// Check if sandbox has expired
 	if expired {
@@ -437,7 +437,7 @@ func (r *SandboxReconciler) handleSandboxExpiry(ctx context.Context, sandbox *sa
 // checks if the sandbox has expired
 // returns true if expired, false otherwise
 // if not expired, also returns the duration to requeue after
-func (r *SandboxReconciler) checkSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox) (bool, time.Duration) {
+func checkSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox) (bool, time.Duration) {
 	if sandbox.Spec.ShutdownTime == nil {
 		return false, 0
 	}
