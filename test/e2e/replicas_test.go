@@ -74,12 +74,10 @@ func TestSandboxReplicas(t *testing.T) {
 	// Wait for sandbox status to reflect new state
 	p = []predicates.ObjectPredicate{
 		predicates.SandboxHasStatus(sandboxv1alpha1.SandboxStatus{
-			Service:     "my-sandbox",
-			ServiceFQDN: "my-sandbox.my-sandbox-ns.svc.cluster.local",
-			// TODO: replicas status should be set to zero
-			Replicas: 1,
-			// TODO: should labelSelector be cleared?
-			LabelSelector: "agents.x-k8s.io/sandbox-name-hash=" + nameHash,
+			Service:       "my-sandbox",
+			ServiceFQDN:   "my-sandbox.my-sandbox-ns.svc.cluster.local",
+			Replicas:      0,
+			LabelSelector: "",
 			Conditions: []metav1.Condition{
 				{
 					Message:            "Pod does not exist, replicas is 0; Service Exists",
