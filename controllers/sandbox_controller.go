@@ -134,10 +134,13 @@ func (r *SandboxReconciler) reconcileChildResources(ctx context.Context, sandbox
 	// Reconcile Pod
 	pod, err := r.reconcilePod(ctx, sandbox, nameHash)
 	allErrors = errors.Join(allErrors, err)
-	if pod != nil {
+	if pod == nil {
+		sandbox.Status.Replicas = 0
+		sandbox.Status.LabelSelector = ""
+	} else {
 		sandbox.Status.Replicas = 1
+		sandbox.Status.LabelSelector = fmt.Sprintf("%s=%s", sandboxLabel, NameHash(sandbox.Name))
 	}
-	sandbox.Status.LabelSelector = fmt.Sprintf("%s=%s", sandboxLabel, NameHash(sandbox.Name))
 
 	// Reconcile Service
 	svc, err := r.reconcileService(ctx, sandbox, nameHash)
