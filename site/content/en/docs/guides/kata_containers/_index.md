@@ -6,7 +6,8 @@ description: >
   This guide shows how to run [Agent Sangbox](https://github.com/kubernetes-sigs/agent-sandbox) with the [Kata Containers](https://katacontainers.io/) runtime using minikube as a cluster.
 ---
 
-NOTE: This guide is only tested on hardware with Linux operating system and KVM.
+> [!NOTE]
+> This guide is only tested on hardware with Linux operating system and KVM.
 
 ## Prerequisites
 
@@ -202,7 +203,7 @@ In order to verify that everything works, we install the simplest example from t
 
 8. As an alternative, we can also compare kernel versions between the created sandbox container and a node.  
      
-   >[!NOTE]
+   > [!NOTE]
    > There may be a chance that the kernel version of the Kata Containers matches the kernel version of the node, however, we assume this is usually not the case.  
      
    1. Get kernel version of the node that hosts the sandbox’s:
