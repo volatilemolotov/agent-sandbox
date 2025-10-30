@@ -85,7 +85,7 @@ In order to install Kata Containers we use the [kata-deploy helm chart](https://
 1. Clone the `agent-sandbox` repository if needed:
 
    ```sh
-   git clone https://github.com/volatilemolotov/agent-sandbox.git
+   git clone https://github.com/kubernetes-sigs/agent-sandbox.git
    ```
 
 2. Move to the repository folder:

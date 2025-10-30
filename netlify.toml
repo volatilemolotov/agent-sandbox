@@ -8,7 +8,7 @@
 
 [context.production.environment]
   HUGO_ENV = "production"
-  HUGO_BASEURL = "https://sandbox.volatilemolotov.com/"
+  HUGO_BASEURL = "https://CHANGEME/"
 
 [context.deploy-preview]
   command = "hugo --enableGitInfo --buildFuture -b $DEPLOY_PRIME_URL"
