@@ -18,7 +18,7 @@ Run the following command to create a kind cluster and install Sandbox CRD:
 make deploy-kind
 ```
 
-## Install Kata-containers
+## Install gVisor
 
 Execute these commands to access the cluster's node. We will install gVisor there.
 ```sh
