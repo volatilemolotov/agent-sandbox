@@ -11,7 +11,7 @@ description: >
 * [kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
 * [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
-## Create minikube cluster
+## Create a kind cluster
 
 Run the following command to create a kind cluster and install Sandbox CRD:
 ```sh
