@@ -77,7 +77,7 @@ kubectl get pods -n agent-sandbox-system
 kubectl get crds | grep agents.x-k8s.io
 
 # Check controller logs
-kubectl logs -n agent-sandbox-system -l control-plane=controller-manager -f
+kubectl logs -n agent-sandbox-system agent-sandbox-controller-0 -f  
 ```
 
 You should see the controller pod in `Running` state.
