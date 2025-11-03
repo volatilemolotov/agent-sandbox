@@ -12,22 +12,22 @@ This guide provides step-by-step instructions for installing and running the age
 Ensure you have the following prerequisites installed:
 
 **Required Tools:**
-- [Go](https://golang.org/doc/install)
-- [make](https://www.gnu.org/software/make/)
-- [Python 3](https://www.python.org/downloads/) with pip
 - [Docker](https://docs.docker.com/get-docker/)
-- [Docker buildx plugin](https://github.com/docker/buildx?tab=readme-ov-file#installing)
 - [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 
 **Verify installations:**
 ```bash
-go version
-make --version
-python3 --version
 docker --version
 kind --version
 kubectl version --client
+```
+## Create a Kind cluster
+
+Create a kind cluster with:
+
+```bash
+kind create cluster --name agent-sandbox
 ```
 
 ## Deploy Agent-Sandbox to kind
@@ -38,30 +38,14 @@ kubectl version --client
 git clone https://github.com/kubernetes-sigs/agent-sandbox.git
 cd agent-sandbox
 ```
-
-### Set Up Python Environment
-
-The deployment scripts require Python with pyyaml:
-
-```bash
-# Create virtual environment
-python3 -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate
-
-# Install required packages
-pip install pyyaml
-```
-
-**Note:** Keep the virtualenv activated for all make commands. Deactivate with `deactivate` when done.
-
 ### Deploy to kind
 
-With the virtualenv activated, deploy using the Makefile target:
+With kubectl install the controller:
 
 ```bash
-make deploy-kind
+export VERSION=v0.1.0
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/manifest.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/extensions.yaml
 ```
 
 This command will:
@@ -109,11 +93,6 @@ kind delete cluster --name agent-sandbox
 ```
 
 ## Troubleshooting
-
-**Python module not found errors:**
-- Activate virtual environment: `source .venv/bin/activate`
-- Reinstall dependencies: `pip install pyyaml`
-- Verify Python version: `python3 --version` (requires 3.11+)
 
 **Controller pod not starting:**
 - Check logs: `kubectl logs -l app=agent-sandbox-controller`
