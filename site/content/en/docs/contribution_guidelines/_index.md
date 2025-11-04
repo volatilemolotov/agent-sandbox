@@ -27,6 +27,7 @@ If your repo has certain guidelines for contribution, put them here ahead of the
 
 ## Contact Information
 
-- [Slack channel](https://kubernetes.slack.com/messages/sig-apps)
+- [Slack channel](https://kubernetes.slack.com/messages/agent-sandbox)
+  - Make sure you first join the [Kubernetes Slack](https://slack.k8s.io/)
 - [Mailing List](https://groups.google.com/a/kubernetes.io/g/sig-apps)
 
