@@ -8,6 +8,19 @@ description: >
 
 The server application includes a FastAPI server that can execute commands that are sent to it through HTTP requests.
 
+## Python Classes of the server app
+
+The `examples/python-runtime-sandbox/main.py` file defines the following Pydantic models to ensure type-safe data for the API endpoints:
+
+### `ExecuteRequest`
+This class models the request body for the `/execute` endpoint.
+- **`command: str`**: The shell command to be executed in the sandbox.
+
+### `ExecuteResponse`
+This class models the response body for the `/execute` endpoint.
+- **`stdout: str`**: The standard output from the executed command.
+- **`stderr: str`**: The standard error from the executed command.
+- **`exit_code: int`**: The exit code of the executed command.
 ## Install Agent Sandbox on a local Kind cluster
 
 In this example we will create a [Kind (Kubernetes In Docker)](https://kind.sigs.k8s.io/) cluster to install the Agent Sandbox.
