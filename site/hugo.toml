@@ -157,13 +157,13 @@ ignoreFiles = []
 # End user relevant links. These will show up on left side of footer and in the community page if you have one.
   [[params.links.user]]
     name = "User mailing list"
-    url = "https://groups.google.com/a/kubernetes.io/g/CHANGEME"
+    url = "https://groups.google.com/a/kubernetes.io/g/sig-apps"
     icon = "fa fa-envelope"
     desc = "Discussion and help from your fellow users"
   [[params.links.user]]
     name ="Twitter"
-    url = "https://twitter.com/CHANGEME"
-    icon = "fab fa-twitter"
+    url = "https://x.com/kubernetesio"
+    icon = "fab fa-x-twitter"
     desc = "Follow us on Twitter to get the latest news!"
   [[params.links.user]]
     name = "Stack Overflow"
