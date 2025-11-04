@@ -33,7 +33,7 @@ description: >
 minikube start --vm-driver kvm2 --memory 8192  --container-runtime=containerd --bootstrapper=kubeadm
 ```
 
-## Install Kata-containers
+## Install Kata Containers
 
 In order to install Kata Containers we use the [kata-deploy helm chart](https://github.com/kata-containers/kata-containers/tree/main/tools/packaging/kata-deploy/helm-chart)
 
@@ -82,6 +82,23 @@ In order to install Kata Containers we use the [kata-deploy helm chart](https://
 
 ## Install Agent Sandbox Controller
 
+1. Apply the Agent Sandbox manifest:
+
+   ```sh
+   kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v0.1.0-rc.1/manifest.yaml
+
+   ```
+
+2. Wait until the controller’s daemonset in ready:
+
+   ```sh
+   kubectl -n agent-sandbox-system rollout status statefulset/agent-sandbox-controller
+   ```
+
+## Create a test sandbox
+
+In order to verify that everything works, we install the simplest example from the agent-sadbox repository.
+
 1. Clone the `agent-sandbox` repository if needed:
 
    ```sh
@@ -94,47 +111,19 @@ In order to install Kata Containers we use the [kata-deploy helm chart](https://
    cd agent-sandbox
    ```
 
-3. \[TEMPORARY\] Replace image name in the Agent Sandbox deployment manifest file. This is a temporary measure and it will be removed when the public image is available.
-
-   ```sh
-   sed -i 's%image:\s\+[^$]\+%image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/agent-sandbox-controller:latest-main%g' k8s/deployment.yaml
-   ```
-
-4. Install Agent Sandbox CRD’s:  
-
-   ```sh
-   kubectl apply -f k8s/crds
-   ```
-
-5. Deploy Agent Sandbox controller deployment alongside with all other necessary resources:  
-
-   ```sh
-   kubectl apply -f k8s
-   ```
-
-6. Wait until the controller’s daemonset in ready:
-
-   ```sh
-   kubectl -n agent-sandbox-system rollout status statefulset/agent-sandbox-controller
-   ```
-
-## Create a test sandbox
-
-In order to verify that everything works, we install the simplest example from the agent-sadbox repository.
-
-1. Create a namespace for a sandbox:
+3. Create a namespace for a sandbox:
 
    ```sh
    kubectl apply -f examples/sandbox-ns.yaml
    ```
 
-2. Create a service account for a sandbox:
+4. Create a service account for a sandbox:
 
    ```sh
    kubectl apply -f examples/sandbox-sa.yaml
    ```
 
-3. Before creating a sandbox, change the runtime class for Kata Containers in the sandbox’s manifest.   
+5. Before creating a sandbox, change the runtime class for Kata Containers in the sandbox’s manifest:
      
    Open `examples/sandbox.yaml` manifest file and add the field `runtimeClassName` with value `kata-qemu` in the path `spec.podTemplate.spec`.
 
@@ -155,19 +144,19 @@ In order to verify that everything works, we install the simplest example from t
    ...
    ```
 
-4. Create a sandbox:
+6. Create a sandbox:
 
    ```sh
    kubectl apply -f examples/sandbox.yaml
    ```
 
-5. Wait until sandbox is successfully created:
+7. Wait until sandbox is successfully created:
 
    ```sh
    kubectl -n sandbox-ns wait --for=condition=Ready sandbox/sandbox-example
    ```
 
-6. Additionally, verify that example sandbox’s pod exists and running:  
+8. Additionally, verify that example sandbox’s pod exists and running:
 
    ```sh
    kubectl -n sandbox-ns get pods
@@ -180,7 +169,7 @@ In order to verify that everything works, we install the simplest example from t
    sandbox-example   1/1     Running   0          15s
    ```
 
-7. Describe the pod and verify that is has desired runtime class:
+9. Describe the pod and verify that is has desired runtime class:
 
    ```sh
    kubectl -n sandbox-ns describe sandbox/sandbox-example
@@ -201,7 +190,7 @@ In order to verify that everything works, we install the simplest example from t
    ...
    ```
 
-8. As an alternative, we can also compare kernel versions between the created sandbox container and a node.  
+10. As an alternative, we can also compare kernel versions between the created sandbox container and a node:
      
    > [!NOTE]
    > There may be a chance that the kernel version of the Kata Containers matches the kernel version of the node, however, we assume this is usually not the case.  
