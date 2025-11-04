@@ -112,3 +112,11 @@ In this example we will create a [Kind (Kubernetes In Docker)](https://kind.sigs
    ```log
    {"stdout":"hello world\n","stderr":"","exit_code":0}
    ```
+
+## Cleanup
+
+1. Delete the Kind cluster:
+
+   ```sh
+   make delete-kind
+   ```
