@@ -37,11 +37,7 @@ In this example we will create a [Kind (Kubernetes In Docker)](https://kind.sigs
    cd agent-sandbox
    ```
 
-3. Create a Kind cluster and deploy the agent controller by using Makefile target `deploy-kind`:
-
-   ```sh
-   make deploy-kind
-   ```
+3. Create a Kind cluster and deploy the agent controller by following this [installation tutorial](../../installation/_index.md).
 
 ## Deploy Python Runtime Sandbox
 

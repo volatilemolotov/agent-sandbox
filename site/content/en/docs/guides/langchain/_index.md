@@ -50,7 +50,7 @@ kubectl version --client # kubectl 1.25+
 
 ### 1. Deploy Agent-Sandbox to Kind
 
-You can find agent-sandbox setup instructions [here](../../INSTALL-kind.md).
+You can find agent-sandbox setup instructions [here](../../installation/_index.md).
 
 ```bash
 # Clone agent-sandbox repository
@@ -63,9 +63,6 @@ source .venv/bin/activate
 
 # Install Python dependencies
 pip install pyyaml
-
-# Deploy agent-sandbox to Kind
-make deploy-kind
 
 # Verify installation
 kubectl get pods -n agent-sandbox-system
