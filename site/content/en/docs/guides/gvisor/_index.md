@@ -14,9 +14,6 @@ description: >
 ## Create a kind cluster
 
 Create a Kind cluster and deploy the agent controller by following this [installation tutorial](../../installation/_index.md).
-```sh
-make deploy-kind
-```
 
 ## Install gVisor
 
