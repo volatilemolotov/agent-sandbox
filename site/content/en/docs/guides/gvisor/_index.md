@@ -13,7 +13,7 @@ description: >
 
 ## Create a kind cluster
 
-Run the following command to create a kind cluster and install Sandbox CRD:
+Create a Kind cluster and deploy the agent controller by following this [installation tutorial](../../installation/_index.md).
 ```sh
 make deploy-kind
 ```
