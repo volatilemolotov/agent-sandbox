@@ -3,7 +3,7 @@ title: "Concepts"
 linkTitle: "Concepts"
 weight: 2
 description: >
-  This section of the documentation helps you learn about the components, APIs and abstractions that Agent Sandbox uses to represent your cluster and workloads  **CHANGEME**
+  This section of the documentation helps you learn about the components, APIs and abstractions that Agent Sandbox uses to represent your cluster and workloads Core Agent Sandbox Concepts
 ---
 
 ## Sandbox
