@@ -114,5 +114,5 @@ In this example we will create a [Kind (Kubernetes In Docker)](https://kind.sigs
 1. Delete the Kind cluster:
 
    ```sh
-   make delete-kind
+   kind delete cluster --name agent-sandbox
    ```

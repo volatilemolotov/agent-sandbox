@@ -8,12 +8,6 @@ description: >
 
 ## Composing Sandbox with Network Policies
 
-Navigate to the folder with resources by running:
-```bash
-cd examples/composing-sandbox-nw-policies
-```
-
-
 The `Sandbox` API is a low-level primitive for creating secure sandboxes. In real-world scenarios, you often want to compose a `Sandbox` with other Kubernetes resources, such as `NetworkPolicy`, `Ingress` and `Service`, to create a more complete and secure "agentic sandbox" environment.
 
 * `Ingress` can be used to expose the Sandbox to Users and Agents outside the cluster.
@@ -60,7 +54,7 @@ dev/tools/install-kro
 Install the `ResourceGraphDefinition` (RGD) which defines our new `AgenticSandbox` CRD
 
 ```bash
-kubectl apply -f rgd.yaml
+kubectl apply -f examples/composing-sandbox-nw-policies/rgd.yaml
 ```
 
 Validate that the RGD is installed correctly:
