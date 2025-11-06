@@ -1,4 +1,4 @@
-module sigs.k8s.io/kueue/site
+module sigs.k8s.io/agent-sandbox/site
 
 go 1.25
 

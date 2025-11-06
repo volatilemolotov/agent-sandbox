@@ -8,7 +8,7 @@
 
 [context.production.environment]
   HUGO_ENV = "production"
-  HUGO_BASEURL = "https://CHANGEME/"
+  HUGO_BASEURL = "https://agent-sandbox.sigs.k8s.io/"
 
 [context.deploy-preview]
   command = "hugo --enableGitInfo --buildFuture -b $DEPLOY_PRIME_URL"

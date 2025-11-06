@@ -75,7 +75,7 @@ ignoreFiles = []
     [languages.en.params]
     language_code = "en-US"
   #[languages.zh-CN]
-  #  title = "Kueue"
+  #  title = "Agent Sandbox"
   #  languageName = "简体中文"
   #  weight = 2
   # contentDir = "content/zh-CN"
@@ -105,10 +105,10 @@ ignoreFiles = []
   # The major.minor version tag for the version of the docs represented in this
   # branch of the repository. Used in the "version-banner" partial to display a
   # version number for this doc set.
-  version = "CHANGEME"
+  version = "0.1.0"
 
-  # Version of Kueue without the leading "v", as used for Helm charts.
-  chart_version = "CHANGEME"
+  # Version of Agent Sandbox without the leading "v", as used for Helm charts.
+  chart_version = "0.1.0"
 
   # Flag used in the "version-banner" partial to decide whether to display a
   # banner on every page indicating that this is an archived version of the docs.
