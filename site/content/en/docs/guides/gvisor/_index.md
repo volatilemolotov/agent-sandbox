@@ -109,5 +109,5 @@ kubectl apply -f gvisor-empty-sandbox.yaml
 ## Cleanup
 
 ```sh
-make delete-kind
+kind delete cluster --name agent-sandbox
 ```
