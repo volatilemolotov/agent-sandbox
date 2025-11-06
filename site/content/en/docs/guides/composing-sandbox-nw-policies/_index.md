@@ -54,7 +54,7 @@ dev/tools/install-kro
 Install the `ResourceGraphDefinition` (RGD) which defines our new `AgenticSandbox` CRD
 
 ```bash
-kubectl apply -f rgd.yaml
+kubectl apply -f examples/composing-sandbox-nw-policies/rgd.yaml
 ```
 
 Validate that the RGD is installed correctly:
