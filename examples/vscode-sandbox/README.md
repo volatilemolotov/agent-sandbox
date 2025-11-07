@@ -52,6 +52,51 @@ Validate that the `Pod` with gVisor enabled is running:
 $ kubectl wait --for=condition=Ready sandbox sandbox-example
 $ kubectl get pods -o jsonpath=$'{range .items[*]}{.metadata.name}: {.spec.runtimeClassName}\n{end}'
 ```
+### Harden Agent Sandbox isolation using Kata Containers (Optional)
+
+#### Prerequisites
+
+* Host machine that supports nested virtualization
+
+   You can verify that by running:
+
+   ```sh
+   cat /sys/module/kvm_intel/parameters/nested
+   ```
+   In case of AMD platform replace `kvm_intel` with `kvm_amd`
+   The output must be “Y” or 1.
+
+* [minikube](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+#### Create minikube cluster
+
+> Note:
+> At this moment, we use only `containerd` runtime, since it works without additional adjustments.
+
+```sh
+minikube start --vm-driver kvm2 --memory 8192  --container-runtime=containerd --bootstrapper=kubeadm
+```
+
+#### Install Kata Containers
+
+Follow the instructions provided at [Kata Containers Installation Guide](https://github.com/kata-containers/kata-containers/tree/main/docs/install)
+
+#### Create a Sandbox using the kata-qemu runtimeClassName
+
+Apply the kustomize overlay to inject `runtimeClassName: kata-qemu` to the
+`vscode-sandbox` example and apply it to the cluster:
+
+```shell
+kubectl apply -k overlays/kata
+```
+
+Validate that the `Pod` with Kata container enabled is running:
+
+```shell
+$ kubectl wait --for=condition=Ready sandbox sandbox-example
+$ kubectl get pods -o jsonpath=$'{range .items[*]}{.metadata.name}: {.spec.runtimeClassName}\n{end}'
+```
 
 ## Accesing vscode
 
