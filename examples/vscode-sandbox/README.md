@@ -100,34 +100,9 @@ In order to install Kata Containers we use the [kata-deploy helm chart](https://
 3. Verify that new runtime classes are available:
 
    ```sh
-   kubectl get runtimeClasses
+   kubectl get runtimeClasses kata-qemu
    ```
-
-   The output should be similar to this. Make sure it has `kata-qemu` runtime since it will be used in this guide:
-
-   ```log
-   $ kubectl get runtimeClasses
-   NAME                       HANDLER                    AGE
-   kata-clh                   kata-clh                   118s
-   kata-cloud-hypervisor      kata-cloud-hypervisor      118s
-   kata-dragonball            kata-dragonball            118s
-   kata-fc                    kata-fc                    117s
-   kata-qemu                  kata-qemu                  117s
-   kata-qemu-cca              kata-qemu-cca              117s
-   kata-qemu-coco-dev         kata-qemu-coco-dev         117s
-   kata-qemu-nvidia-gpu       kata-qemu-nvidia-gpu       117s
-   kata-qemu-nvidia-gpu-snp   kata-qemu-nvidia-gpu-snp   117s
-   kata-qemu-nvidia-gpu-tdx   kata-qemu-nvidia-gpu-tdx   117s
-   kata-qemu-runtime-rs       kata-qemu-runtime-rs       117s
-   kata-qemu-se-runtime-rs    kata-qemu-se-runtime-rs    117s
-   kata-qemu-snp              kata-qemu-snp              117s
-   kata-qemu-tdx              kata-qemu-tdx              117s
-   kata-stratovirt            kata-stratovirt            117s
-   ```
-#### Install Agent Sandbox Controller
-
-Follow the instructions in section [Install Agent Sandbox Controller](#install-agent-sandbox-controller)
-
+   
 ## Accesing vscode
 
 Port forward the vscode server port.
