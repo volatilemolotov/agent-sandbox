@@ -52,6 +52,81 @@ Validate that the `Pod` with gVisor enabled is running:
 $ kubectl wait --for=condition=Ready sandbox sandbox-example
 $ kubectl get pods -o jsonpath=$'{range .items[*]}{.metadata.name}: {.spec.runtimeClassName}\n{end}'
 ```
+### Harden Agent Sandbox isolation using Kata Containers (Optional)
+
+#### Prerequisites
+
+* Host machine that supports nested virtualization
+
+   You can verify that by running:
+
+   ```sh
+   cat /sys/module/kvm_intel/parameters/nested
+   ```
+   In case of AMD platform replace `kvm_intel` with `kvm_amd`
+   The output must be “Y” or 1.
+
+* [minikube](https://minikube.sigs.k8s.io/docs/start/?arch=%2Flinux%2Fx86-64%2Fstable%2Fbinary+download)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+#### Create minikube cluster
+
+> Note:
+> At this moment, we use only `containerd` runtime, since it works without additional adjustments.
+
+```sh
+minikube start --vm-driver kvm2 --memory 8192  --container-runtime=containerd --bootstrapper=kubeadm
+```
+
+#### Install Kata Containers
+
+In order to install Kata Containers we use the [kata-deploy helm chart](https://github.com/kata-containers/kata-containers/tree/main/tools/packaging/kata-deploy/helm-chart)
+
+1. Install the helm chart:
+
+   ```sh
+   helm install kata-deploy \
+     --namespace kube-system \
+     --version  "3.22.0" \
+     "oci://ghcr.io/kata-containers/kata-deploy-charts/kata-deploy"
+   ```
+
+2. Wait until its daemonset is ready:
+
+   ```sh
+   kubectl -n kube-system rollout status daemonset/kata-deploy
+   ```
+
+3. Verify that new runtime classes are available:
+
+   ```sh
+   kubectl get runtimeClasses
+   ```
+
+   The output should be similar to this. Make sure it has `kata-qemu` runtime since it will be used in this guide:
+
+   ```log
+   $ kubectl get runtimeClasses
+   NAME                       HANDLER                    AGE
+   kata-clh                   kata-clh                   118s
+   kata-cloud-hypervisor      kata-cloud-hypervisor      118s
+   kata-dragonball            kata-dragonball            118s
+   kata-fc                    kata-fc                    117s
+   kata-qemu                  kata-qemu                  117s
+   kata-qemu-cca              kata-qemu-cca              117s
+   kata-qemu-coco-dev         kata-qemu-coco-dev         117s
+   kata-qemu-nvidia-gpu       kata-qemu-nvidia-gpu       117s
+   kata-qemu-nvidia-gpu-snp   kata-qemu-nvidia-gpu-snp   117s
+   kata-qemu-nvidia-gpu-tdx   kata-qemu-nvidia-gpu-tdx   117s
+   kata-qemu-runtime-rs       kata-qemu-runtime-rs       117s
+   kata-qemu-se-runtime-rs    kata-qemu-se-runtime-rs    117s
+   kata-qemu-snp              kata-qemu-snp              117s
+   kata-qemu-tdx              kata-qemu-tdx              117s
+   kata-stratovirt            kata-stratovirt            117s
+   ```
+#### Install Agent Sandbox Controller
+
+Follow the instructions in section [Install Agent Sandbox Controller](#install-agent-sandbox-controller)
 
 ## Accesing vscode
 
