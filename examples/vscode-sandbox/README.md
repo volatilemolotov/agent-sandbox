@@ -81,8 +81,23 @@ minikube start --vm-driver kvm2 --memory 8192  --container-runtime=containerd --
 #### Install Kata Containers
 
 Follow the instructions provided at [Kata Containers Installation Guide](https://github.com/kata-containers/kata-containers/tree/main/docs/install)
-   
-   
+
+#### Create a Sandbox using the kata-qemu runtimeClassName
+
+Apply the kustomize overlay to inject `runtimeClassName: kata-qemu` to the
+`vscode-sandbox` example and apply it to the cluster:
+
+```shell
+kubectl apply -k overlays/kata
+```
+
+Validate that the `Pod` with Kata container enabled is running:
+
+```shell
+$ kubectl wait --for=condition=Ready sandbox sandbox-example
+$ kubectl get pods -o jsonpath=$'{range .items[*]}{.metadata.name}: {.spec.runtimeClassName}\n{end}'
+```
+
 ## Accesing vscode
 
 Port forward the vscode server port.
