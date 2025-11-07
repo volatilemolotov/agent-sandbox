@@ -80,28 +80,8 @@ minikube start --vm-driver kvm2 --memory 8192  --container-runtime=containerd --
 
 #### Install Kata Containers
 
-In order to install Kata Containers we use the [kata-deploy helm chart](https://github.com/kata-containers/kata-containers/tree/main/tools/packaging/kata-deploy/helm-chart)
-
-1. Install the helm chart:
-
-   ```sh
-   helm install kata-deploy \
-     --namespace kube-system \
-     --version  "3.22.0" \
-     "oci://ghcr.io/kata-containers/kata-deploy-charts/kata-deploy"
-   ```
-
-2. Wait until its daemonset is ready:
-
-   ```sh
-   kubectl -n kube-system rollout status daemonset/kata-deploy
-   ```
-
-3. Verify that new runtime classes are available:
-
-   ```sh
-   kubectl get runtimeClasses kata-qemu
-   ```
+Follow the instructions provided at [Kata Containers Installation Guide](https://github.com/kata-containers/kata-containers/tree/main/docs/install)
+   
    
 ## Accesing vscode
 
