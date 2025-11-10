@@ -35,6 +35,12 @@ kubectl get pods -n agent-sandbox-system
 
 ## Installation Methods
 
+Run this command to find the guide's resources:
+
+```bash
+cd examples/jupyter
+```
+
 Choose one of two deployment methods:
 
 ### Method A: All-in-One Deployment
@@ -47,20 +53,20 @@ Use `jupyterlab-full.yaml` which contains everything in a single file.
 
     ```bash
     # Open jupyterlab-full.yaml and replace HF_TOKEN with your actual token
-    vi jupyterlab-full.yaml
+    vi files/jupyterlab-full.yaml
     ```
 
     Or use sed:
 
     ```bash
     export HF_TOKEN="your_actual_HF_token_here"
-    sed -i "s/HF_TOKEN/$HF_TOKEN/g" jupyterlab-full.yaml
+    sed -i "s/HF_TOKEN/$HF_TOKEN/g" files/jupyterlab-full.yaml
     ```
 
 2. **Deploy everything:**
 
     ```bash
-    kubectl apply -f jupyterlab-full.yaml
+    kubectl apply -f files/jupyterlab-full.yaml
     ```
 
 3. **Skip to "Verify Installation" section below.**
