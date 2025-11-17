@@ -1,11 +1,4 @@
----
-title: "Arbitrary Code Execution"
-linkTitle: "Arbitrary Code Execution"
-weight: 2
-description: >
-  This guide shows how to deploy a simple Python server that executes arbitrary commands in a sandbox container.
----
-
+# Arbitrary Code Execution
 The server application includes a FastAPI server that can execute commands that are sent to it through HTTP requests.
 
 ## Python Classes of the server app
