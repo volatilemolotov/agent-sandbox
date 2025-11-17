@@ -139,6 +139,10 @@ module:
   - disableWatch: true
     source: ../examples
     target: assets/additional/examples
+  - disableWatch: true
+    source: ../clients/python/agentic-sandbox-client
+    target: assets/additional/python-agentic-sandbox-client
+    includeFiles: ["README.md"]
   imports:
     - path: github.com/google/docsy
       disable: false

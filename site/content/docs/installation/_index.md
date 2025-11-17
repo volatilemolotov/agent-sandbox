@@ -32,12 +32,6 @@ kind create cluster --name agent-sandbox
 
 ## Deploy Agent-Sandbox to kind
 
-### Clone the Repository
-
-```bash
-git clone https://github.com/kubernetes-sigs/agent-sandbox.git
-cd agent-sandbox
-```
 ### Deploy to kind
 
 With kubectl install the controller:
@@ -112,6 +106,13 @@ kind delete cluster --name agent-sandbox
 - Reduce sandbox resource requests if needed
 
 **Building the Controller Binary:**
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/kubernetes-sigs/agent-sandbox.git
+cd agent-sandbox
+```
 
 To build just the controller binary:
 
