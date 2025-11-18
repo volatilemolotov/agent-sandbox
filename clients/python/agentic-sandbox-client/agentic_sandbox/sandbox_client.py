@@ -38,6 +38,8 @@ SANDBOX_API_GROUP = "agents.x-k8s.io"
 SANDBOX_API_VERSION = "v1alpha1"
 SANDBOX_PLURAL_NAME = "sandboxes"
 
+POD_NAME_ANNOTATION = "agents.x-k8s.io/pod-name"
+
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     stream=sys.stdout)
@@ -82,6 +84,8 @@ class SandboxClient:
 
         self.claim_name: str | None = None
         self.sandbox_name: str | None = None
+        self.pod_name: str | None = None
+        self.annotations: dict | None = None
 
         try:
             config.load_incluster_config()
@@ -145,25 +149,41 @@ class SandboxClient:
             field_selector=f"metadata.name={self.claim_name}",
             timeout_seconds=self.sandbox_ready_timeout
         ):
-            sandbox_object = event['object']
-            status = sandbox_object.get('status', {})
-            conditions = status.get('conditions', [])
-            is_ready = False
-            for cond in conditions:
-                if cond.get('type') == 'Ready' and cond.get('status') == 'True':
-                    is_ready = True
-                    break
+            if event["type"] in ["ADDED", "MODIFIED"]:
+                sandbox_object = event['object']
+                status = sandbox_object.get('status', {})
+                conditions = status.get('conditions', [])
+                is_ready = False
+                for cond in conditions:
+                    if cond.get('type') == 'Ready' and cond.get('status') == 'True':
+                        is_ready = True
+                        break
 
-            if is_ready:
-                self.sandbox_name = sandbox_object['metadata']['name']
-                w.stop()
-                logging.info(f"Sandbox {self.sandbox_name} is ready.")
-                break
+                if is_ready:
+                    metadata = sandbox_object.get(
+                        "metadata", {})
+                    self.sandbox_name = metadata.get(
+                        "name")
+                    if not self.sandbox_name:
+                        raise RuntimeError(
+                            "Could not determine sandbox name from sandbox object.")
+                    logging.info(f"Sandbox {self.sandbox_name} is ready.")
 
-        if not self.sandbox_name:
-            self.__exit__(None, None, None)
-            raise TimeoutError(
-                f"Sandbox did not become ready within {self.sandbox_ready_timeout} seconds.")
+                    self.annotations = sandbox_object.get(
+                        'metadata', {}).get('annotations', {})
+                    pod_name = self.annotations.get(POD_NAME_ANNOTATION)
+                    if pod_name:
+                        self.pod_name = pod_name
+                        logging.info(
+                            f"Found pod name from annotation: {self.pod_name}")
+                    else:
+                        self.pod_name = self.sandbox_name
+                    w.stop()
+                    return
+
+        self.__exit__(None, None, None)
+        raise TimeoutError(
+            f"Sandbox did not become ready within {self.sandbox_ready_timeout} seconds.")
 
     def _get_free_port(self):
         """Finds a free port on localhost."""
