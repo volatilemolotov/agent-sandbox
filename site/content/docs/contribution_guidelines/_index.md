@@ -1,7 +1,7 @@
 ---
 title: "Contribution Guidelines"
 linkTitle: "Contribution Guidelines"
-weight: 25
+weight: 35
 description: >
   How to contribute to Agent Sandbox
 ---
