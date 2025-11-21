@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: python-sandbox
-        image: sandbox-runtime:latest
+        image: us-docker.pkg.dev/<PROJECT_ID>/analytics/analytics-tool:1.0.0
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8888
