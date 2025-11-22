@@ -45,26 +45,14 @@ kubectl version --client # kubectl 1.25+
 
 ### 1. Deploy Agent-Sandbox to Kind
 
-You can find agent-sandbox setup instructions [here](../../installation/_index.md).
+You can find agent-sandbox setup instructions [here](../../README.md#installation).
 
 ```bash
-# Clone agent-sandbox repository
-git clone https://github.com/kubernetes-sigs/agent-sandbox.git
-cd agent-sandbox
-
-# Create and activate Python virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install Python dependencies
-pip install pyyaml
-
 # Verify installation
-kubectl get pods -n agent-sandbox-system
-kubectl get crds | grep agents.x-k8s.io
+kubectl -n agent-sandbox-system wait --for=condition=Ready pod -l app=agent-sandbox-controller
 ```
 
-Expected output: Controller pod running in `agent-sandbox-system` namespace.
+The `kubectl wait` command will exit when the pod is ready.
 
 ### 2. Set Up HuggingFace Token
 

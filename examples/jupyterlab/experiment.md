@@ -84,7 +84,7 @@ The included `files/experiment.ipynb` shows a typical workflow:
 ## Getting Started
 
 ### Prerequisites
-- Agent-sandbox installed on GKE ([Installation Guide](../../INSTALL-gke.md))
+- Agent-sandbox installed on GKE ([Installation Guide](../../README.md#Installation)
 - JupyterLab deployed ([Installation Guide](./README.md))
 
 ### Access JupyterLab
