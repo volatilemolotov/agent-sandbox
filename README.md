@@ -59,7 +59,7 @@ spec:
 
 This will create a new Sandbox named `my-sandbox` running the image you specify. You can then access the Sandbox using its stable hostname, `my-sandbox`.
 
-For a more programatic approach you can use the [SDK](github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/README.md) like the following:
+For a more programatic approach you can use the [SDK](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/README.md) like the following:
 ```python
 from agentic_sandbox import Sandbox
 
