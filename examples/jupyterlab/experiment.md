@@ -84,7 +84,7 @@ The included `files/experiment.ipynb` shows a typical workflow:
 ## Getting Started
 
 ### Prerequisites
-- Agent-sandbox installed ([Installation Guide](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/README.md#installation)
+- Agent-sandbox installed ([Installation Guide](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/README.md#installation))
 - JupyterLab deployed ([Installation Guide](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/examples/jupyterlab/README.md))
 
 ### Access JupyterLab
