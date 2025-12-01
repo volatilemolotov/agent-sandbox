@@ -89,7 +89,7 @@ print("--- Sandbox Cleaned Up ---")
 ```
 
 
-For more complex examples, including how to use the extensions, please see the [examples/](examples/) and [extensions/examples/](extensions/examples/) directories.
+For more complex examples, including how to use the extensions, please see the [examples/](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/examples/) and [extensions/examples/](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/extensions/examples/) directories.
 
 ## Motivation
 
