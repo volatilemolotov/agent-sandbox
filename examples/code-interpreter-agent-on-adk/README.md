@@ -23,7 +23,8 @@ The guide walks you through the process of creating a simple [ADK](https://googl
 
 5. Install the dependencies:
    ```sh
-   pip install -r requirements.txt
+   export VERSION="main"
+   pip install google-adk==1.19.0 "git+https://github.com/kubernetes-sigs/agent-sandbox.git@${VERSION}#subdirectory=clients/python/agentic-sandbox-client"
    ```
 
 6. Set your API key to access the Gemini model that is used in this example:
