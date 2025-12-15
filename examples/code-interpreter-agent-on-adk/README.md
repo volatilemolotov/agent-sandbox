@@ -38,7 +38,7 @@ The guide walks you through the process of creating a simple [ADK](https://googl
 
 ## Testing
 
-1. Open agent's page: http://127.0.0.1:8000.
+1. Open the agent's page: http://127.0.0.1:8000.
 
 2. Tell the agent to generate some code and execute it in the sandbox:
 
