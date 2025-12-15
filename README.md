@@ -59,28 +59,32 @@ spec:
 
 This will create a new Sandbox named `my-sandbox` running the image you specify. You can then access the Sandbox using its stable hostname, `my-sandbox`.
 
-For a more programatic approach you can use the [SDK](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/README.md) like the following:
+For a more programmatic approach you can use the [SDK](clients/python/agentic-sandbox-client/README.md) like the following:
 ```python
 from agentic_sandbox import Sandbox
 
 # The SDK abstracts all YAML into a simple context manager
 try:
     with Sandbox(
+        # Using the template from the agent-sangbox repo. Make sure to specify your own if needed.
         template_name="python-runtime-template",
-        namespace="ai-agents"
+        namespace="default"
     ) as sandbox:
-
-        print("--- Sandbox is Ready! ---")
-
         # 1. Run a command inside the secure sandbox
         result = sandbox.run("echo 'Hello from inside the sandbox!'")
+
+        if result.exit_code != 0:
+            print("The command inside the sandbox has failed.")
+            print(f"Stderr: {result.stderr.strip()}")
+
         print(f"Stdout: {result.stdout.strip()}")
 
         # 2. Write and read files
-        sandbox.write("test.txt", "This is a test file.")
+        sandbox.write("test.txt", "This is a test file.".encode('utf-8'))
         content = sandbox.read("test.txt").decode('utf-8')
         print(f"Read content: {content}")
 
+# Just catching everyting to keep the example short
 except Exception as e:
     print(f"An error occurred: {e}")
 
@@ -89,7 +93,7 @@ print("--- Sandbox Cleaned Up ---")
 ```
 
 
-For more complex examples, including how to use the extensions, please see the [examples/](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/examples/) and [extensions/examples/](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/extensions/examples/) directories.
+For more complex examples, including how to use the extensions, please see the [examples/](examples/) and [extensions/examples/](extensions/examples/) directories.
 
 ## Motivation
 
