@@ -1,4 +1,4 @@
-# Use Agent Sanbox code interpreter an Agent Tool.  
+# Using Agent Sandbox as a Tool in Agent Development Kit (ADK)
 
 The guide will guide you through the process of creating a simple [ADK](https://google.github.io/adk-docs/) agent that is able to use agent sandbox as a tool.
 
