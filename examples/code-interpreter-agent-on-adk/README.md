@@ -26,7 +26,7 @@ The guide walks you through the process of creating a simple [ADK](https://googl
    pip install -r requirements.txt
    ```
 
-6. Set you API key to get access the Gemini model that is used in this example:
+6. Set your API key to access the Gemini model that is used in this example:
    ```sh
    export GOOGLE_API_KEY="YOUR_API_KEY"
    ```
