@@ -131,7 +131,7 @@ func (r *SandboxClaimReconciler) computeReadyCondition(claim *extensionsv1alpha1
 		return readyCondition
 	}
 
-	// Sanbox should be non-nil if err is nil
+	// Sandbox should be non-nil if err is nil
 	for _, condition := range sandbox.Status.Conditions {
 		if condition.Type == string(sandboxv1alpha1.SandboxConditionReady) {
 			if condition.Status == metav1.ConditionTrue {
