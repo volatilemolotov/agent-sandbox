@@ -2,9 +2,15 @@
 
 ## Prerequisites
 
+Clone the repository:
+```bash
+git clone https://github.com/kubernetes-sigs/agent-sandbox.git
+cd agent-sandbox/examples/jupyterlab
+```
+
 **You must have agent-sandbox already installed on your cluster.** Follow the installation guide:
 
-**[Agent-Sandbox Installation Guide](../../INSTALL.md)**
+**[Agent-Sandbox Installation Guide](../../README.md)**
 
 Make sure the agent-sandbox controller is running before proceeding:
 
