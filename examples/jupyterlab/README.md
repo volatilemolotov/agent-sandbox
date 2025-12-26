@@ -24,7 +24,7 @@ kubectl get pods -n agent-sandbox-system
 ```
 .
 ├── README.md                    # This file
-├── ../../INSTALL.md             # Agent-sandbox installation guide
+├── ../../README.md              # Agent-sandbox installation guide
 ├── jupyterlab.yaml              # Modular deployment (Secret + Sandbox only)
 ├── jupyterlab-full.yaml         # All-in-one deployment (+ ConfigMap with file contents)
 └── files/
