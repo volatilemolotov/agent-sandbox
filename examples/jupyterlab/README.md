@@ -29,6 +29,7 @@ kubectl get pods -n agent-sandbox-system
 ├── jupyterlab-full.yaml         # All-in-one deployment (+ ConfigMap with file contents)
 └── files/
     ├── download_models.py       # Script to download HuggingFace models
+    ├── experiment.ipynb         # Notebook demonstrating complete ML workflow
     ├── requirements.txt         # Python dependencies
     └── welcome.ipynb            # Sample notebook
 ```
