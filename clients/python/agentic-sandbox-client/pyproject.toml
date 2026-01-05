@@ -18,20 +18,6 @@ dependencies = [
     "requests",
 
 ]
-[project.optional-dependencies]
-langchain = [
-  "langchain",
-]
-adk = [
-  "google-adk",
-]
-
-dev = [
-  "agentic_sandbox[langchain]",
-  "agentic_sandbox[adk]",
-  "pytest"
-]
-
 
 [project.urls]
 "Homepage" = "https://github.com/kubernetes-sigs/agent-sandbox"
@@ -42,6 +28,19 @@ dev = [
 # package and to ignore other directories like 'sandbox_router'.
 packages = ["agentic_sandbox"]
 
+[project.optional-dependencies]
+langchain = [
+    "langchain",
+]
+adk = [
+    "google-adk",
+]
+test = [
+    "agentic_sandbox[langchain]",
+    "agentic_sandbox[adk]",
+    "pytest",
+    "pytest-xdist",
+]
 
 [tool.pytest]
 pythonpath = ["."]

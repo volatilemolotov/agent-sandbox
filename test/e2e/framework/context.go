@@ -23,6 +23,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/agent-sandbox/controllers"
+	extensionsv1alpha1 "sigs.k8s.io/agent-sandbox/extensions/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,6 +38,7 @@ var (
 
 func init() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(controllers.Scheme))
+	utilruntime.Must(extensionsv1alpha1.AddToScheme(controllers.Scheme))
 }
 
 // TestContext is a helper for managing e2e test scaffolding.
@@ -66,9 +68,8 @@ func NewTestContext(t *testing.T) *TestContext {
 		t.Fatal(err)
 	}
 	th.ClusterClient = ClusterClient{
-		T:          t,
-		client:     cl,
-		restConfig: restCfg,
+		T:      t,
+		client: cl,
 	}
 	t.Cleanup(func() {
 		t.Helper()
