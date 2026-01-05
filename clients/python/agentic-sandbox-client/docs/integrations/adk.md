@@ -14,7 +14,7 @@ The Agent Sandbox ADK integration allows using sandbox as a [tool](https://googl
 
 We provide a built-in tool class for a sandbox with Python environment. This example shows how to use it:
 
-```
+```python
 from google.adk.agents.llm_agent import Agent
 from agentic_sandbox.integrations import SandboxSettings
 from agentic_sandbox.integrations.adk.tools import PythonSandboxTool
@@ -42,7 +42,7 @@ root_agent = Agent(
 To create a new custom tool that uses Agent Sandbox, you can implement your logic in 
 a function and pass it to our sandbox class:
 
-```
+```python
 from google.adk.agents.llm_agent import Agent
 from agentic_sandbox.integrations import SandboxSettings
 from agentic_sandbox.integrations.adk.tools import SandboxFunctionTool
@@ -91,7 +91,7 @@ The Agent Sandbox ADK integration allows using sandbox as a [code executor](http
 
 We provide a built-in code executor class for a sandbox with Python environment. This example shows how to use it:
 
-```
+```python
 from google.adk.agents.llm_agent import Agent
 from agentic_sandbox.integrations import SandboxSettings
 from agentic_sandbox.integrations.adk.code_executors import PythonSandboxCodeExecutor
@@ -121,7 +121,7 @@ To create a new custom code executor that uses Agent Sandbox, you can subclass o
 
 Here is a complete example:
 
-```
+```python
 from google.adk.agents.llm_agent import Agent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.code_executors.code_execution_utils import (

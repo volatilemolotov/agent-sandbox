@@ -13,7 +13,7 @@ The Agent Sandbox Langchain integration allows using sandbox as a [tool](https:/
 
 We provide a built-in function to create a tool for a sandbox with Python environment. This example shows how to use it:
 
-```
+```python
 from langchain_google_genai import ChatGoogleGenerativeAI # pip install langchain_google_genai
 from langchain.agents import create_agent
 from agentic_sandbox.integrations import SandboxSettings
@@ -53,7 +53,7 @@ for m in result["messages"]:
 To create a new custom tool that uses Agent Sandbox, you can implement your logic in 
 a function and pass it to our sandbox class:
 
-```
+```python
 from langchain_google_genai import ChatGoogleGenerativeAI # pip install langchain_google_genai
 
 from langchain.agents import create_agent
