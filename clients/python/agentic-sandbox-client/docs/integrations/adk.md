@@ -3,8 +3,8 @@
 The Agent Sandbox integration for the [Agent Development Kit (ADK)](https://google.github.io/adk-docs/) introduces a set of framework-compatible abstractions, enabling ADK-based projects to interact seamlessly with the Agent Sandbox. 
 
 This page includes full code examples for:
-* [Tools](##tools)
-* [Code executors](##code-executors)
+* [Tools](#tools)
+* [Code Executors](#code-executors)
 
 ## Tools
 
@@ -56,9 +56,9 @@ sandbox_settings = SandboxSettings(
 
 
 def my_coding_tool(code: str, **kwargs):
-    """<Tool descrition>"""
+    """<Tool description>"""
 
-    # Sandbox settings have are injected into the kwargs under the 'sandbox' argument.
+    # Sandbox settings are injected into the kwargs under the 'sandbox' argument.
     sandbox_settings = kwargs["sandbox"]
     with sandbox_settings.create_client() as sandbox:
         sandbox.write("main.py", code)
@@ -106,7 +106,7 @@ sandbox_settings = SandboxSettings(
 # Create an executor. The executor will create a sandbox according to the settings from the 'sandbox_settings' argument.
 python_code_executor = PythonSandboxCodeExecutor(sandbox_settings)
 
-# NOTE: There's an ungoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
+# NOTE: There's an ongoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
 root_agent = Agent(
     model="gemini-3-flash-preview",
     name="python_code_executor_agent",
@@ -148,7 +148,6 @@ class MySandboxCodeExecutor(SandboxCodeExecutor):
 
         with self._sandbox_settings.create_client() as sandbox:
             sandbox.write("main.py", code_execution_input.code)
-
             result = sandbox.run("python3 main.py")
 
         return CodeExecutionResult(
@@ -161,7 +160,7 @@ class MySandboxCodeExecutor(SandboxCodeExecutor):
 # Create an executor. The executor will create a sandbox according to the settings from the 'sandbox_settings' argument.
 code_executor = MySandboxCodeExecutor(sandbox_settings)
 
-# NOTE: There's an ungoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
+# NOTE: There's an ongoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
 root_agent = Agent(
     model="gemini-3-flash-preview",
     name="custom_sanbox_code_executor_agent",

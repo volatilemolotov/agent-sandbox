@@ -7,7 +7,7 @@ class SandboxSettings:
     """
     A container class that stores all settings required for a creation of a particular agent sandbox.
 
-    Its constuctor signature is identical to 'agentic_sandbox.SandboxClient'.
+    Its constructor signature is identical to 'agentic_sandbox.SandboxClient'.
     """
 
     def __init__(
@@ -51,7 +51,7 @@ class SandboxSettings:
 def sandbox_in_kwargs(sandbox_settings: SandboxSettings):
     """
     Decorator that injects an instance of the 'SandboxSettings' class as a keyword argument with name 'sandbox',
-    so the original function can use it to strart interacting with Agent Sandbox.
+    so the original function can use it to start interacting with Agent Sandbox.
 
     Args:
         sandbox_settings: Sandbox settings to be passed to the original function inside the 'sandbox' keyword argument

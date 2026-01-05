@@ -37,7 +37,7 @@ class SandboxFunctionTool(FunctionTool):
 
 class PredefinedSandboxFunctionTool(SandboxFunctionTool):
     """
-    A subclass of the 'SandboxFunctionTool' class that accepts its inputs as class atributes.
+    A subclass of the 'SandboxFunctionTool' class that accepts its inputs as class attributes.
     This is used to created predefined tools from already known functions.
 
     Args:

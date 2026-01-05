@@ -3,7 +3,7 @@
 The Agent Sandbox integration for the [https://www.langchain.com/) introduces a set of framework-compatible abstractions, enabling Langchain-based projects to interact seamlessly with the Agent Sandbox. 
 
 This page includes full code examples for:
-* [Tools](##tools)
+* [Tools](#tools)
 
 ## Tools
 
@@ -11,7 +11,7 @@ The Agent Sandbox Langchain integration allows using sandbox as a [tool](https:/
 
 ### Using Python sandbox tool 
 
-We provide a built-in function to create a tool for sandbox with Python environment. This example shows how to use it:
+We provide a built-in function to create a tool for a sandbox with Python environment. This example shows how to use it:
 
 ```
 from langchain_google_genai import ChatGoogleGenerativeAI # pip install langchain_google_genai
@@ -69,10 +69,10 @@ sandbox_settings = SandboxSettings(
 
 
 # Create a tool by using a 'sandbox_tool' decorator.
-# The tool will create a sandbox according to the settings from the 'sandbox_settings' argument which is passed to the decortor.
+# The tool will create a sandbox according to the settings from the 'sandbox_settings' argument which is passed to the decorator.
 @sandbox_tool(sandbox_settings)
 def my_coding_tool(code: str, **kwargs):
-    """<Tool descrition>"""
+    """<Tool description>"""
 
     # the 'sandbox_tool' injects the sandbox settings into the 'sandbox' keyword argument.
     sandbox_settings = kwargs["sandbox"]

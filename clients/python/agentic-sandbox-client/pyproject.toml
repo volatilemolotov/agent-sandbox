@@ -16,7 +16,6 @@ classifiers = [
 dependencies = [
     "kubernetes",
     "requests",
-
 ]
 
 [project.urls]
