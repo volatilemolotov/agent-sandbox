@@ -1,6 +1,6 @@
 # Agent Sandbox Langchain integration
 
-The Agent Sandbox integration for the [https://www.langchain.com/) introduces a set of framework-compatible abstractions, enabling Langchain-based projects to interact seamlessly with the Agent Sandbox. 
+The Agent Sandbox integration for the [Langchain](https://www.langchain.com/) introduces a set of framework-compatible abstractions, enabling Langchain-based projects to interact seamlessly with the Agent Sandbox. 
 
 This page includes full code examples for:
 * [Tools](#tools)
