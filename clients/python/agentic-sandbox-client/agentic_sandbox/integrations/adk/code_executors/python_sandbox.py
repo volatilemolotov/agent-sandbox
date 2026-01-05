@@ -4,30 +4,34 @@ from google.adk.code_executors.code_execution_utils import CodeExecutionInput
 from google.adk.code_executors.code_execution_utils import CodeExecutionResult
 from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
-from agentic_sandbox.integrations.sandbox_settings import SandboxSettings
+from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
+from .base import SandboxCodeExecutor
 
-class PythonSandboxCodeExecutor(BaseCodeExecutor):
-    def __init__(self, sandbox_settings: SandboxSettings):
-        super().__init__()
-        self._sandbox_settings = sandbox_settings
 
+class PythonSandboxCodeExecutor(SandboxCodeExecutor):
+    """
+    An agent code executor that executes code in the Agent Sandbox
+
+    Args:
+        sandbox_settings: Settings for a sandbox to create.
+    """
 
     def execute_code(
-          self,
-          invocation_context: InvocationContext,
-          code_execution_input: CodeExecutionInput,
-      ) -> CodeExecutionResult:
+        self,
+        invocation_context: InvocationContext,
+        code_execution_input: CodeExecutionInput,
+    ) -> CodeExecutionResult:
+        """
+        Executes code in a sandbox.
+        """
 
         with self._sandbox_settings.create_client() as sandbox:
-            # TODO: implement file upload and download
-
-            sandbox.write("main.py",  code_execution_input.code)
+            sandbox.write("main.py", code_execution_input.code)
 
             result = sandbox.run("python3 main.py")
 
-            return CodeExecutionResult(
-                stdout=result.stdout,
-                stderr=result.stderr,
-                output_files=[],
-            )
-    
+        return CodeExecutionResult(
+            stdout=result.stdout,
+            stderr=result.stderr,
+            output_files=[],
+        )

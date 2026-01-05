@@ -16,7 +16,22 @@ classifiers = [
 dependencies = [
     "kubernetes",
     "requests",
+
 ]
+[project.optional-dependencies]
+langchain = [
+  "langchain",
+]
+adk = [
+  "google-adk",
+]
+
+dev = [
+  "agentic_sandbox[langchain]",
+  "agentic_sandbox[adk]",
+  "pytest"
+]
+
 
 [project.urls]
 "Homepage" = "https://github.com/kubernetes-sigs/agent-sandbox"
@@ -26,3 +41,7 @@ dependencies = [
 # This line tells setuptools to only include the 'agentic_sandbox'
 # package and to ignore other directories like 'sandbox_router'.
 packages = ["agentic_sandbox"]
+
+
+[tool.pytest]
+pythonpath = ["."]

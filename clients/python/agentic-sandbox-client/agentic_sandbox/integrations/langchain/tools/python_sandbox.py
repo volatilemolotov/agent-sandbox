@@ -1,13 +1,7 @@
-from langchain.tools import tool
-
-from agentic_sandbox.integrations.base import with_sandbox
-from agentic_sandbox.integrations.python_sandbox import (
-    TOOL_DESCRIPTION,
-    run_python_code_in_sandbox,
-)
+from .tool import sandbox_tool
 
 
-def create_python_sandbox_tool(sandbox_settings, description=TOOL_DESCRIPTION):
+def create_python_sandbox_tool(sandbox_settings, description=None):
     """
     Create Langchain tool that runs Python code inside Agent Sandbox
 
@@ -16,14 +10,33 @@ def create_python_sandbox_tool(sandbox_settings, description=TOOL_DESCRIPTION):
         description: Tool description.
 
     """
-
-    @tool(description=description)
-    @with_sandbox(sandbox_settings)
-    def execute_python_code_in_sandbox(code: str, **kwargs) -> dict: 
-        sandbox_params = kwargs["sandbox"]
-        result = run_python_code_in_sandbox(sandbox_params.settings, code)  
-        return {"status": "success", "stdout": result.stdout, "stderr": result.stderr, "exit_code": result.exit_code}
-
-    return execute_python_code_in_sandbox
+    return sandbox_tool(sandbox_settings, description)(execute_python_code_in_sandbox)
 
 
+def execute_python_code_in_sandbox(code: str, **kwargs) -> dict:
+    """
+    Executes the code in a sandbox and returns execution results.
+
+    Args:
+        code: Python code to execute.
+
+    Returns:
+        Dictionary with following fields:
+        - status: The execution status.
+        - stdout: Stdout of the executed code.
+        - stderr: Stderr of the executed code.
+        - exit_code: Exit code of the executed process.
+
+    """
+    sandbox_settings = kwargs["sandbox"]
+
+    with sandbox_settings.create_client() as sandbox:
+        sandbox.write("main.py", code)
+        result = sandbox.run("python3 main.py")
+
+    return {
+        "status": "success",
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "exit_code": result.exit_code,
+    }
