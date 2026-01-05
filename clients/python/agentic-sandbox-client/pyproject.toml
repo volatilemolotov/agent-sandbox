@@ -41,6 +41,3 @@ test = [
     "pytest",
     "pytest-xdist",
 ]
-
-[tool.pytest]
-pythonpath = ["."]
