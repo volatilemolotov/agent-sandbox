@@ -1,4 +1,4 @@
-# Agent Sandbox Quickstart
+# Secure Agent Sandbox Quickstart
 
 ## Overview
 
@@ -17,8 +17,6 @@ Both options provide:
 - **SandboxWarmPool**: Pre-warmed sandbox pool for fast allocation
 - **Python SDK**: Programmatic sandbox management
 - **Router Service**: HTTP proxy for SDK communication
-
----
 
 # Option 1: gVisor on KIND
 
@@ -111,8 +109,6 @@ EOF
 
 **Continue to "Common Setup Steps" below**
 
----
-
 # Option 2: Kata Containers on minikube
 
 ## Prerequisites
@@ -193,8 +189,6 @@ kubectl delete pod kata-test
 ```
 
 **Continue to "Common Setup Steps" below**
-
----
 
 # Common Setup Steps
 
