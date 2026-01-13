@@ -28,12 +28,13 @@ Both options provide:
 - Python 3.9+
 - Git
 - Linux host (gVisor requires Linux)
+- wget
 
 ## Step 1: Create KIND Cluster with gVisor Support
 
 ### 1.1 Install gVisor Runtime
 
-First, install the gVisor runsc runtime on your host machine:
+First, install the gVisor runsc runtime on your host machine (root privileges are required):
 
 ```bash
 # Download and install runsc
@@ -45,7 +46,7 @@ First, install the gVisor runsc runtime on your host machine:
     ${URL}/containerd-shim-runsc-v1 ${URL}/containerd-shim-runsc-v1.sha512
   sha512sum -c runsc.sha512 \
     -c containerd-shim-runsc-v1.sha512
-  rm -f *.sha512
+  rm -f runsc.sha512 containerd-shim-runsc-v1.sha512
   chmod a+rx runsc containerd-shim-runsc-v1
   sudo mv runsc containerd-shim-runsc-v1 /usr/local/bin
 )
@@ -80,6 +81,9 @@ kind create cluster --name agent-sandbox-demo --config kind-config.yaml
 Configure the KIND cluster's containerd to support the gVisor runtime:
 
 ```bash
+# WARNING: This overwrites the entire containerd config.
+# If you have existing KIND configurations (e.g., registry mirrors),
+# consider backing up /etc/containerd/config.toml first.
 docker exec -it agent-sandbox-demo-control-plane bash -c 'cat <<EOF > /etc/containerd/config.toml
 version = 2
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
@@ -118,6 +122,9 @@ EOF
 - kubectl (1.28+)
 - Python 3.9+
 - Git
+- **Minimum 8GB RAM** (Kata VMs require significant memory overhead)
+- **Minimum 4 CPU cores** recommended
+- **20GB free disk space** for images and VMs
 
 ## Step 1: Start minikube with Containerd
 
@@ -140,7 +147,7 @@ Kata Containers now uses Helm as the official installation method.
 
 ```bash
 # Clone Kata Containers repository
-git clone https://github.com/kata-containers/kata-containers.git
+git clone --depth 1 https://github.com/kata-containers/kata-containers.git
 cd kata-containers/tools/packaging/kata-deploy/helm-chart/kata-deploy
 
 # Update Helm chart dependencies
@@ -197,7 +204,9 @@ kubectl delete pod kata-test
 ### 2.1 Install Core Components
 
 ```bash
-export AGENT_SANDBOX_VERSION="v0.1.0"
+# Fetch latest version (or use specific version like "v0.1.0")
+export AGENT_SANDBOX_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/agent-sandbox/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+echo "Using Agent Sandbox version: ${AGENT_SANDBOX_VERSION}"
 
 kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/manifest.yaml
 ```
@@ -222,6 +231,16 @@ Expected output:
 ```
 NAME                          READY   STATUS    RESTARTS   AGE
 agent-sandbox-controller-0    1/1     Running   0          30s
+```
+
+### 2.4 Create Dedicated Namespace
+
+```bash
+# Create a namespace for all Agent Sandbox resources
+kubectl create namespace agent-sandbox-demo
+
+# Set as default context to avoid repeating -n flag
+kubectl config set-context --current --namespace=agent-sandbox-demo
 ```
 
 ## Step 3: Build and Load Python Runtime Sandbox Image
@@ -262,7 +281,7 @@ apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxTemplate
 metadata:
   name: python-runtime-template
-  namespace: default
+  namespace: agent-sandbox-demo
 spec:
   podTemplate:
     metadata:
@@ -273,7 +292,7 @@ spec:
       containers:
       - name: python-runtime
         image: python-runtime-sandbox:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         ports:
         - containerPort: 8888
           protocol: TCP
@@ -303,7 +322,7 @@ apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxTemplate
 metadata:
   name: python-runtime-template
-  namespace: default
+  namespace: agent-sandbox-demo
 spec:
   podTemplate:
     metadata:
@@ -314,7 +333,7 @@ spec:
       containers:
       - name: python-runtime
         image: python-runtime-sandbox:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Never
         ports:
         - containerPort: 8888
           protocol: TCP
@@ -359,7 +378,7 @@ apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxWarmPool
 metadata:
   name: python-warmpool
-  namespace: default
+  namespace: agent-sandbox-demo
 spec:
   replicas: 2
   sandboxTemplateRef:
@@ -435,7 +454,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: sandbox-router-svc
-  namespace: default
+  namespace: agent-sandbox-demo
 spec:
   type: ClusterIP
   selector:
@@ -450,7 +469,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sandbox-router-deployment
-  namespace: default
+  namespace: agent-sandbox-demo
 spec:
   replicas: 2
   selector:
@@ -503,10 +522,11 @@ kubectl get svc sandbox-router-svc
 
 # Test router health
 kubectl port-forward svc/sandbox-router-svc 8080:8080 &
+PF_PID=$!
 sleep 2
 curl http://localhost:8080/healthz
 # Should return: {"status":"ok"}
-pkill -f "port-forward svc/sandbox-router-svc"
+kill $PF_PID
 ```
 
 ## Step 7: Install and Test Python SDK
@@ -515,8 +535,8 @@ pkill -f "port-forward svc/sandbox-router-svc"
 
 ```bash
 # Create and activate a virtual environment
-python3 -m venv ~/agent-sandbox-venv
-source ~/agent-sandbox-venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install the SDK
 cd agent-sandbox/clients/python/agentic-sandbox-client
@@ -576,11 +596,21 @@ def setup_portforward():
     portforward_proc = subprocess.Popen(
         ["kubectl", "port-forward", "svc/sandbox-router-svc", f"{local_port}:8080"],
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        stderr=subprocess.PIPE,
+        text=True
     )
     
-    time.sleep(3)
-    print(f"Port-forward started\n")
+    # Wait for port-forward to be ready by reading stdout
+    import threading
+    def read_output():
+        for line in portforward_proc.stdout:
+            if "Forwarding from" in line:
+                break
+    
+    reader = threading.Thread(target=read_output, daemon=True)
+    reader.start()
+    reader.join(timeout=10)
+    print(f"Port-forward ready\n")
     
     return local_port
 
@@ -595,7 +625,7 @@ def main():
         
         with SandboxClient(
             template_name="python-runtime-template",
-            namespace="default",
+            namespace="agent-sandbox-demo",
             api_url=f"http://localhost:{local_port}",
         ) as sandbox:
             
@@ -675,8 +705,6 @@ def main():
 if __name__ == "__main__":
     main()
 EOF
-
-chmod +x test_sdk_warmpool.py
 ```
 
 ### 7.3 Run the Test
@@ -731,13 +759,13 @@ Cleaning up port-forward...
 3. Controller provisions Sandbox (from WarmPool if available)
 4. SDK connects to `http://localhost:<random-port>` (via api_url parameter)
 5. Port-forward tunnels request to router service
-6. Router resolves sandbox DNS: `http://sandbox-claim-xyz.default.svc.cluster.local:8888`
+6. Router resolves sandbox DNS: `http://sandbox-claim-xyz.agent-sandbox-demo.svc.cluster.local:8888`
 7. Router proxies request to actual sandbox pod
 8. Response streams back: sandbox -> router -> port-forward -> SDK
 9. Script automatically cleans up port-forward on exit
 
 **When to Use Cluster DNS:**
-The `api_url="http://sandbox-router-svc.default.svc.cluster.local:8080"` approach (without port-forward) only works when your code runs **inside a Kubernetes pod**, such as:
+The `api_url="http://sandbox-router-svc.agent-sandbox-demo.svc.cluster.local:8080"` approach (without port-forward) only works when your code runs **inside a Kubernetes pod**, such as:
 - AI agents deployed as pods in the cluster
 - CI/CD pipelines running in Kubernetes
 - Applications that themselves run in the cluster
@@ -756,6 +784,7 @@ apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxClaim
 metadata:
   name: isolation-test
+  namespace: agent-sandbox-demo
 spec:
   sandboxTemplateRef:
     name: python-runtime-template
@@ -788,6 +817,7 @@ apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxClaim
 metadata:
   name: isolation-test
+  namespace: agent-sandbox-demo
 spec:
   sandboxTemplateRef:
     name: python-runtime-template
@@ -814,34 +844,26 @@ kubectl delete sandboxclaim isolation-test
 
 ## Step 9: Cleanup
 
-### Remove Test Resources
+### Quick Cleanup - Delete Everything
 
 ```bash
-# Delete all sandboxclaims
-kubectl delete sandboxclaim --all -n default
+# Delete the entire namespace (removes all resources at once)
+kubectl delete namespace agent-sandbox-demo
 
-# Delete all sandboxes
-kubectl delete sandbox --all -n default
-
-# Delete warmpool
-kubectl delete sandboxwarmpool python-warmpool
-
-# Delete template
-kubectl delete sandboxtemplate python-runtime-template
-
-# Delete router
-kubectl delete deployment sandbox-router-deployment
-kubectl delete service sandbox-router-svc
+# Restore default namespace context
+kubectl config set-context --current --namespace=default
 ```
 
 ### Delete Cluster
 
 **For KIND:**
+
 ```bash
 kind delete cluster --name agent-sandbox-demo
 ```
 
 **For minikube:**
+
 ```bash
 minikube delete -p agent-sandbox-kata
 ```
