@@ -122,6 +122,7 @@ EOF
 - kubectl (1.28+)
 - Python 3.9+
 - Git
+- Helm
 - **Minimum 8GB RAM** (Kata VMs require significant memory overhead)
 - **Minimum 4 CPU cores** recommended
 - **20GB free disk space** for images and VMs
