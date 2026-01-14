@@ -24,7 +24,7 @@ This composition can be achieved in multiple ways:
 *  **Using a tool like KRO:** [KRO (Kubernetes Resource Orchestrator)](https://kro.run/docs/overview) allows you to define composite resources declaratively using a `ResourceGraphDefinition` (RGD). This creates a server side CRD that can be consumed by users.
 * **Using Helm:** Similar to KRO, we can use Helm to create a client side composition of resources and use the helm-cli to manage it.
 
-This example demonstrates the second approach, using KRO to define a new `AgentSandbox` CRD that encapsulates a `Sandbox`, a `NetworkPolicy`, and a `Service`.
+This example demonstrates the second approach, using KRO to define a new `AgenticSandbox` CRD that encapsulates a `Sandbox`, a `NetworkPolicy`, and a `Service`.
 
 The `Service` created here is distinct from the one created by the `agent-sandbox` controller. This layering allows for more complex networking configurations and showcases the value of composing resources.
 
