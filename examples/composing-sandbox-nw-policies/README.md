@@ -32,7 +32,7 @@ The `Service` created here is distinct from the one created by the `agent-sandbo
 
 KRO is a powerful tool for defining and managing composite resources in Kubernetes. At its core, KRO introduces the `ResourceGraphDefinition` (RGD) custom resource. An RGD allows you to declaratively specify a graph of Kubernetes resources that should be created, updated, and deleted together as a single unit. When an RGD is applied to a cluster, KRO automatically generates a new Custom Resource Definition (CRD) based on the RGD's schema. Users can then interact with this new, higher-level CRD, and KRO will handle the orchestration of the underlying resources defined in the RGD. This enables administrators to define complex, opinionated abstractions that users can consume easily, without needing to manage the individual components.
 
-## Example: Using KRO to create an `AgentSandbox`
+## Example: Using KRO to create an `AgenticSandbox`
 
 ### Clone the repository
 First, clone the repository and navigate to the repository directory
@@ -53,7 +53,7 @@ Install KRO on your cluster, by running the script:
 
 ### Create RGD
 
-Install the `ResourceGraphDefinition` (RGD) which defines our new `AgentSandbox` CRD
+Install the `ResourceGraphDefinition` (RGD) which defines our new `AgenticSandbox` CRD
 
 ```
 # Switch to the examples directory
@@ -68,25 +68,25 @@ Validate that the RGD is installed correctly:
 ```
 $ kubectl get rgd
 NAME              APIVERSION   KIND             STATE    AGE
-agent-sandbox   v1alpha1     AgentSandbox   Active   6m38s
+agentic-sandbox   v1alpha1     AgenticSandbox   Active   6m38s
 ```
 
-Validate that the new `AgentSandbox` CRD is installed correctly:
+Validate that the new `AgenticSandbox` CRD is installed correctly:
 ```
 $ kubectl get crd
 NAME                                      CREATED AT
-AgentSandboxes.custom.agents.x-k8s.io   2025-09-20T05:03:49Z  # << THIS
+agenticsandboxes.custom.agents.x-k8s.io   2025-09-20T05:03:49Z  # << THIS
 resourcegraphdefinitions.kro.run          2025-09-20T04:35:37Z
 sandboxes.agents.x-k8s.io                 2025-09-19T22:40:05Z
 ```
 
-### Create an `AgentSandbox`
+### Create an `AgenticSandbox`
 
-You can now create an example `AgentSandbox` resource:
+You can now create an example `AgenticSandbox` resource:
 
 ```yaml
 apiVersion: custom.agents.x-k8s.io/v1alpha1
-kind: AgentSandbox
+kind: AgenticSandbox
 metadata:
   name: demo
 spec:
@@ -103,11 +103,11 @@ kubectl apply -f instance.yaml
 Check the status of the created resources:
 
 ```
-kubectl get AgentSandboxes
-kubectl get AgentSandboxes demo -o yaml
+kubectl get AgenticSandboxes
+kubectl get AgenticSandboxes demo -o yaml
 ```
 
-The KRO reconciler reconciles `AgentSandbox` instance and creates the following resources:
+The KRO reconciler reconciles `AgenticSandbox` instance and creates the following resources:
 * Sandbox
 * Service
 * NetworkPolicy (if enabled)
@@ -115,10 +115,10 @@ The KRO reconciler reconciles `AgentSandbox` instance and creates the following 
 
 The user/agent can access the Sandbox via the Ingress or the Service as appropriate.
 
-If needed the user can update `AgentSandbox` instance and reapply.
+If needed the user can update `AgenticSandbox` instance and reapply.
 
-Once done using the Sandbox, the user can delete the `AgentSandbox` instance, and KRO will clean up all the resources it created:
+Once done using the Sandbox, the user can delete the `AgenticSandbox` instance, and KRO will clean up all the resources it created:
 
 ```
-kubectl delete AgentSandbox demo
+kubectl delete AgenticSandbox demo
 ```
