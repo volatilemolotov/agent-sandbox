@@ -1,16 +1,34 @@
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from google.adk.agents.invocation_context import InvocationContext
-from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 from google.adk.code_executors.code_execution_utils import CodeExecutionInput
 from google.adk.code_executors.code_execution_utils import CodeExecutionResult
-from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
-from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
-from .base import SandboxCodeExecutor
+from agentic_sandbox.integrations.sandbox_utils.python_sandbox import (
+    execute_python_code_in_sandbox,
+)
+from .common import (
+    SandboxCodeExecutor,
+    sandbox_result_to_code_executor_result,
+    sandbox_error_to_code_executor_error,
+)
 
 
 class PythonSandboxCodeExecutor(SandboxCodeExecutor):
     """
-    An agent code executor that executes code in the Agent Sandbox
+    An agent code executor that executes Python code in the Agent Sandbox
 
     Args:
         sandbox_settings: Settings for a sandbox to create.
@@ -25,13 +43,12 @@ class PythonSandboxCodeExecutor(SandboxCodeExecutor):
         Executes code in a sandbox.
         """
 
-        with self._sandbox_settings.create_client() as sandbox:
-            sandbox.write("main.py", code_execution_input.code)
+        try:
+            result = execute_python_code_in_sandbox(
+                self._sandbox_settings,
+                code_execution_input.code,
+            )
+        except Exception as e:
+            return sandbox_error_to_code_executor_error(e)
 
-            result = sandbox.run("python3 main.py")
-
-        return CodeExecutionResult(
-            stdout=result.stdout,
-            stderr=result.stderr,
-            output_files=[],
-        )
+        return sandbox_result_to_code_executor_result(result)

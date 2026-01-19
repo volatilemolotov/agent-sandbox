@@ -1,9 +1,31 @@
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from agentic_sandbox.integrations.sandbox_utils.tools import (
+    COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION,
+)
+from agentic_sandbox.integrations.sandbox_utils.python_sandbox import (
+    execute_python_tool_and_handle_errors,
+)
 from .tool import sandbox_tool
 
 
-def create_python_sandbox_tool(sandbox_settings, description=None):
+def create_python_sandbox_tool(
+    sandbox_settings, description=COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION
+):
     """
-    Create Langchain tool that runs Python code inside Agent Sandbox
+    Create Langchain tool that exeutes Python code inside the Agent Sandbox.
 
     Args:
         sandbox_settings: Settings to create a sandbox.
@@ -14,29 +36,5 @@ def create_python_sandbox_tool(sandbox_settings, description=None):
 
 
 def execute_python_code_in_sandbox(code: str, **kwargs) -> dict:
-    """
-    Executes the code in a sandbox and returns execution results.
-
-    Args:
-        code: Python code to execute.
-
-    Returns:
-        Dictionary with following fields:
-        - status: The execution status.
-        - stdout: Stdout of the executed code.
-        - stderr: Stderr of the executed code.
-        - exit_code: Exit code of the executed process.
-
-    """
     sandbox_settings = kwargs["sandbox"]
-
-    with sandbox_settings.create_client() as sandbox:
-        sandbox.write("main.py", code)
-        result = sandbox.run("python3 main.py")
-
-    return {
-        "status": "success",
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "exit_code": result.exit_code,
-    }
+    return execute_python_tool_and_handle_errors(sandbox_settings, code)

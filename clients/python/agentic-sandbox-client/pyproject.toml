@@ -34,9 +34,17 @@ langchain = [
 adk = [
     "google-adk",
 ]
+crewai = [
+    "crewai[tools]",
+]
 test = [
     "agentic_sandbox[langchain]",
     "agentic_sandbox[adk]",
+    "agentic_sandbox[crewai]",
     "pytest",
     "pytest-xdist",
+]
+[tool.pytest]
+pythonpath = [
+    "."
 ]
