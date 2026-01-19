@@ -27,7 +27,9 @@ COMMON_TOOL_RESULT_DESCRIPTION = """
 """
 
 
-COMMON_CODE_TOOL_DESCRIPTION = "Executes the code in a sandbox and returns execution results."
+COMMON_CODE_TOOL_DESCRIPTION = (
+    "Executes the code in a sandbox and returns execution results."
+)
 COMMON_CODE_TOOL_CODE_ARG_DESCRIPTION = "The code to execute."
 
 COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION = f"""
@@ -38,11 +40,13 @@ Returns:
 {COMMON_TOOL_RESULT_DESCRIPTION}
 """
 
-COMMON_COMPUTER_USE_TOOL_DESCRIPTION = \
-"Executes the code in a sandbox and returns execution results."
+COMMON_COMPUTER_USE_TOOL_DESCRIPTION = (
+    "Executes the code in a sandbox and returns execution results."
+)
 
-COMMON_COMPUTER_USE_TOOL_QUERY_ARG_DESCRIPTION = \
-"String with a natural language query to execute within the sandbox."
+COMMON_COMPUTER_USE_TOOL_QUERY_ARG_DESCRIPTION = (
+    "String with a natural language query to execute within the sandbox."
+)
 
 COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION = f"""
 {COMMON_COMPUTER_USE_TOOL_DESCRIPTION}

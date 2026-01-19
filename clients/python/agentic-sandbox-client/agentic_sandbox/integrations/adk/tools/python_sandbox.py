@@ -30,4 +30,3 @@ def execute_python_code_in_sandbox_tool_fn(code: str, **kwargs) -> dict:
 class PythonSandboxTool(PredefinedSandboxFunctionTool):
     func = execute_python_code_in_sandbox_tool_fn
     description = COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION
-  

@@ -19,7 +19,9 @@ from agentic_sandbox.integrations.sandbox_utils.tools import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from agentic_sandbox.integrations.crewai.tools.computer_use_sandbox import ComputerUseSandboxTool
+from agentic_sandbox.integrations.crewai.tools.computer_use_sandbox import (
+    ComputerUseSandboxTool,
+)
 
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
@@ -49,5 +51,5 @@ class TestCrewAIComputerUseSandboxTool(SandboxTestBase):
 
     def _execute_in_sandbox(self):
         tool = ComputerUseSandboxTool(self.sandbox_settings_mock)
-        result = tool.run("some query") 
+        result = tool.run("some query")
         return result

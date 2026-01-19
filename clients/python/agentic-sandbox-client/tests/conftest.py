@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from crewai.tools import BaseTool
+import pytest
 
-from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
-
-
-class CrewAISandboxTool(BaseTool):
-    def __init__(self, sandbox_settings: SandboxSettings, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._sandbox_settings = sandbox_settings
+# Do this for the testing helper package so its asserts be more descriptive.
+pytest.register_assert_rewrite("test_utils")
