@@ -1,6 +1,6 @@
 ---
-title: "Guides"
-linkTitle: "Guides"
+title: "Examples"
+linkTitle: "Examples"
 weight: 20
 description: >
   Collection of official guides and code examples
