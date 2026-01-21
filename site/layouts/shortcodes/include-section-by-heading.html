@@ -1,0 +1,10 @@
+{{- $file := (.Get "file") -}}
+{{- $start_heading := (.Get "start_heading") -}}
+{{- $end_heading := (.Get "end_heading") -}}
+{{- $md := resources.Get $file -}}
+
+{{- $pattern := printf "(?ms)(^%s\n)(.*)(?:^%s)" $start_heading $end_heading -}}
+
+{{- $matches := findRESubmatch $pattern $md.Content -}}
+{{- $content := index (index $matches 0) 2  -}}
+{{- $content | markdownify -}}
