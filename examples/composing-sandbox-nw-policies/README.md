@@ -1,6 +1,6 @@
 # Composing Sandbox with Network Policies
 
-The `Sandbox` API is a low-level primitive for creating secure sandboxes. In real-world scenarios, you often want to compose a `Sandbox` with other Kubernetes resources, such as `NetworkPolicy`, `Ingress` and `Service`, to create a more complete and secure "agent sandbox" environment.
+The `Sandbox` API is a low-level primitive for creating secure sandboxes. In real-world scenarios, you often want to compose a `Sandbox` with other Kubernetes resources, such as `NetworkPolicy`, `Ingress` and `Service`, to create a more complete and secure "agentic sandbox" environment.
 
 * `Ingress` can be used to expose the Sandbox to Users and Agents outside the cluster. 
 * `NetworkPolicy` can be used to control who can connect to the Sandbox and limit the Sandbox outgoing connections to other pods or the internet.  
@@ -103,8 +103,8 @@ kubectl apply -f instance.yaml
 Check the status of the created resources:
 
 ```
-kubectl get AgenticSandboxes
-kubectl get AgenticSandboxes demo -o yaml
+kubectl get agenticsandboxes
+kubectl get agenticsandboxes demo -o yaml
 ```
 
 The KRO reconciler reconciles `AgenticSandbox` instance and creates the following resources:
@@ -120,5 +120,5 @@ If needed the user can update `AgenticSandbox` instance and reapply.
 Once done using the Sandbox, the user can delete the `AgenticSandbox` instance, and KRO will clean up all the resources it created:
 
 ```
-kubectl delete AgenticSandbox demo
+kubectl delete agenticsandbox demo
 ```

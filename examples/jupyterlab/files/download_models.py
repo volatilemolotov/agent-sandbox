@@ -4,6 +4,7 @@ from huggingface_hub import snapshot_download
 if __name__ == "__main__":
     model_names = [
         "Qwen/Qwen3-Embedding-0.6B",
+        "distilbert-base-uncased-finetuned-sst-2-english",
     ]
 
     cache_dir = sys.argv[1] if len(sys.argv) > 1 else None

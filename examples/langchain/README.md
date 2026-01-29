@@ -112,7 +112,7 @@ kubectl wait --for=condition=ready pod -l app=coding-agent --timeout=600s
 ### 6. Use the Agent
 
 ```bash
-# Attach to the agent & hit enter to get interraction prompt
+# Attach to the agent & hit enter to get interaction prompt
 kubectl attach -it coding-agent-sandbox
 
 # Example usage:

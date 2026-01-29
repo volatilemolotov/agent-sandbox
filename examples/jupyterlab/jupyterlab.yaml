@@ -1,13 +1,12 @@
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: jupyter-hf-token
-  namespace: default
-type: Opaque
-stringData:
-  token: "HF_TOKEN"  # Replace with actual token or use --from-literal
----
+# NOTE: This manifest requires the 'jupyter-init-files' ConfigMap to be created first.
+# Create it using:
+#   kubectl create configmap jupyter-init-files \
+#     --from-file=files/download_models.py \
+#     --from-file=files/requirements.txt \
+#     --from-file=files/welcome.ipynb \
+#     --namespace=default
+#
+# For the all-in-one deployment with ConfigMap included, use jupyterlab-full.yaml instead.
 apiVersion: agents.x-k8s.io/v1alpha1
 kind: Sandbox
 metadata:
@@ -41,19 +40,19 @@ spec:
               mkdir -p /home/jovyan/.cache/huggingface
               
               echo "Installing Python dependencies to persistent storage..."
+              PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+              export PYTHONPATH=/home/jovyan/.local/lib/python${PYTHON_VERSION}/site-packages
               pip install --no-cache-dir \
-                --target=/home/jovyan/.local/lib/python3.12/site-packages \
+                --target=/home/jovyan/.local/lib/python${PYTHON_VERSION}/site-packages \
                 -r /config/requirements.txt
-              
-              python /config/download_models.py /home/jovyan/.cache/huggingface
-              
+
+              python /config/download_models.py "$HF_HOME"
+
               echo "Copying notebook files..."
               cp /config/welcome.ipynb /home/jovyan/work/welcome.ipynb
-              
+
               touch /home/jovyan/.initialized
 
-              chown -R jovyan:users /home/jovyan
-              
               echo "Initialization complete!"
           env:
             - name: HF_TOKEN
@@ -81,13 +80,15 @@ spec:
             requests:
               cpu: "500m"
               memory: "2Gi"
-              ephemeral-storage: "1Gi"
+              ephemeral-storage: "10Gi"
             limits:
               cpu: "2"
               memory: "4Gi"
-              ephemeral-storage: "1Gi"
+              ephemeral-storage: "10Gi"
           securityContext:
-            runAsUser: 0  # Need root for chown
+            runAsUser: 1000  # jovyan user
+            runAsGroup: 100  # users group
+            allowPrivilegeEscalation: false
 
       securityContext:
         fsGroup: 100  # users group - for volume permissions
@@ -96,16 +97,25 @@ spec:
         - name: jupyterlab
           image: jupyterhub/k8s-singleuser-sample:4.2.0
           command:
-            - jupyter
-            - lab
+            - /bin/bash
+            - -c
           args:
-            - --ip=0.0.0.0
-            - --port=8888
-            - --notebook-dir=/home/jovyan/work
-            - --ServerApp.token=''
-            - --ServerApp.password=''
-            - --ServerApp.allow_origin='*'
-            - --ServerApp.disable_check_xsrf=True
+            - |
+              PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+              export PYTHONPATH=/home/jovyan/.local/lib/python${PYTHON_VERSION}/site-packages
+              # WARNING: The following flags disable important security features:
+              # - allow_origin='*' allows requests from any origin (CORS security risk)
+              # - disable_check_xsrf=True disables CSRF protection
+              # These are set for ease of use in isolated sandbox environments.
+              # For production use, configure proper authentication and CSRF protection.
+              exec jupyter lab \
+                --ip=0.0.0.0 \
+                --port=8888 \
+                --notebook-dir=/home/jovyan/work \
+                --ServerApp.token='' \
+                --ServerApp.password='' \
+                --ServerApp.allow_origin='*' \
+                --ServerApp.disable_check_xsrf=True
           env:
             - name: HF_TOKEN
               valueFrom:
@@ -116,8 +126,6 @@ spec:
               value: "yes"
             - name: HF_HOME
               value: /home/jovyan/.cache/huggingface
-            - name: PYTHONPATH
-              value: /home/jovyan/.local/lib/python3.12/site-packages
           ports:
             - containerPort: 8888
               name: notebook
