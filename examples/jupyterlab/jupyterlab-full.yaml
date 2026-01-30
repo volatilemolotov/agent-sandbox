@@ -228,11 +228,15 @@ spec:
             - |
               PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
               export PYTHONPATH=/home/jovyan/.local/lib/python${PYTHON_VERSION}/site-packages
-              # WARNING: The following flags disable important security features:
+              # WARNING: The following configuration disables critical security features:
+              # - token='' and password='' disable authentication entirely
               # - allow_origin='*' allows requests from any origin (CORS security risk)
               # - disable_check_xsrf=True disables CSRF protection
-              # These are set for ease of use in isolated sandbox environments.
-              # For production use, configure proper authentication and CSRF protection.
+              # - ip=0.0.0.0 binds to all interfaces
+              #
+              # These settings are ONLY appropriate for isolated sandbox environments.
+              # DO NOT use this configuration if the pod/service is exposed outside the cluster.
+              # For production or exposed deployments, enable authentication and restrict origins.
               exec jupyter lab \
                 --ip=0.0.0.0 \
                 --port=8888 \
