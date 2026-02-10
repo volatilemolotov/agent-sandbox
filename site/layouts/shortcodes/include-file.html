@@ -40,8 +40,8 @@
 {{/* Fix link 9: test_client.py - redirect to GitHub */}}
 {{- $content = replaceRE `\]\(test_client\.py\)` "](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/test_client.py)" $content -}}
 
-{{/* Fix link 10: python-runtime-sandbox - redirect to /docs/runtime_templates/python/ */}}
-{{- $content = replaceRE `\]\(\.\./\.\./\.\./examples/python-runtime-sandbox/\)` "](/docs/runtime_templates/python/)" $content -}}
+{{/* Fix link 10: python-runtime-sandbox - redirect to /docs/runtime-templates/python/ */}}
+{{- $content = replaceRE `\]\(\.\./\.\./\.\./examples/python-runtime-sandbox/\)` "](/docs/runtime-templates/python/)" $content -}}
 
 {{/* Fix link 11: tracing with GCP - redirect to GitHub */}}
 {{- $content = replaceRE `\]\(GCP\.md(#[^)]+)\)` "](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/GCP.md$1)" $content -}}
