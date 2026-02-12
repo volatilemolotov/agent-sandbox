@@ -16,6 +16,7 @@ package framework
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -63,14 +64,35 @@ type T interface {
 type TestContext struct {
 	T
 	ClusterClient
+	artifactsDir string
+}
+
+// ArtifactsDir returns the directory where test artifacts should be written.
+func (th *TestContext) ArtifactsDir() string {
+	return th.artifactsDir
 }
 
 // NewTestContext creates a new TestContext. This should be called at the beginning
 // of each e2e test to construct needed test scaffolding.
 func NewTestContext(t T) *TestContext {
 	t.Helper()
+
+	// Set up artifacts directory for this test
+	artifactsDir := os.Getenv("ARTIFACTS")
+	if artifactsDir == "" {
+		artifactsDir = "./artifacts"
+	}
+	artifactsDir = filepath.Join(artifactsDir, t.Name())
+	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
+		t.Fatalf("failed to create artifacts dir: %v", err)
+	}
+
+	// Wrap T with log capturing
+	wrappedT := newLogCapturingT(t, artifactsDir)
+
 	th := &TestContext{
-		T: t,
+		T:            wrappedT,
+		artifactsDir: artifactsDir,
 	}
 	restConfig, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig},
