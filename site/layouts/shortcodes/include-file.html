@@ -8,6 +8,7 @@
 {{- $pagePath := .Page.RelPermalink -}}
 {{- $sectionPath := replaceRE "/[^/]+/$" "/" $pagePath -}}
 
+<<<<<<< HEAD
 {{/* Fix all relative README.md and INSTALL.md links */}}
 <<<<<<< HEAD
 {{- $content = replaceRE `\]\((\./)?README\.md(#[^)]+)?\)` (printf "](%s$1)" (strings.TrimSuffix "/" $sectionPath)) $content -}}
@@ -51,6 +52,21 @@
 {{/* Fix link 11: tracing with GCP - redirect to GitHub */}}
 {{- $content = replaceRE `\]\(GCP\.md(#[^)]+)\)` "](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/GCP.md$1)" $content -}}
 >>>>>>> 70a6ff3 (Fix for website links)
+=======
+{{/* Load link replacement rules from data file */}}
+{{- $rules := .Site.Data.link_replacements.replacements -}}
+
+{{/* Apply each replacement rule */}}
+{{- range $rules -}}
+  {{- if .dynamic -}}
+    {{/* Dynamic replacement using current section path */}}
+    {{- $content = replaceRE .pattern (printf "](%s$1)" (strings.TrimSuffix "/" $sectionPath)) $content -}}
+  {{- else -}}
+    {{/* Static replacement from YAML */}}
+    {{- $content = replaceRE .pattern .replacement $content -}}
+  {{- end -}}
+{{- end -}}
+>>>>>>> 3b2584b (Refining approach for link replacement and adding link checker)
 
 {{/* Rewrite remaining relative links to point to the GitHub repo */}}
 {{- $ghBase := "https://github.com/kubernetes-sigs/agent-sandbox/blob/main/" -}}
