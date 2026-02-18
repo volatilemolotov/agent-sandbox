@@ -107,7 +107,7 @@ Use this when running against a real cluster with a public Gateway IP. The clien
 discovers the Gateway.
 
 ```python
-from agentic_sandbox import SandboxClient
+from k8s_agent_sandbox import SandboxClient
 
 # Connect via the GKE Gateway
 with SandboxClient(
@@ -124,7 +124,7 @@ Use this for local development or CI. If you omit `gateway_name`, the client aut
 secure tunnel to the Router Service using `kubectl`.
 
 ```python
-from agentic_sandbox import SandboxClient
+from k8s_agent_sandbox import SandboxClient
 
 # Automatically tunnels to svc/sandbox-router-svc
 with SandboxClient(
