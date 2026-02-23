@@ -23,11 +23,11 @@ First, install the gVisor runsc runtime on your host machine (root privileges ar
 (
   set -e
   ARCH=$(uname -m)
-  URL=https://storage.googleapis.com/gvisor/releases/release/latest/${ARCH}
-  wget ${URL}/runsc ${URL}/runsc.sha512 \
-    ${URL}/containerd-shim-runsc-v1 ${URL}/containerd-shim-runsc-v1.sha512
-  sha512sum -c runsc.sha512 \
-    -c containerd-shim-runsc-v1.sha512
+  GVISOR_RELEASE=20260216.0
+  URL=https://storage.googleapis.com/gvisor/releases/release/${GVISOR_RELEASE}/${ARCH}
+  wget ${URL}/runsc ${URL}/runsc.sha512
+  wget ${URL}/containerd-shim-runsc-v1 ${URL}/containerd-shim-runsc-v1.sha512
+  sha512sum -c runsc.sha512 -c containerd-shim-runsc-v1.sha512
   rm -f runsc.sha512 containerd-shim-runsc-v1.sha512
   chmod a+rx runsc containerd-shim-runsc-v1
   sudo mv runsc containerd-shim-runsc-v1 /usr/local/bin
@@ -42,6 +42,10 @@ Create a KIND cluster configuration file that enables gVisor:
 cat <<EOF > kind-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
+    runtime_type = "io.containerd.runsc.v1"
 nodes:
 - role: control-plane
   extraMounts:
@@ -52,36 +56,15 @@ nodes:
 EOF
 ```
 
+**Note:** `io.containerd.runsc.v1` implements the containerd shim v2 protocol. The "v1" refers to gVisor's shim implementation version, not the protocol version.
+
 ### 1.3 Create the Cluster
 
 ```bash
 kind create cluster --name agent-sandbox-demo --config kind-config.yaml
 ```
 
-### 1.4 Configure Containerd for gVisor
-
-Configure the KIND cluster's containerd to support the gVisor runtime:
-
-```bash
-# WARNING: This overwrites the entire containerd config.
-# If you have existing KIND configurations (e.g., registry mirrors),
-# consider backing up /etc/containerd/config.toml first.
-docker exec -it agent-sandbox-demo-control-plane bash -c 'cat <<EOF > /etc/containerd/config.toml
-version = 2
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-  runtime_type = "io.containerd.runc.v2"
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runsc]
-  runtime_type = "io.containerd.runsc.v1"
-EOF'
-
-# Restart containerd
-docker exec -it agent-sandbox-demo-control-plane systemctl restart containerd
-
-# Wait for cluster to stabilize
-kubectl wait --for=condition=Ready nodes --all --timeout=60s
-```
-
-### 1.5 Create RuntimeClass for gVisor
+### 1.4 Create RuntimeClass for gVisor
 
 ```bash
 kubectl apply -f - <<EOF
@@ -137,15 +120,7 @@ kubectl create namespace agent-sandbox-demo
 kubectl config set-context --current --namespace=agent-sandbox-demo
 ```
 
-## Step 3: Load Python Runtime Sandbox Image
-
-Load the Python runtime sandbox image we built in the common setup steps into the KIND cluster:
-
-```bash
-kind load docker-image python-runtime-sandbox:latest --name agent-sandbox-demo
-```
-
-## Step 4: Apply SandboxTemplate
+## Step 3: Apply SandboxTemplate
 
 Apply the SandboxTemplate manifest we created in the common setup steps:
 
@@ -165,7 +140,7 @@ NAME                       AGE
 python-runtime-template    5s
 ```
 
-## Step 5: Apply and Verify SandboxWarmPool
+## Step 4: Apply and Verify SandboxWarmPool
 
 Apply the SandboxWarmPool manifest we created in the common setup steps:
 
@@ -193,12 +168,12 @@ python-warmpool-abcde     1/1     Running   0          15s
 python-warmpool-fghij     1/1     Running   0          15s
 ```
 
-## Step 6: Load Router Image and Deploy Router Service
+## Step 5: Load Router Image and Deploy Router Service
 
 Load the router image we built in the common setup steps into the KIND cluster:
 
 ```bash
-kind load docker-image sandbox-router:local --name agent-sandbox-demo
+kind load docker-image ${ROUTER_IMAGE} --name agent-sandbox-demo
 ```
 
 Apply the Router Service manifest we created in the common setup steps:
@@ -225,7 +200,7 @@ curl http://localhost:8080/healthz
 kill $PF_PID
 ```
 
-## Step 7: Run SDK Tests
+## Step 6: Run SDK Tests
 
 Run the test script we created in the common setup steps. The SDK was already installed in the common setup.
 
@@ -237,12 +212,12 @@ Expected output:
 ```
 === Testing SDK with WarmPool ===
 
-Setting up port-forward: localhost:42303 -> svc/sandbox-router-svc:8080
+Setting up port-forward: localhost:56677 -> svc/sandbox-router-svc:8080
 Port-forward ready
 
-Sandbox created: sandbox-claim-298019a0
-Pod allocated: python-warmpool-t8g22
-Allocation time: 0.80s
+Sandbox created: sandbox-claim-5c73f5ef
+Pod allocated: python-warmpool-6kzh2
+Allocation time: 0.04s
 
 Test 1: Running Python command
   stdout: Hello from SDK!
@@ -253,24 +228,29 @@ Test 2: File operations
   Content: SDK test content
 
 Test 3: WarmPool performance check
-  SandboxClaim created: 2025-12-29T10:32:48Z
-  Pod created:          2025-12-29T10:15:53Z
+  SandboxClaim created: 2026-02-19T10:09:20Z
+  Pod created:          2026-02-19T10:07:08Z
   Pod was PRE-WARMED from WarmPool!
 
 Test 4: Runtime isolation check
-  Sandbox kernel: 6.1.38 (gVisor)
-  Host kernel:    6.6.95
-  Running with userspace isolation (gVisor)!
+  /dev entries: 16
+  Sandbox kernel: 4.4.0
+  Host kernel:    6.8.0-62-generic
+
+  Running with userspace isolation (gVisor)
+    - Minimal /dev filesystem (16 entries)
+    - Emulated kernel 4.4.0
 
 Sandbox automatically cleaned up (context manager exited)
-Core tests (1-3) passed!
+
+=== All tests passed! ===
 
 Cleaning up port-forward...
 ```
 
-**Note:** Test 4 is optional and may occasionally fail if port-forward becomes unstable. Tests 1-3 are the critical validations - they prove WarmPool and SDK work correctly.
+**Note:** Test 4 is optional and focuses on runtime isolation details. The script waits for the port-forward tunnel to be ready before running tests. Tests 1-3 remain the critical validations for WarmPool and SDK behavior.
 
-## Step 8: Validation and Testing
+## Step 7: Validation and Testing
 
 ### Verify gVisor Runtime Isolation
 
@@ -306,7 +286,7 @@ kubectl exec $POD_NAME -- ls /dev | wc -l
 kubectl delete sandboxclaim isolation-test
 ```
 
-## Step 9: Cleanup
+## Step 8: Cleanup
 
 ### Quick Cleanup - Delete Everything
 
