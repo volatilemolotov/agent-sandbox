@@ -22,28 +22,32 @@ Both options provide:
 
 # Common Setup Steps
 
-## Step 1: Build Python Runtime Sandbox Image
-
-### 1.1 Clone the Agent Sandbox Repository
+## Step 1: Clone the Agent Sandbox Repository
 
 ```bash
 git clone https://github.com/kubernetes-sigs/agent-sandbox.git
-cd agent-sandbox/examples/python-runtime-sandbox
+cd agent-sandbox/
 ```
 
-### 1.2 Build the Sandbox Image
+### 1.1 Choose Sandbox and Router Images
+
+Set the image references you will use throughout this quickstart:
 
 ```bash
-docker build -t python-runtime-sandbox:latest .
+export PYTHON_RUNTIME_IMAGE=registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.1
+export ROUTER_IMAGE=sandbox-router:local
 ```
 
 ## Step 2: Create SandboxTemplate Manifest
 
 Create a SandboxTemplate YAML file that will define the sandbox blueprint with your chosen runtime.
 
-**Important:** Replace `<RUNTIME_CLASS_NAME>` with:
-- `gvisor` if you're using **gVisor on KIND**
-- `kata-qemu` if you're using **Kata Containers on minikube**
+Set the runtime based on your choice:
+
+```bash
+# Set the runtime based on your choice
+export RUNTIME_CLASS_NAME=gvisor  # or 'kata-qemu'
+```
 
 ```bash
 cat > SandboxTemplate.yaml <<EOF
@@ -58,11 +62,11 @@ spec:
       labels:
         sandbox: python-sandbox
     spec:
-      runtimeClassName: <RUNTIME_CLASS_NAME>  # Replace with 'gvisor' or 'kata-qemu'
+      runtimeClassName: ${RUNTIME_CLASS_NAME}
       containers:
       - name: python-runtime
-        image: python-runtime-sandbox:latest
-        imagePullPolicy: Never
+        image: ${PYTHON_RUNTIME_IMAGE}
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8888
           protocol: TCP
@@ -120,11 +124,12 @@ Performance comparison:
 
 ## Step 4: Build Router Image
 
-```bash
-cd agent-sandbox/clients/python/agentic-sandbox-client/sandbox-router
+Build the router image locally:
 
-# Build the router image
-docker build -t sandbox-router:local .
+```bash
+cd clients/python/agentic-sandbox-client/sandbox-router
+docker build -t ${ROUTER_IMAGE} .
+cd ../../../../
 ```
 
 ## Step 5: Create Router Service Manifest
@@ -165,7 +170,7 @@ spec:
     spec:
       containers:
       - name: router
-        image: sandbox-router:local
+        image: ${ROUTER_IMAGE}
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -204,11 +209,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Install the SDK
-cd agent-sandbox/clients/python/agentic-sandbox-client
+cd clients/python/agentic-sandbox-client
 pip3 install .
 
 # Verify installation
-pip3 list | grep agentic_sandbox
+pip3 list | grep k8s-agent-sandbox
+# Go back to agent-sandbox directory
+cd ../../../
 ```
 
 **Note:** Keep the virtual environment activated for all subsequent SDK commands.
@@ -221,12 +228,13 @@ Create a test script that will validate the entire setup including WarmPool perf
 cat > test_sdk_warmpool.py <<'EOF'
 #!/usr/bin/env python3
 
-from agentic_sandbox import SandboxClient
+from k8s_agent_sandbox import SandboxClient
 import subprocess
 import time
 import sys
 import signal
 import socket
+import select
 
 # Global to track port-forward process
 portforward_proc = None
@@ -264,30 +272,48 @@ def setup_portforward():
         ["kubectl", "port-forward", "svc/sandbox-router-svc", f"{local_port}:8080"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        bufsize=1
     )
-    
-    # Wait for port-forward to be ready by reading stdout
-    import threading
-    def read_output():
-        for line in portforward_proc.stdout:
-            if "Forwarding from" in line:
-                break
-    
-    reader = threading.Thread(target=read_output, daemon=True)
-    reader.start()
-    reader.join(timeout=10)
-    print(f"Port-forward ready\n")
-    
-    return local_port
+
+    # Wait for port-forward readiness and fail fast on startup errors.
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        if portforward_proc.poll() is not None:
+            stderr_output = portforward_proc.stderr.read().strip()
+            cleanup()
+            raise RuntimeError(
+                f"Port-forward failed to start: {stderr_output or 'process exited before readiness'}"
+            )
+
+        ready, _, _ = select.select([portforward_proc.stdout], [], [], 0.2)
+        if not ready:
+            continue
+
+        line = portforward_proc.stdout.readline()
+        if "Forwarding from" in line:
+            print("Port-forward ready\n")
+            return local_port
+        if "error" in line.lower():
+            stderr_output = portforward_proc.stderr.read().strip()
+            cleanup()
+            raise RuntimeError(
+                f"Port-forward failed to start: {line.strip() or stderr_output or 'unknown error'}"
+            )
+
+    cleanup()
+    stderr_output = portforward_proc.stderr.read().strip()
+    raise TimeoutError(
+        f"Timed out waiting for port-forward readiness: {stderr_output or 'no readiness message received'}"
+    )
 
 def main():
     print("=== Testing SDK with WarmPool ===\n")
-    
-    # Set up port-forward automatically
-    setup_portforward()
-    
+
     try:
+        # Set up port-forward automatically
+        setup_portforward()
+
         start_time = time.time()
         
         with SandboxClient(
@@ -324,28 +350,33 @@ def main():
             print(f"  Pod created:          {pod_time}")
             
             if pod_time < claim_time:
-                print(f"Pod was PRE-WARMED from WarmPool!\n")
+                print(f"  Pod was PRE-WARMED from WarmPool!\n")
             else:
-                print(f"Pod created on-demand (not from warmpool)\n")
+                print(f"  Pod created on-demand (not from warmpool)\n")
             
             print("Test 4: Runtime isolation check")
             try:
-                result = sandbox.run("uname -r")
-                sandbox_kernel = result.stdout.strip()
+                # Use Python to count /dev entries - works in any Python container
+                count_script = "import os; print(len(os.listdir('/dev')))"
+                result = sandbox.run(f"python3 -c \"{count_script}\"")
+                dev_count = int(result.stdout.strip())
+                print(f"  /dev entries: {dev_count}")
+                
+                # Also check kernel version
+                result_uname = sandbox.run("uname -r")
+                sandbox_kernel = result_uname.stdout.strip()
                 print(f"  Sandbox kernel: {sandbox_kernel}")
                 
                 try:
-                    # For minikube
                     host_kernel = subprocess.check_output(
-                        ["minikube", "ssh", "-p", "agent-sandbox-kata", "uname -r"],
+                        ["docker", "exec", "agent-sandbox-demo-control-plane", "uname", "-r"],
                         text=True,
                         stderr=subprocess.DEVNULL
                     ).strip()
                 except:
                     try:
-                        # For KIND
                         host_kernel = subprocess.check_output(
-                            ["docker", "exec", "agent-sandbox-demo-control-plane", "uname", "-r"],
+                            ["minikube", "ssh", "-p", "agent-sandbox-kata", "uname -r"],
                             text=True,
                             stderr=subprocess.DEVNULL
                         ).strip()
@@ -354,17 +385,25 @@ def main():
                 
                 if host_kernel != "unknown":
                     print(f"  Host kernel:    {host_kernel}")
-                    if sandbox_kernel != host_kernel:
-                        print(f"Running with VM isolation (Kata Containers)!")
-                    else:
-                        print(f"Running with userspace isolation (gVisor)!")
+                
+                # Determine isolation type
+                if dev_count < 20:
+                    print(f"\n  Running with userspace isolation (gVisor)")
+                    print(f"    - Minimal /dev filesystem ({dev_count} entries)")
+                    print(f"    - Emulated kernel {sandbox_kernel}")
+                elif sandbox_kernel != host_kernel:
+                    print(f"\n  Running with VM isolation (Kata Containers)")
+                    print(f"    - Full /dev filesystem ({dev_count} entries)")
+                    print(f"    - Different kernel (VM: {sandbox_kernel} vs Host: {host_kernel})")
                 else:
-                    print(f"Host kernel detection skipped")
+                    print(f"\n  Running with standard container runtime")
+                    print(f"    - /dev entries: {dev_count}")
+                        
             except Exception as e:
-                print(f"Test 4 skipped (port-forward may have died): {e}")
+                print(f"  Runtime detection failed: {e}")
         
         print("\nSandbox automatically cleaned up (context manager exited)")
-        print("Core tests (1-3) passed!")
+        print("\n=== All tests passed! ===")
         
     finally:
         cleanup()
@@ -407,7 +446,7 @@ Now continue to **one of the platform-specific guides** to complete the setup:
 Each guide will walk you through:
 1. Setting up your chosen runtime (gVisor or Kata)
 2. Installing Agent Sandbox Controller
-3. Loading the images you built
+3. Loading the locally built router image
 4. Applying the manifests you created
 5. Running tests and validating isolation
 
