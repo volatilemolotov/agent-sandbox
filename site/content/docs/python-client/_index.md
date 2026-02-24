@@ -7,7 +7,5 @@ description: >
 aliases:
   - /docs/python_sdk/
   - /docs/python_sdk
-  - /docs/python-sdk/
-  - /docs/python-sdk
 ---
 {{% include-file file="additional/python-agentic-sandbox-client/README.md" %}}
