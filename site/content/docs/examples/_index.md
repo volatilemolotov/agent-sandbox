@@ -9,10 +9,6 @@ aliases:
   - /docs/guides
   - /docs/guides/chrome-sandbox/
   - /docs/guides/chrome-sandbox
-  - /docs/guides/gvisor/
-  - /docs/guides/gvisor
-  - /docs/guides/kata_containers/
-  - /docs/guides/kata_containers
   - /docs/guides/vscode-sandbox/
   - /docs/guides/vscode-sandbox
 menu:
