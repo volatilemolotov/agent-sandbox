@@ -1,23 +1,23 @@
-# Option 2: Kata Containers on minikube
+# Kata Containers on minikube — Isolation Setup
 
-[← Back to Common Setup Steps](README.md)
+This guide sets up a minikube cluster with Kata Containers VM-based isolation. After completing these steps, return to the [main quickstart guide](README.md) at **Step 3** to finish the setup.
 
-## Prerequisites
+## Additional Prerequisites
+
+In addition to the [main prerequisites](README.md#prerequisites), you need:
 
 - KVM/QEMU virtualization support
-- minikube (1.32+)
-- kubectl (1.28+)
-- Python 3.9+
-- Git
+- [minikube](https://minikube.sigs.k8s.io/) (1.32+)
 - Helm
 - **Minimum 8GB RAM** (Kata VMs require significant memory overhead)
 - **Minimum 4 CPU cores** recommended
 - **20GB free disk space** for images and VMs
 
+> **Note:** Kata Containers uses minikube instead of KIND. This affects a few steps in the main guide — see the callout at the bottom of this page.
+
 ## Step 1: Start minikube with Containerd
 
 ```bash
-# Start minikube with containerd runtime
 minikube start \
   --driver=kvm2 \
   --container-runtime=containerd \
@@ -30,8 +30,6 @@ kubectl wait --for=condition=Ready nodes --all --timeout=120s
 ```
 
 ## Step 2: Install Kata Containers using Helm
-
-Kata Containers now uses Helm as the official installation method.
 
 ```bash
 # Clone Kata Containers repository
@@ -83,184 +81,15 @@ kubectl exec kata-test -- uname -r
 kubectl delete pod kata-test
 ```
 
-## Step 3: Install Agent Sandbox Controller
+**Next:** Return to the [main quickstart guide — Step 3](README.md#step-3-install-agent-sandbox-controller) to continue setup. Remember to:
 
-### 3.1 Install Core Components
+- Use the **"With Kata Containers isolation"** command variant when applying the SandboxTemplate in Step 4
+- Use `minikube image load` instead of `kind load` when loading the router image in Step 7
+- Use `minikube delete -p agent-sandbox-kata` instead of `kind delete cluster` for cleanup in Step 10
 
-```bash
-# Fetch latest version (or use specific version like "v0.1.0")
-export AGENT_SANDBOX_VERSION=$(curl -s https://api.github.com/repos/kubernetes-sigs/agent-sandbox/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-echo "Using Agent Sandbox version: ${AGENT_SANDBOX_VERSION}"
+## Appendix: Kata-Specific Validation
 
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/manifest.yaml
-```
-
-### 3.2 Install Extensions (SandboxTemplate, SandboxClaim, SandboxWarmPool)
-
-```bash
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${AGENT_SANDBOX_VERSION}/extensions.yaml
-```
-
-### 3.3 Verify Installation
-
-```bash
-# Check that the controller is running
-kubectl get pods -n agent-sandbox-system
-
-# Wait for the controller to be ready
-kubectl wait --for=condition=Ready pod -l app=agent-sandbox-controller -n agent-sandbox-system --timeout=120s
-```
-
-Expected output:
-```
-NAME                          READY   STATUS    RESTARTS   AGE
-agent-sandbox-controller-0    1/1     Running   0          30s
-```
-
-### 3.4 Create Dedicated Namespace
-
-```bash
-# Create a namespace for all Agent Sandbox resources
-kubectl create namespace agent-sandbox-demo
-
-# Set as default context to avoid repeating -n flag
-kubectl config set-context --current --namespace=agent-sandbox-demo
-```
-
-## Step 4: Apply SandboxTemplate
-
-Apply the SandboxTemplate manifest we created in the common setup steps:
-
-```bash
-kubectl apply -f SandboxTemplate.yaml
-```
-
-### Verify SandboxTemplate
-
-```bash
-kubectl get sandboxtemplate
-```
-
-Expected output:
-```
-NAME                       AGE
-python-runtime-template    5s
-```
-
-## Step 5: Apply and Verify SandboxWarmPool
-
-Apply the SandboxWarmPool manifest we created in the common setup steps:
-
-```bash
-kubectl apply -f SandboxWarmPool.yaml
-```
-
-### Verify WarmPool Creation
-
-```bash
-# Check WarmPool status
-kubectl get sandboxwarmpool python-warmpool
-
-# Check pre-warmed PODS (not Sandboxes - WarmPool creates pods directly)
-kubectl get pods -l agents.x-k8s.io/pool
-
-# Wait for pods to be ready
-kubectl wait --for=condition=Ready pod -l agents.x-k8s.io/pool --timeout=60s
-```
-
-Expected output:
-```
-NAME                      READY   STATUS    RESTARTS   AGE
-python-warmpool-abcde     1/1     Running   0          15s
-python-warmpool-fghij     1/1     Running   0          15s
-```
-
-## Step 6: Load Router Image and Deploy Router Service
-
-Load the router image we built in the common setup steps into the minikube cluster:
-
-```bash
-minikube image load ${ROUTER_IMAGE} -p agent-sandbox-kata
-```
-
-Apply the Router Service manifest we created in the common setup steps:
-
-```bash
-kubectl apply -f RouterService.yaml
-```
-
-### Verify Router Deployment
-
-```bash
-# Check router pods
-kubectl get pods -l app=sandbox-router
-
-# Check router service
-kubectl get svc sandbox-router-svc
-
-# Test router health
-kubectl port-forward svc/sandbox-router-svc 8080:8080 &
-PF_PID=$!
-sleep 2
-curl http://localhost:8080/healthz
-# Should return: {"status":"ok"}
-kill $PF_PID
-```
-
-## Step 7: Run SDK Tests
-
-Run the test script we created in the common setup steps. The SDK was already installed in the common setup.
-
-```bash
-python3 test_sdk_warmpool.py
-```
-
-Expected output:
-```
-Here's the expected output for Kata Containers on minikube:
-markdown=== Testing SDK with WarmPool ===
-
-Setting up port-forward: localhost:45123 -> svc/sandbox-router-svc:8080
-Port-forward ready
-
-Sandbox created: sandbox-claim-a1b2c3d4
-Pod allocated: python-warmpool-xyz89
-Allocation time: 0.85s
-
-Test 1: Running Python command
-  stdout: Hello from SDK!
-  exit_code: 0
-
-Test 2: File operations
-  File written and read successfully
-  Content: SDK test content
-
-Test 3: WarmPool performance check
-  SandboxClaim created: 2026-02-19T10:15:30Z
-  Pod created:          2026-02-19T10:14:45Z
-  Pod was PRE-WARMED from WarmPool!
-
-Test 4: Runtime isolation check
-  /dev entries: 147
-  Sandbox kernel: 6.1.62
-  Host kernel:    6.8.0-62-generic
-
-  Running with VM isolation (Kata Containers)
-    - Full /dev filesystem (147 entries)
-    - Different kernel (VM: 6.1.62 vs Host: 6.8.0-62-generic)
-
-Sandbox automatically cleaned up (context manager exited)
-
-=== All tests passed! ===
-
-Cleaning up port-forward...
-```
-
-**Note:** Test 4 is optional and focuses on runtime isolation details. The script waits for the port-forward tunnel to be ready before running tests. Tests 1-3 remain the critical validations for WarmPool and SDK behavior.
-
-## Step 8: Validation and Testing
-
-### Verify Kata Runtime Isolation
+After completing the full setup from the main guide, you can run these additional checks to verify Kata isolation:
 
 ```bash
 # Create a test sandbox
@@ -294,40 +123,7 @@ kubectl exec $POD_NAME -- cat /proc/cpuinfo | grep hypervisor
 kubectl delete sandboxclaim isolation-test
 ```
 
-## Step 9: Cleanup
-
-### Quick Cleanup - Delete Everything
-
-```bash
-# Delete the entire namespace (removes all resources at once)
-kubectl delete namespace agent-sandbox-demo
-
-# Restore default namespace context
-kubectl config set-context --current --namespace=default
-```
-
-### Delete minikube Cluster
-
-```bash
-minikube delete -p agent-sandbox-kata
-```
-
-## Summary
-
-### What You Built
-
-- **Sandbox**: Isolated execution environments with secure runtime isolation
-- **SandboxTemplate**: Reusable sandbox blueprints with runtime configuration
-- **SandboxClaim**: Declarative sandbox provisioning API
-- **SandboxWarmPool**: Pre-warmed pool for 10-15x faster allocation
-- **Python SDK**: Context manager pattern for sandbox lifecycle management
-- **Router Service**: HTTP proxy enabling SDK communication
-- **Security Runtime**: VM-based isolation with full kernel separation on minikube clusters (Kata)
-
 ## References
 
-- [Agent Sandbox GitHub](https://github.com/kubernetes-sigs/agent-sandbox)
-- [Agent Sandbox Documentation](https://agent-sandbox.sigs.k8s.io/)
-- [Python SDK Source](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/)
 - [Kata Containers Documentation](https://katacontainers.io/)
 - [minikube Documentation](https://minikube.sigs.k8s.io/)
