@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import wraps
+
 from agentic_sandbox.sandbox_client import ExecutionResult
 
 COMMON_TOOL_RESULT_DESCRIPTION = """
@@ -57,6 +59,31 @@ Returns:
 """
 
 
+def sandbox_in_kwargs(sandbox_settings):
+    """
+    Decorator that injects an instance of a sandbox settings object as a keyword argument
+    named ``sandbox``, so the wrapped function can use it to interact with Agent Sandbox.
+
+    This is intentionally kept separate from the settings classes so that tool-utility
+    concerns do not leak into the user-facing settings API.
+
+    Args:
+        sandbox_settings: Sandbox settings to be passed as the ``sandbox`` keyword argument.
+    """
+
+    def _create_wrapper(func):
+
+        @wraps(func)
+        def _wrapper(*args, **kwargs):
+            updated_kwargs = kwargs.copy()
+            updated_kwargs["sandbox"] = sandbox_settings
+            return func(*args, **updated_kwargs)
+
+        return _wrapper
+
+    return _create_wrapper
+
+
 def sandbox_result_to_json(execution_result: ExecutionResult):
     """
     Convert sandbox result to a JSON serializable format
@@ -77,5 +104,5 @@ def sandbox_error_to_json(error: Exception):
     """
     return {
         "status": "error",
-        "stderr": str(error),
+        "stderr": f"{type(error).__name__}: {error}",
     }

@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .tool import sandbox_tool
-from .python_sandbox import create_python_sandbox_tool
-from .computer_use_sandbox import create_computer_use_sandbox_tool
+from .tool import LangchainSandboxTool
+from .python_sandbox import PythonSandboxTool
+from .computer_use_sandbox import ComputerUseSandboxTool
 
 
 __all__ = [
-    "sandbox_tool",
-    "create_python_sandbox_tool",
-    "create_computer_use_sandbox_tool",
+    "LangchainSandboxTool",
+    "PythonSandboxTool",
+    "ComputerUseSandboxTool",
 ]

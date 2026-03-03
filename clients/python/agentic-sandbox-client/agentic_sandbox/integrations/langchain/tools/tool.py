@@ -12,26 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from langchain.tools import tool
+from langchain_core.tools import BaseTool
+from pydantic import PrivateAttr
 
-from agentic_sandbox.integrations.sandbox_utils import (
-    SandboxSettings,
-    sandbox_in_kwargs,
-)
+from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
 
 
-def sandbox_tool(sandbox_settings: SandboxSettings, description=None):
+class LangchainSandboxTool(BaseTool):
     """
-    Can be used as a Decorator to create a Langchain tool that can interact with the Agent Sandbox.
+    Base class for Langchain tools that interact with Agent Sandbox.
+
+    Subclasses must set ``name``, ``description``, and ``args_schema``,
+    and implement ``_run``.  The sandbox dependency is stored as a typed
+    private attribute so IDEs and type-checkers can surface it, while
+    remaining invisible to the LLM's tool-call introspection.
 
     Args:
-        sandbox_settings: Settings to create a sandbox.
-        description: Tool description.
-
+        sandbox_settings: Settings used to create a sandbox client.
     """
 
-    def _create_wrapper(func):
+    _sandbox_settings: SandboxSettings = PrivateAttr()
 
-        return tool(sandbox_in_kwargs(sandbox_settings)(func), description=description)
+    def __init__(self, sandbox_settings: SandboxSettings, **kwargs):
+        super().__init__(**kwargs)
+        self._sandbox_settings = sandbox_settings
 
-    return _create_wrapper
+    def _run(self, *args, **kwargs):
+        raise NotImplementedError

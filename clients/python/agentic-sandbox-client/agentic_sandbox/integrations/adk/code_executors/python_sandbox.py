@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.code_executors.code_execution_utils import CodeExecutionInput
 from google.adk.code_executors.code_execution_utils import CodeExecutionResult
@@ -24,6 +26,8 @@ from .common import (
     sandbox_result_to_code_executor_result,
     sandbox_error_to_code_executor_error,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PythonSandboxCodeExecutor(SandboxCodeExecutor):
@@ -49,6 +53,7 @@ class PythonSandboxCodeExecutor(SandboxCodeExecutor):
                 code_execution_input.code,
             )
         except Exception as e:
+            logger.exception("Sandbox execution failed")
             return sandbox_error_to_code_executor_error(e)
 
         return sandbox_result_to_code_executor_result(result)

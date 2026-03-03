@@ -12,11 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .sandbox_settings import (
-    SandboxSettings,
-    sandbox_in_kwargs,
-)
+from .sandbox_settings import SandboxSettings
 from .tools import (
+    sandbox_in_kwargs,
     sandbox_result_to_json,
     sandbox_error_to_json,
 )

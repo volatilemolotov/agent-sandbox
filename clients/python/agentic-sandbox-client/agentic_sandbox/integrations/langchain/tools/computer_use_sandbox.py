@@ -12,29 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Type
+from pydantic import BaseModel, Field
+
 from agentic_sandbox.integrations.sandbox_utils.tools import (
-    COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION,
+    COMMON_COMPUTER_USE_TOOL_DESCRIPTION,
+    COMMON_COMPUTER_USE_TOOL_QUERY_ARG_DESCRIPTION,
+    COMMON_TOOL_RESULT_DESCRIPTION,
 )
 from agentic_sandbox.integrations.sandbox_utils.computer_use_sandbox import (
     execute_computer_use_query_tool_and_handle_errors,
 )
-from .tool import sandbox_tool
+from .tool import LangchainSandboxTool
 
 
-def create_computer_use_sandbox_tool(
-    sandbox_settings, description=COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION
-):
-    """
-    Create Langchain tool that executes Computer Use queries inside the Agent Sandbox.
-
-    Args:
-        sandbox_settings: Settings to create a sandbox.
-        description: Tool description.
-
-    """
-    return sandbox_tool(sandbox_settings, description)(execute_query_in_sandbox)
+TOOL_DESCRIPTION = f"""
+{COMMON_COMPUTER_USE_TOOL_DESCRIPTION}
+Returns:
+{COMMON_TOOL_RESULT_DESCRIPTION}
+"""
 
 
-def execute_query_in_sandbox(code: str, **kwargs) -> dict:
-    sandbox_settings = kwargs["sandbox"]
-    return execute_computer_use_query_tool_and_handle_errors(sandbox_settings, code)
+class ComputerUseSandboxInput(BaseModel):
+    """Input schema for Computer Use Sandbox Tool."""
+
+    query: str = Field(..., description=COMMON_COMPUTER_USE_TOOL_QUERY_ARG_DESCRIPTION)
+
+
+class ComputerUseSandboxTool(LangchainSandboxTool):
+    name: str = "Computer use in Sandbox"
+    description: str = TOOL_DESCRIPTION
+    args_schema: Type[BaseModel] = ComputerUseSandboxInput
+
+    def _run(self, query: str) -> dict:
+        return execute_computer_use_query_tool_and_handle_errors(
+            self._sandbox_settings, query
+        )

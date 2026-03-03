@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import wraps
+from abc import ABC, abstractmethod
 
 from agentic_sandbox import SandboxClient
 from agentic_sandbox.extensions.computer_use import ComputerUseSandbox
 
 
-class BaseSandboxSettings:
+class BaseSandboxSettings(ABC):
+    @abstractmethod
     def create_client(self) -> SandboxClient:
-        """Creates an instance of client class"""
-
-        raise NotImplementedError
+        """Creates a sandbox client from these settings."""
 
 
 class SandboxSettings(BaseSandboxSettings):
@@ -94,26 +93,3 @@ class ComputerUseSandboxSettings(BaseSandboxSettings):
             namespace=self._namespace,
             server_port=self._server_port,
         )
-
-
-def sandbox_in_kwargs(sandbox_settings: SandboxSettings):
-    """
-    Decorator that injects an instance of the 'SandboxSettings' class as a keyword argument with name 'sandbox',
-    so the original function can use it to start interacting with Agent Sandbox.
-
-    Args:
-        sandbox_settings: Sandbox settings to be passed to the original function inside the 'sandbox' keyword argument
-    """
-
-    def _create_wrapper(func):
-
-        @wraps(func)
-        def _wrapper(*args, **kwargs):
-
-            updated_kwargs = kwargs.copy()
-            updated_kwargs["sandbox"] = sandbox_settings
-            return func(*args, **updated_kwargs)
-
-        return _wrapper
-
-    return _create_wrapper

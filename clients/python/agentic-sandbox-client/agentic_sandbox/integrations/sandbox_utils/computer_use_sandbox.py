@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
 from agentic_sandbox.sandbox_client import ExecutionResult
 
 from .sandbox_settings import SandboxSettings
@@ -19,6 +21,8 @@ from .tools import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def execute_computer_use_query_in_sandbox(
@@ -61,6 +65,7 @@ def execute_computer_use_query_tool_and_handle_errors(
     try:
         result = execute_computer_use_query_in_sandbox(sandbox_settings, query, timeout)
     except Exception as e:
+        logger.exception("Sandbox execution failed")
         return sandbox_error_to_json(e)
 
     return sandbox_result_to_json(result)

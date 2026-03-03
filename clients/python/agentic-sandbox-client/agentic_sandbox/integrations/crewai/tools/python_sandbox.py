@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import Type
 from pydantic import BaseModel, Field
-
-import logging 
-
-logging.basicConfig(level=logging.DEBUG)
 
 from agentic_sandbox.integrations.sandbox_utils.python_sandbox import (
     execute_python_tool_and_handle_errors,
@@ -30,6 +27,7 @@ from agentic_sandbox.integrations.sandbox_utils.tools import (
 )
 from .base import CrewAISandboxTool
 
+logger = logging.getLogger(__name__)
 
 TOOL_DESCRIPTION = f"""
 {COMMON_CODE_TOOL_DESCRIPTION}
