@@ -16,7 +16,7 @@ from unittest import mock
 
 import pytest
 
-from agentic_sandbox.sandbox_client import ExecutionResult
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
 
 
 class SandboxTestBase:

@@ -15,11 +15,11 @@
 import asyncio
 from unittest import mock
 
-from agentic_sandbox.integrations.executor import (
+from k8s_agent_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from agentic_sandbox.integrations.adk.tools.python_sandbox import PythonSandboxTool
+from k8s_agent_sandbox.integrations.adk.tools.python_sandbox import PythonSandboxTool
 
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 

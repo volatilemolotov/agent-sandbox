@@ -42,9 +42,9 @@ crewai = [
     "crewai[tools]",
 ]
 test = [
-    "agentic_sandbox[langchain]",
-    "agentic_sandbox[adk]",
-    "agentic_sandbox[crewai]",
+    "k8s_agent_sandbox[langchain]",
+    "k8s_agent_sandbox[adk]",
+    "k8s_agent_sandbox[crewai]",
     "pytest",
     "pytest-xdist",
 ]

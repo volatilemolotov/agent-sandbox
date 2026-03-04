@@ -12,17 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
-from .base import BaseLangChainSandboxTool
+from k8s_agent_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
+from .base import BaseCrewAISandboxTool
 
 
-class ComputerUseLangChainSandboxTool(BaseLangChainSandboxTool):
-    """
-    A LangChain tool that executes natural language queries in the Agent Sandbox.
-    """
+class ComputerUseSandboxTool(BaseCrewAISandboxTool):
 
     @classmethod
     def get_sandbox_executer_class(cls):
         return ComputerUseSandboxIntegrationExecutor
-
-

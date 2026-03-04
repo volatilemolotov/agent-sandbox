@@ -13,11 +13,11 @@
 # limitations under the License.
 
 
-from agentic_sandbox.integrations.executor import (
+from k8s_agent_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from agentic_sandbox.integrations.langchain.tools import (
+from k8s_agent_sandbox.integrations.langchain.tools import (
     PythonLangChainSandboxTool,
 )
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase

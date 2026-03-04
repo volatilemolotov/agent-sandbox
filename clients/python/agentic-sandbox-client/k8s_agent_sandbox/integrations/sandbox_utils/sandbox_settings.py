@@ -14,8 +14,8 @@
 
 from functools import wraps
 
-from agentic_sandbox import SandboxClient
-from agentic_sandbox.extensions.computer_use import ComputerUseSandbox
+from k8s_agent_sandbox import SandboxClient
+from k8s_agent_sandbox.extensions.computer_use import ComputerUseSandbox
 
 
 class BaseSandboxSettings:
@@ -29,7 +29,7 @@ class SandboxSettings(BaseSandboxSettings):
     """
     A container class that stores all settings required for a creation of a particular agent sandbox.
 
-    Its constructor signature is identical to 'agentic_sandbox.SandboxClient'.
+    Its constructor signature is identical to 'k8s_agent_sandbox.SandboxClient'.
     """
 
     def __init__(
@@ -74,7 +74,7 @@ class ComputerUseSandboxSettings(BaseSandboxSettings):
     """
     A container class that stores all settings required for a creation of a Computer Use agent sandbox.
 
-    Its constructor signature is identical to 'agentic_sandbox.extensions.ComputerUseSandbox'.
+    Its constructor signature is identical to 'k8s_agent_sandbox.extensions.ComputerUseSandbox'.
     """
 
     def __init__(
@@ -95,25 +95,3 @@ class ComputerUseSandboxSettings(BaseSandboxSettings):
             server_port=self._server_port,
         )
 
-
-# def sandbox_in_kwargs(sandbox_settings: SandboxSettings):
-#     """
-#     Decorator that injects an instance of the 'SandboxSettings' class as a keyword argument with name 'sandbox',
-#     so the original function can use it to start interacting with Agent Sandbox.
-#
-#     Args:
-#         sandbox_settings: Sandbox settings to be passed to the original function inside the 'sandbox' keyword argument
-#     """
-#
-#     def _create_wrapper(func):
-#
-#         @wraps(func)
-#         def _wrapper(*args, **kwargs):
-#
-#             updated_kwargs = kwargs.copy()
-#             updated_kwargs["sandbox"] = sandbox_settings
-#             return func(*args, **updated_kwargs)
-#
-#         return _wrapper
-#
-#     return _create_wrapper

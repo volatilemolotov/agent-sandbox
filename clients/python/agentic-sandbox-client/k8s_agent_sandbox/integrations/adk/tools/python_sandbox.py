@@ -12,12 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
-from .base import BaseCrewAISandboxTool
+
+from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
+from .base import BaseADKSandboxTool
 
 
-class ComputerUseSandboxTool(BaseCrewAISandboxTool):
+class PythonSandboxTool(BaseADKSandboxTool):
+    """
+    An ADK tool that executes Python code in the Agent Sandbox.
+    """
 
     @classmethod
     def get_sandbox_executer_class(cls):
-        return ComputerUseSandboxIntegrationExecutor
+        return PythonCodeSandboxIntegrationExecutor
+

@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .sandbox_settings import (
-    SandboxSettings,
-    # sandbox_in_kwargs,
-)
-# from .tools import (
-#     sandbox_result_to_json,
-#     sandbox_error_to_json,
-# )
 
-__all__ = [
-    "SandboxSettings",
-    # "sandbox_in_kwargs",
-    # "sandbox_result_to_json",
-    # "sandbox_error_to_json",
-]
+from k8s_agent_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
+from .base import BaseADKSandboxTool
+
+
+class ComputerUseSandboxTool(BaseADKSandboxTool):
+    """
+    An ADK tool that executes natural language queries in the Agent Sandbox.
+    """
+
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return ComputerUseSandboxIntegrationExecutor
+

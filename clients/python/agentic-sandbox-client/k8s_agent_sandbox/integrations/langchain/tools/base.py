@@ -12,15 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
 import json
 
-from crewai.tools import BaseTool
+from langchain_core.tools import BaseTool
 
-from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
-from agentic_sandbox.integrations.executor import SandboxExecutorMixin
+from k8s_agent_sandbox.integrations.sandbox_utils import SandboxSettings
+from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
 
 
-class BaseCrewAISandboxTool(BaseTool, SandboxExecutorMixin):
+class BaseLangChainSandboxTool(BaseTool, SandboxExecutorMixin):
+    """
+    A subclass of LangChain's 'BaseTool' that can interact with Agent Sandbox.
+    Args:
+        sandbox_settings: Settings to create a sandbox.
+    """
+
     def __init__(self, sandbox_settings: SandboxSettings, **kwargs):
         executor_cls = self.__class__.get_sandbox_executer_class()
 
@@ -31,11 +38,13 @@ class BaseCrewAISandboxTool(BaseTool, SandboxExecutorMixin):
         super().__init__(
             name=executor_cls.TOOL_NAME,
             description=description,
-            args_schemas=executor_cls.INPUT_SCHEMA,
+            args_schema=executor_cls.INPUT_SCHEMA,
             **kwargs,
         )
         self._sandbox_settings = sandbox_settings
         self._executor = executor_cls(self._sandbox_settings)
-    
-    def _run(self, *args, **kwargs) -> dict:
+
+    def _run(self, *args: Any, **kwargs: Any) -> Any:
         return self._executor.execute_as_tool(*args, **kwargs)
+
+

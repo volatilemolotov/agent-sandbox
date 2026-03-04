@@ -12,17 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .sandbox_settings import (
+    SandboxSettings,
+)
 
-from agentic_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
-from .base import BaseADKSandboxTool
-
-
-class PythonSandboxTool(BaseADKSandboxTool):
-    """
-    An ADK tool that executes Python code in the Agent Sandbox.
-    """
-
-    @classmethod
-    def get_sandbox_executer_class(cls):
-        return PythonCodeSandboxIntegrationExecutor
-
+__all__ = [
+    "SandboxSettings",
+]

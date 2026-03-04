@@ -16,8 +16,7 @@ from google.adk.agents.invocation_context import InvocationContext
 from google.adk.code_executors.code_execution_utils import CodeExecutionInput
 from google.adk.code_executors.code_execution_utils import CodeExecutionResult
 
-from agentic_sandbox.integrations.executor import IntegrationSandboxExecutor
-from agentic_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
+from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
 from .base import (
     BaseADKSandboxCodeExecutor,
     sandbox_result_to_code_executor_result,

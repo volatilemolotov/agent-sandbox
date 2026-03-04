@@ -15,9 +15,9 @@
 from google.adk.code_executors.code_execution_utils import CodeExecutionResult
 from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
-from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
-from agentic_sandbox.sandbox_client import ExecutionResult
-from agentic_sandbox.integrations.executor import SandboxExecutorMixin
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
+from k8s_agent_sandbox.integrations.sandbox_utils import SandboxSettings
+from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
 
 
 class BaseADKSandboxCodeExecutor(BaseCodeExecutor, SandboxExecutorMixin):
