@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .common import SandboxCodeExecutor
+from .base import BaseADKSandboxCodeExecutor
 from .python_sandbox import PythonSandboxCodeExecutor
 
 __all__ = [
-    "SandboxCodeExecutor",
+    "BaseADKSandboxCodeExecutor",
     "PythonSandboxCodeExecutor",
 ]

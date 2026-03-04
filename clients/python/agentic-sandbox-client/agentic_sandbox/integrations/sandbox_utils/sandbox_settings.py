@@ -96,24 +96,24 @@ class ComputerUseSandboxSettings(BaseSandboxSettings):
         )
 
 
-def sandbox_in_kwargs(sandbox_settings: SandboxSettings):
-    """
-    Decorator that injects an instance of the 'SandboxSettings' class as a keyword argument with name 'sandbox',
-    so the original function can use it to start interacting with Agent Sandbox.
-
-    Args:
-        sandbox_settings: Sandbox settings to be passed to the original function inside the 'sandbox' keyword argument
-    """
-
-    def _create_wrapper(func):
-
-        @wraps(func)
-        def _wrapper(*args, **kwargs):
-
-            updated_kwargs = kwargs.copy()
-            updated_kwargs["sandbox"] = sandbox_settings
-            return func(*args, **updated_kwargs)
-
-        return _wrapper
-
-    return _create_wrapper
+# def sandbox_in_kwargs(sandbox_settings: SandboxSettings):
+#     """
+#     Decorator that injects an instance of the 'SandboxSettings' class as a keyword argument with name 'sandbox',
+#     so the original function can use it to start interacting with Agent Sandbox.
+#
+#     Args:
+#         sandbox_settings: Sandbox settings to be passed to the original function inside the 'sandbox' keyword argument
+#     """
+#
+#     def _create_wrapper(func):
+#
+#         @wraps(func)
+#         def _wrapper(*args, **kwargs):
+#
+#             updated_kwargs = kwargs.copy()
+#             updated_kwargs["sandbox"] = sandbox_settings
+#             return func(*args, **updated_kwargs)
+#
+#         return _wrapper
+#
+#     return _create_wrapper

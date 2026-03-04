@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import (
-    SandboxFunctionTool,
-    PredefinedSandboxFunctionTool,
-)
+from .base import BaseADKSandboxTool
 from .python_sandbox import PythonSandboxTool
 
 __all__ = [
-    "SandboxFunctionTool",
-    "PredefinedSandboxFunctionTool",
-    "PythonSandboxTool",
+    'BaseADKSandboxTool',
+    'PythonSandboxTool',
 ]

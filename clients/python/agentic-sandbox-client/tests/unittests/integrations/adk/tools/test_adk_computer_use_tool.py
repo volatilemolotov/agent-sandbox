@@ -15,7 +15,7 @@
 import asyncio
 from unittest import mock
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
+from agentic_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )

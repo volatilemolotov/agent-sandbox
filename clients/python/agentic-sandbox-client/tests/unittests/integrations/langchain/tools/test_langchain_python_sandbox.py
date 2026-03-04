@@ -13,14 +13,12 @@
 # limitations under the License.
 
 
-from agentic_sandbox.sandbox_client import ExecutionResult
-
-from agentic_sandbox.integrations.sandbox_utils.tools import (
+from agentic_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from agentic_sandbox.integrations.langchain.tools.python_sandbox import (
-    create_python_sandbox_tool,
+from agentic_sandbox.integrations.langchain.tools import (
+    PythonLangChainSandboxTool,
 )
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
@@ -49,6 +47,6 @@ class TestLangchainPythonSandboxTool(SandboxTestBase):
         assert result == expected_result
 
     def _execute_in_sandbox(self):
-        tool = create_python_sandbox_tool(self.sandbox_settings_mock)
-        result = tool.invoke("some code")
+        tool = PythonLangChainSandboxTool(self.sandbox_settings_mock)
+        result = tool.invoke({"code": "some code"})
         return result

@@ -12,12 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from crewai.tools import BaseTool
 
 from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
+from agentic_sandbox.integrations.executor import SandboxExecutorMixin
 
 
-class CrewAISandboxTool(BaseTool):
-    def __init__(self, sandbox_settings: SandboxSettings, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class BaseCrewAISandboxTool(BaseTool, SandboxExecutorMixin):
+    def __init__(self, sandbox_settings: SandboxSettings, **kwargs):
+        executor_cls = self.__class__.get_sandbox_executer_class()
+
+        # Since Langchain does not provilde ability to specify the result schema,
+        # we just put its json-schema formatted version to the description.
+        description = f"{executor_cls.TOOL_DESCRIPTION}\n" \
+                      f"The JSON Schema of the result is:\n {json.dumps(executor_cls.RESULT_SCHEMA.model_json_schema())}"
+        super().__init__(
+            name=executor_cls.TOOL_NAME,
+            description=description,
+            args_schemas=executor_cls.INPUT_SCHEMA,
+            **kwargs,
+        )
         self._sandbox_settings = sandbox_settings
+        self._executor = executor_cls(self._sandbox_settings)
+    
+    def _run(self, *args, **kwargs) -> dict:
+        return self._executor.execute_as_tool(*args, **kwargs)

@@ -12,29 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
-    COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION,
-)
-from agentic_sandbox.integrations.sandbox_utils.python_sandbox import (
-    execute_python_tool_and_handle_errors,
-)
-from .tool import sandbox_tool
+from agentic_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
+from .base import BaseLangChainSandboxTool
 
 
-def create_python_sandbox_tool(
-    sandbox_settings, description=COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION
-):
+class PythonLangChainSandboxTool(BaseLangChainSandboxTool):
     """
-    Create Langchain tool that exeutes Python code inside the Agent Sandbox.
-
-    Args:
-        sandbox_settings: Settings to create a sandbox.
-        description: Tool description.
-
+    A LangChain tool that executes Python code in the Agent Sandbox.
     """
-    return sandbox_tool(sandbox_settings, description)(execute_python_code_in_sandbox)
 
-
-def execute_python_code_in_sandbox(code: str, **kwargs) -> dict:
-    sandbox_settings = kwargs["sandbox"]
-    return execute_python_tool_and_handle_errors(sandbox_settings, code)
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return PythonCodeSandboxIntegrationExecutor

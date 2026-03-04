@@ -21,7 +21,7 @@ from google.adk.code_executors.code_execution_utils import (
 from agentic_sandbox.integrations.adk.code_executors.python_sandbox import (
     PythonSandboxCodeExecutor,
 )
-from agentic_sandbox.integrations.adk.code_executors.common import (
+from agentic_sandbox.integrations.adk.code_executors.base import (
     sandbox_result_to_code_executor_result,
     sandbox_error_to_code_executor_error,
 )

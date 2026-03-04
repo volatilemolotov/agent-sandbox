@@ -12,27 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
-    COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION,
-)
-from agentic_sandbox.integrations.sandbox_utils.computer_use_sandbox import (
-    execute_computer_use_query_tool_and_handle_errors,
-)
-from .base import PredefinedSandboxFunctionTool
+
+from agentic_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
+from .base import BaseADKSandboxTool
 
 
-def execute_computer_use_query_in_sandbox_tool_fn(
-    query: str, timeout: int = 60, **kwargs
-) -> dict:
-    sandbox_settings = kwargs["sandbox"]
+class ComputerUseSandboxTool(BaseADKSandboxTool):
+    """
+    An ADK tool that executes natural language queries in the Agent Sandbox.
+    """
 
-    return execute_computer_use_query_tool_and_handle_errors(
-        sandbox_settings,
-        query,
-        timeout=timeout,
-    )
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return ComputerUseSandboxIntegrationExecutor
 
-
-class ComputerUseSandboxTool(PredefinedSandboxFunctionTool):
-    func = execute_computer_use_query_in_sandbox_tool_fn
-    description = COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION

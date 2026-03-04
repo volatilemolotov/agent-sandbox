@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.sandbox_client import ExecutionResult
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
+from agentic_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
 from agentic_sandbox.integrations.langchain.tools import (
-    create_computer_use_sandbox_tool,
+    ComputerUseLangChainSandboxTool,
 )
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
@@ -48,6 +47,6 @@ class TestLangchainComputerUseSandboxTool(SandboxTestBase):
         assert result == expected_result
 
     def _execute_in_sandbox(self):
-        tool = create_computer_use_sandbox_tool(self.sandbox_settings_mock)
-        result = tool.invoke("some query")
+        tool = ComputerUseLangChainSandboxTool(self.sandbox_settings_mock)
+        result = tool.invoke({"query": "some query"})
         return result

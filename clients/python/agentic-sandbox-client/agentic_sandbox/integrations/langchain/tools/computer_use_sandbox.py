@@ -12,29 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
-    COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION,
-)
-from agentic_sandbox.integrations.sandbox_utils.computer_use_sandbox import (
-    execute_computer_use_query_tool_and_handle_errors,
-)
-from .tool import sandbox_tool
+from agentic_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
+from .base import BaseLangChainSandboxTool
 
 
-def create_computer_use_sandbox_tool(
-    sandbox_settings, description=COMMON_COMPUTER_USE_TOOL_DOCSTRING_DESCRIPTION
-):
+class ComputerUseLangChainSandboxTool(BaseLangChainSandboxTool):
     """
-    Create Langchain tool that executes Computer Use queries inside the Agent Sandbox.
-
-    Args:
-        sandbox_settings: Settings to create a sandbox.
-        description: Tool description.
-
+    A LangChain tool that executes natural language queries in the Agent Sandbox.
     """
-    return sandbox_tool(sandbox_settings, description)(execute_query_in_sandbox)
+
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return ComputerUseSandboxIntegrationExecutor
 
 
-def execute_query_in_sandbox(code: str, **kwargs) -> dict:
-    sandbox_settings = kwargs["sandbox"]
-    return execute_computer_use_query_tool_and_handle_errors(sandbox_settings, code)

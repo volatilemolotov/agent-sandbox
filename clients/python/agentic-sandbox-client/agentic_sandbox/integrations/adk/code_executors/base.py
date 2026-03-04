@@ -17,19 +17,25 @@ from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
 from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
 from agentic_sandbox.sandbox_client import ExecutionResult
+from agentic_sandbox.integrations.executor import SandboxExecutorMixin
 
 
-class SandboxCodeExecutor(BaseCodeExecutor):
+class BaseADKSandboxCodeExecutor(BaseCodeExecutor, SandboxExecutorMixin):
     """
-    Base Agent Sandbox Code Executor.
+    A subclass of ADK's 'BaseCodeExecutor' that can interact with Agent Sandbox.
 
     Args:
         sandbox_settings: Settings for a sandbox to create.
     """
-
-    def __init__(self, sandbox_settings: SandboxSettings):
-        super().__init__()
+    
+    def __init__(
+       self,
+       sandbox_settings: SandboxSettings,
+    ):
         self._sandbox_settings = sandbox_settings
+        executor_cls = self.__class__.get_sandbox_executer_class()
+        self._executor = executor_cls(self._sandbox_settings)
+
 
 
 def sandbox_result_to_code_executor_result(result: ExecutionResult):

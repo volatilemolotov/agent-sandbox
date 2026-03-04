@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .base import BaseCrewAISandboxTool
 from .python_sandbox import PythonSandboxTool
 
 __all__ = [
+    'BaseCrewAISandboxTool',
     'PythonSandboxTool',
 ]

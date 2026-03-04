@@ -15,7 +15,7 @@
 import asyncio
 from unittest import mock
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
+from agentic_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
@@ -49,5 +49,5 @@ class TestCrewAIPythonSandboxTool(SandboxTestBase):
 
     def _execute_in_sandbox(self):
         tool = PythonSandboxTool(self.sandbox_settings_mock)
-        result = tool.run("some code")
+        result = tool.run(code="some code")
         return result

@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
-    COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION,
-)
-from agentic_sandbox.integrations.sandbox_utils.python_sandbox import (
-    execute_python_tool_and_handle_errors,
-)
-from .base import PredefinedSandboxFunctionTool
+
+from agentic_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
+from .base import BaseADKSandboxTool
 
 
-def execute_python_code_in_sandbox_tool_fn(code: str, **kwargs) -> dict:
-    sandbox_settings = kwargs["sandbox"]
+class PythonSandboxTool(BaseADKSandboxTool):
+    """
+    An ADK tool that executes Python code in the Agent Sandbox.
+    """
 
-    return execute_python_tool_and_handle_errors(sandbox_settings, code)
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return PythonCodeSandboxIntegrationExecutor
 
-
-class PythonSandboxTool(PredefinedSandboxFunctionTool):
-    func = execute_python_code_in_sandbox_tool_fn
-    description = COMMON_CODE_TOOL_DOCSTRING_DESCRIPTION

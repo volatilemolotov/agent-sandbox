@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-from unittest import mock
 
-from agentic_sandbox.integrations.sandbox_utils.tools import (
+from agentic_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
@@ -51,5 +49,5 @@ class TestCrewAIComputerUseSandboxTool(SandboxTestBase):
 
     def _execute_in_sandbox(self):
         tool = ComputerUseSandboxTool(self.sandbox_settings_mock)
-        result = tool.run("some query")
+        result = tool.run(query="some query")
         return result

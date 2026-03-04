@@ -12,48 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import (
-    Any,
-)
-from google.genai import types
-from google.adk.tools import BaseTool, ToolContext
+from typing import Any
+import json
 
-from agentic_sandbox.integrations.sandbox_utils import (
-    SandboxSettings,
-)
+from langchain_core.tools import BaseTool
+
+from agentic_sandbox.integrations.sandbox_utils import SandboxSettings
 from agentic_sandbox.integrations.executor import SandboxExecutorMixin
 
 
-class BaseADKSandboxTool(BaseTool, SandboxExecutorMixin):
+class BaseLangChainSandboxTool(BaseTool, SandboxExecutorMixin):
     """
-    A subclass of ADK's 'BaseTool' that can interact with Agent Sandbox.
+    A subclass of LangChain's 'BaseTool' that can interact with Agent Sandbox.
     Args:
         sandbox_settings: Settings to create a sandbox.
     """
-    
-    def __init__(
-       self,
-       sandbox_settings: SandboxSettings,
-    ):
+
+    def __init__(self, sandbox_settings: SandboxSettings, **kwargs):
         executor_cls = self.__class__.get_sandbox_executer_class()
+
+        # Since Langchain does not provilde ability to specify the result schema,
+        # we just put its json-schema formatted version to the description.
+        description = f"{executor_cls.TOOL_DESCRIPTION}\n" \
+                      f"The JSON Schema of the result is:\n {json.dumps(executor_cls.RESULT_SCHEMA.model_json_schema())}"
         super().__init__(
             name=executor_cls.TOOL_NAME,
-            description=executor_cls.TOOL_DESCRIPTION
+            description=description,
+            args_schema=executor_cls.INPUT_SCHEMA,
+            **kwargs,
         )
         self._sandbox_settings = sandbox_settings
         self._executor = executor_cls(self._sandbox_settings)
 
+    def _run(self, *args: Any, **kwargs: Any) -> Any:
+        return self._executor.execute_as_tool(*args, **kwargs)
 
-    async def run_async(
-        self, *, args: dict[str, Any], tool_context: ToolContext
-    ) -> Any:
-        return self._executor.execute_as_tool(**args)
 
-    def _get_declaration(self):
-        return types.FunctionDeclaration(
-            name=self.name,
-            description=self.description,
-            parameters_json_schema=self._executor.__class__.INPUT_SCHEMA.model_json_schema(),
-            response_json_schema=self._executor.__class__.RESULT_SCHEMA.model_json_schema(),
-        )
- 
