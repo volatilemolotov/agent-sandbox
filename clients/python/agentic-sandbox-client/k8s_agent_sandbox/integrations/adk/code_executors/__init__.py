@@ -13,9 +13,9 @@
 # limitations under the License.
 
 from .base import BaseADKSandboxCodeExecutor
-from .python_sandbox import PythonSandboxCodeExecutor
+from .python_sandbox import PythonADKSandboxCodeExecutor
 
 __all__ = [
     "BaseADKSandboxCodeExecutor",
-    "PythonSandboxCodeExecutor",
+    "PythonADKSandboxCodeExecutor",
 ]

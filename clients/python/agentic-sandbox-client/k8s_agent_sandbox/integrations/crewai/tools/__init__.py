@@ -13,9 +13,11 @@
 # limitations under the License.
 
 from .base import BaseCrewAISandboxTool
-from .python_sandbox import PythonSandboxTool
+from .python_sandbox import PythonCrewAISandboxTool
+from .computer_use import ComputerUseCrewAISandboxTool
 
 __all__ = [
     'BaseCrewAISandboxTool',
-    'PythonSandboxTool',
+    'PythonCrewAISandboxTool',
+    'ComputerUseCrewAISandboxTool',
 ]

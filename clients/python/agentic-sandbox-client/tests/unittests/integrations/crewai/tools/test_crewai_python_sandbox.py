@@ -19,7 +19,7 @@ from k8s_agent_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from k8s_agent_sandbox.integrations.crewai.tools.python_sandbox import PythonSandboxTool
+from k8s_agent_sandbox.integrations.crewai.tools import PythonCrewAISandboxTool
 
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
@@ -48,6 +48,6 @@ class TestCrewAIPythonSandboxTool(SandboxTestBase):
         assert result == expected_result
 
     def _execute_in_sandbox(self):
-        tool = PythonSandboxTool(self.sandbox_settings_mock)
+        tool = PythonCrewAISandboxTool(self.sandbox_settings_mock)
         result = tool.run(code="some code")
         return result

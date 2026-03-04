@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import wraps
-
 from k8s_agent_sandbox import SandboxClient
 from k8s_agent_sandbox.extensions.computer_use import ComputerUseSandbox
 

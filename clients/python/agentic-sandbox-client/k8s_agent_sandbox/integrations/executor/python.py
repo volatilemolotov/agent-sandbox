@@ -23,7 +23,6 @@ from .base import (
 )
 
 
-
 class PythonCodeSandboxIntegrationExecutor(IntegrationSandboxExecutor):
 
     """
@@ -47,7 +46,4 @@ class PythonCodeSandboxIntegrationExecutor(IntegrationSandboxExecutor):
             return result
     
     def execute(self, **args) -> ExecutionResult:
-        return self._execute_code(**args)
-    
-    def execute_with_positional_args(self, *args, **kwargs) -> ExecutionResult:
-        return self._execute_code(*args, **kwargs)
+        return self._execute_code(**args)    

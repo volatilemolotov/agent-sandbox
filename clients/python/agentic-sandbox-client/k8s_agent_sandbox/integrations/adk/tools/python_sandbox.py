@@ -17,7 +17,7 @@ from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegration
 from .base import BaseADKSandboxTool
 
 
-class PythonSandboxTool(BaseADKSandboxTool):
+class PythonADKSandboxTool(BaseADKSandboxTool):
     """
     An ADK tool that executes Python code in the Agent Sandbox.
     """

@@ -1,52 +1,62 @@
-# Agent Sandbox Langchain integration
+# Agent Sandbox CrewAI integration
 
-The Agent Sandbox integration for the [Langchain](https://www.langchain.com/) introduces a set of framework-compatible abstractions, enabling Langchain-based projects to interact seamlessly with the Agent Sandbox. 
+The Agent Sandbox integration for the [CrewAI](https://docs.crewai.com/) introduces a set of framework-compatible abstractions, enabling CrewAI-based projects to interact seamlessly with the Agent Sandbox. 
 
 This page includes full code examples for:
 * [Tools](#tools)
 
 ## Tools
 
-The Agent Sandbox Langchain integration allows using sandbox as a [tool](https://docs.langchain.com/oss/python/langchain/tools#tools).
+The Agent Sandbox CrewAI integration allows using sandbox as a [tool](https://docs.crewai.com/en/concepts/tools).
 
 ### Using Python sandbox tool 
 
 We provide a built-in function to create a tool for a sandbox with Python environment. This example shows how to use it:
 
 ```python
-from langchain_google_genai import ChatGoogleGenerativeAI # pip install langchain_google_genai
-from langchain.agents import create_agent
+from crewai import Agent, Task, Crew
 
 from k8s_agent_sandbox.integrations import SandboxSettings
-from k8s_agent_sandbox.integrations.langchain.tools import PythonLangChainSandboxTool
-
+from k8s_agent_sandbox.integrations.crewai.tools import PythonCrewAISandboxTool
 
 # Specify sandbox specific settings in the sandbox settings instance.
 sandbox_settings = SandboxSettings(
     template_name="python-sandbox-template",
     namespace="default",
 )
+# Instantiate the tool
+python_sandbox_tool = PythonCrewAISandboxTool(sandbox_settings)
 
-# Create a tool. The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
-python_tool = PythonLangChainSandboxTool(sandbox_settings)
-
-# Create and test an agent
-agent = create_agent(
-    # Using Gemini in this example (https://docs.langchain.com/oss/python/integrations/chat/google_generative_ai).
-    # Change this in order to use another model (https://docs.langchain.com/oss/python/integrations/chat).
-    model=ChatGoogleGenerativeAI(
-        model="gemini-3-flash-preview",
-    ),
-    tools=[python_tool],
-    system_prompt="You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.",
+editor_agent = Agent(
+    llm='gemini/gemini-3-flash-preview',
+    role='Senior Software Engineer',
+    goal='Execute code in a sandbox',
+    backstory='You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.',
+    tools=[python_sandbox_tool],
+    verbose=True,
+    memory=True
 )
 
-result = agent.invoke(
-    {"messages": [{"role": "user", "content": "Calculate 2 to the power of 64"}]}
+analysis_task = Task(
+    description='Write a code that calculates 2 to the power of 64.',
+    expected_output='A report containing the exact word count and a brief sentiment analysis.',
+    agent=editor_agent
 )
 
-for m in result["messages"]:
-    m.pretty_print()
+crew = Crew(
+    agents=[editor_agent],
+    tasks=[analysis_task],
+    process='sequential',
+    verbose=True
+)
+
+print("### Starting Crew Execution ###")
+result = crew.kickoff()
+
+print("\n\n########################")
+print("## Final Result ##")
+print("########################\n")
+print(result)
 ```
 
 ### Creating custom tools:
@@ -55,8 +65,7 @@ To create a new custom tool that uses Agent Sandbox, you can implement your logi
 a function and pass it to our sandbox class:
 
 ```python
-from langchain_google_genai import ChatGoogleGenerativeAI # pip install langchain_google_genai
-from langchain.agents import create_agent
+from crewai import Agent, Task, Crew
 from pydantic import Field
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
@@ -66,7 +75,7 @@ from k8s_agent_sandbox.integrations.executor import (
     CommonBaseInputSchema,
     CommonExecutionResultSchema,
 )
-from k8s_agent_sandbox.integrations.langchain.tools import BaseLangChainSandboxTool
+from k8s_agent_sandbox.integrations.crewai.tools import BaseCrewAISandboxTool
 
 
 class MyPythonSandbonExecutor(IntegrationSandboxExecutor):
@@ -92,9 +101,9 @@ class MyPythonSandbonExecutor(IntegrationSandboxExecutor):
         return self._execute_code(**args)
     
 
-# Creating the Langchain tool class.
+# Creating the CrewAI tool class.
 # All that we need to do is to override the abstract method and to specify our executor class.
-class MyPythonSandboxTool(BaseLangChainSandboxTool):
+class MyPythonSandboxTool(BaseCrewAISandboxTool):
 
     @classmethod
     def get_sandbox_executer_class(cls):
@@ -109,22 +118,34 @@ sandbox_settings = SandboxSettings(
 # The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
 my_coding_tool = MyPythonSandboxTool(sandbox_settings)
 
-
-# Create and test an agent
-agent = create_agent(
-    # Using Gemini in this example (https://docs.langchain.com/oss/python/integrations/chat/google_generative_ai).
-    # Change this in order to use another model (https://docs.langchain.com/oss/python/integrations/chat).
-    model=ChatGoogleGenerativeAI(
-        model="gemini-3-flash-preview",
-    ),
+editor_agent = Agent(
+    llm='gemini/gemini-3-flash-preview',
+    role='Senior Software Engineer',
+    goal='Execute code in a sandbox',
+    backstory='You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.',
     tools=[my_coding_tool],
-    system_prompt="You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.",
+    verbose=True,
+    memory=True
 )
 
-result = agent.invoke(
-    {"messages": [{"role": "user", "content": "Calculate 2 to the power of 64"}]}
+analysis_task = Task(
+    description='Write a code that calculates 2 to the power of 64.',
+    expected_output='A report containing the exact word count and a brief sentiment analysis.',
+    agent=editor_agent
 )
 
-for m in result["messages"]:
-    m.pretty_print()
+crew = Crew(
+    agents=[editor_agent],
+    tasks=[analysis_task],
+    process='sequential',
+    verbose=True
+)
+
+print("### Starting Crew Execution ###")
+result = crew.kickoff()
+
+print("\n\n########################")
+print("## Final Result ##")
+print("########################\n")
+print(result)
 ```

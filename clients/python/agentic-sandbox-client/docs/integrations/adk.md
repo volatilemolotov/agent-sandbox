@@ -16,8 +16,9 @@ We provide a built-in tool class for a sandbox with Python environment. This exa
 
 ```python
 from google.adk.agents.llm_agent import Agent
-from agentic_sandbox.integrations import SandboxSettings
-from agentic_sandbox.integrations.adk.tools import PythonSandboxTool
+
+from k8s_agent_sandbox.integrations import SandboxSettings
+from k8s_agent_sandbox.integrations.adk.tools import PythonADKSandboxTool
 
 
 # Specify sandbox specific settings in the sandbox settings instance.
@@ -27,7 +28,7 @@ sandbox_settings = SandboxSettings(
 )
 
 # Create a tool. The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
-python_tool = PythonSandboxTool(sandbox_settings)
+python_tool = PythonADKSandboxTool(sandbox_settings)
 
 root_agent = Agent(
     model="gemini-3-flash-preview",
@@ -44,8 +45,48 @@ a function and pass it to our sandbox class:
 
 ```python
 from google.adk.agents.llm_agent import Agent
-from agentic_sandbox.integrations import SandboxSettings
-from agentic_sandbox.integrations.adk.tools import SandboxFunctionTool
+from pydantic import Field
+
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
+from k8s_agent_sandbox.integrations import SandboxSettings
+from k8s_agent_sandbox.integrations.executor import (
+    IntegrationSandboxExecutor,
+    CommonBaseInputSchema,
+    CommonExecutionResultSchema,
+)
+from k8s_agent_sandbox.integrations.adk.tools import BaseADKSandboxTool
+
+
+class MyPythonSandbonExecutor(IntegrationSandboxExecutor):
+
+    TOOL_NAME = "execute_python_code_in_sandbox_custom"
+    TOOL_DESCRIPTION = "Executes Python code in a sandbox and returns execution results."
+
+    class INPUT_SCHEMA(CommonBaseInputSchema):
+        code: str = Field(description="The code to execute.")
+
+    RESULT_SCHEMA=CommonExecutionResultSchema    
+
+    # This is you main logic that interacts with sandbox 
+    # The arguments has to match the INPUT_SCHEMA arrtibute of this class
+    def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
+        with self._sandbox_settings.create_client() as sandbox:
+            sandbox.write("main.py", code)
+            result = sandbox.run("python3 main.py", timeout)
+            return result
+    
+    # Implement this abstract method to invoke your code. 
+    def execute(self, **args) -> ExecutionResult:
+        return self._execute_code(**args)
+    
+
+# Creating the Langchain tool class.
+# All that we need to do is to override the abstract method and to specify our executor class.
+class MyPythonSandboxTool(BaseADKSandboxTool):
+
+    @classmethod
+    def get_sandbox_executer_class(cls):
+        return MyPythonSandbonExecutor
 
 
 # Specify sandbox specific settings in the sandbox settings instance.
@@ -54,26 +95,8 @@ sandbox_settings = SandboxSettings(
     namespace="default",
 )
 
-
-def my_coding_tool(code: str, **kwargs):
-    """<Tool description>"""
-
-    # Sandbox settings are injected into the kwargs under the 'sandbox' argument.
-    sandbox_settings = kwargs["sandbox"]
-    with sandbox_settings.create_client() as sandbox:
-        sandbox.write("main.py", code)
-        result = sandbox.run("python3 main.py")
-
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "exit_code": result.exit_code,
-        }
-
-
-# Create a tool from the function. The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
-my_tool = SandboxFunctionTool(sandbox_settings, my_coding_tool)
+# The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
+my_tool = MyPythonSandboxTool(sandbox_settings)
 
 root_agent = Agent(
     model="gemini-3-flash-preview",
@@ -93,8 +116,8 @@ We provide a built-in code executor class for a sandbox with Python environment.
 
 ```python
 from google.adk.agents.llm_agent import Agent
-from agentic_sandbox.integrations import SandboxSettings
-from agentic_sandbox.integrations.adk.code_executors import PythonSandboxCodeExecutor
+from k8s_agent_sandbox.integrations import SandboxSettings
+from k8s_agent_sandbox.integrations.adk.code_executors import PythonADKSandboxCodeExecutor
 
 
 # Specify sandbox specific settings in the sandbox settings instance.
@@ -104,7 +127,7 @@ sandbox_settings = SandboxSettings(
 )
 
 # Create an executor. The executor will create a sandbox according to the settings from the 'sandbox_settings' argument.
-python_code_executor = PythonSandboxCodeExecutor(sandbox_settings)
+python_code_executor = PythonADKSandboxCodeExecutor(sandbox_settings)
 
 # NOTE: There's an ongoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
 root_agent = Agent(
@@ -128,8 +151,68 @@ from google.adk.code_executors.code_execution_utils import (
     CodeExecutionInput,
     CodeExecutionResult,
 )
-from agentic_sandbox.integrations import SandboxSettings
-from agentic_sandbox.integrations.adk.code_executors import SandboxCodeExecutor
+from pydantic import Field
+
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.code_executors.code_execution_utils import CodeExecutionInput
+from google.adk.code_executors.code_execution_utils import CodeExecutionResult
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
+from k8s_agent_sandbox.integrations import SandboxSettings
+from k8s_agent_sandbox.integrations.executor import (
+    IntegrationSandboxExecutor,
+    CommonBaseInputSchema,
+    CommonExecutionResultSchema,
+)
+from k8s_agent_sandbox.integrations.adk.code_executors import BaseADKSandboxCodeExecutor
+
+
+class MyPythonSandbonExecutor(IntegrationSandboxExecutor):
+
+    TOOL_NAME = "execute_python_code_in_sandbox_custom"
+    TOOL_DESCRIPTION = "Executes Python code in a sandbox and returns execution results."
+
+    class INPUT_SCHEMA(CommonBaseInputSchema):
+        code: str = Field(description="The code to execute.")
+
+    RESULT_SCHEMA=CommonExecutionResultSchema    
+
+    # This is you main logic that interacts with sandbox 
+    # The arguments has to match the INPUT_SCHEMA arrtibute of this class
+    def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
+        with self._sandbox_settings.create_client() as sandbox:
+            sandbox.write("main.py", code)
+            result = sandbox.run("python3 main.py", timeout)
+            return result
+    
+    # Implement this abstract method to invoke your code. 
+    def execute(self, **args) -> ExecutionResult:
+        return self._execute_code(**args)
+    
+
+# Creating the Langchain tool class and override two methods.
+# First method to tell to run the executor and the second to specify the executoir class.
+class MyPythonSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
+    def execute_code(
+        self,
+        invocation_context: InvocationContext,
+        code_execution_input: CodeExecutionInput,
+    ) -> CodeExecutionResult:
+        """
+        Executes code in a sandbox.
+        """
+
+        try:
+            result = self._executor.execute(
+                code=code_execution_input.code,
+            )
+        except Exception as e:
+            return sandbox_error_to_code_executor_error(e)
+
+        return sandbox_result_to_code_executor_result(result)
+    
+    @classmethod
+    def get_sandbox_executer_class(cls) -> type[MyPythonSandbonExecutor]:
+        return MyPythonSandbonExecutor
 
 
 # Specify sandbox specific settings in the sandbox settings instance.
@@ -138,27 +221,8 @@ sandbox_settings = SandboxSettings(
     namespace="default",
 )
 
-
-class MySandboxCodeExecutor(SandboxCodeExecutor):
-    def execute_code(
-        self,
-        invocation_context: InvocationContext,
-        code_execution_input: CodeExecutionInput,
-    ) -> CodeExecutionResult:
-
-        with self._sandbox_settings.create_client() as sandbox:
-            sandbox.write("main.py", code_execution_input.code)
-            result = sandbox.run("python3 main.py")
-
-        return CodeExecutionResult(
-            stdout=result.stdout,
-            stderr=result.stderr,
-            output_files=[],
-        )
-
-
 # Create an executor. The executor will create a sandbox according to the settings from the 'sandbox_settings' argument.
-code_executor = MySandboxCodeExecutor(sandbox_settings)
+code_executor = MyPythonSandboxCodeExecutor(sandbox_settings)
 
 # NOTE: There's an ongoing issue with code executors in ADK: https://github.com/google/adk-python/pull/3699
 root_agent = Agent(

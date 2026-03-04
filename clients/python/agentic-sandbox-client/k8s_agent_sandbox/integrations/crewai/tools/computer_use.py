@@ -16,7 +16,7 @@ from k8s_agent_sandbox.integrations.executor import ComputerUseSandboxIntegratio
 from .base import BaseCrewAISandboxTool
 
 
-class ComputerUseSandboxTool(BaseCrewAISandboxTool):
+class ComputerUseCrewAISandboxTool(BaseCrewAISandboxTool):
 
     @classmethod
     def get_sandbox_executer_class(cls):

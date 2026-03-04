@@ -5,7 +5,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
-from k8s_agent_sandbox.integrations.sandbox_utils import SandboxSettings
+from k8s_agent_sandbox.integrations import SandboxSettings
 
 class CommonBaseInputSchema(BaseModel):
     timeout: int = Field(default=60, description="Timeout in seconds which stops execution with error when reached.")

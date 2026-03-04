@@ -43,5 +43,3 @@ class ComputerUseSandboxIntegrationExecutor(IntegrationSandboxExecutor):
 
     def execute(self, **args) -> ExecutionResult:
         return self._execute_query(**args)
-
-

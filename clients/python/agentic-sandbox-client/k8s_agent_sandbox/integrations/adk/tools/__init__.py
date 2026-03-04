@@ -13,9 +13,11 @@
 # limitations under the License.
 
 from .base import BaseADKSandboxTool
-from .python_sandbox import PythonSandboxTool
+from .python_sandbox import PythonADKSandboxTool
+from .computer_use import ComputerUseADKSandboxTool
 
 __all__ = [
     'BaseADKSandboxTool',
-    'PythonSandboxTool',
+    'PythonADKSandboxTool',
+    'ComputerUseADKSandboxTool',
 ]

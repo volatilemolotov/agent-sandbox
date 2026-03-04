@@ -24,7 +24,7 @@ from .base import (
 )
 
 
-class PythonSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
+class PythonADKSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
     """
     An ADK agent code executor that executes Python code in the Agent Sandbox
 

@@ -19,7 +19,7 @@ from k8s_agent_sandbox.integrations.executor import (
     sandbox_result_to_json,
     sandbox_error_to_json,
 )
-from k8s_agent_sandbox.integrations.adk.tools.computer_use import ComputerUseSandboxTool
+from k8s_agent_sandbox.integrations.adk.tools.computer_use import ComputerUseADKSandboxTool
 from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
 
@@ -47,7 +47,7 @@ class TestADKComputerUseSandboxTool(SandboxTestBase):
         assert result == expected_result
 
     def _execute_in_sandbox(self):
-        tool = ComputerUseSandboxTool(self.sandbox_settings_mock)
+        tool = ComputerUseADKSandboxTool(self.sandbox_settings_mock)
         result = asyncio.run(
             tool.run_async(args={"query": "some query"}, tool_context=mock.MagicMock())
         )

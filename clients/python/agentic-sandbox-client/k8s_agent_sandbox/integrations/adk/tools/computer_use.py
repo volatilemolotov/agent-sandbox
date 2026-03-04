@@ -17,7 +17,7 @@ from k8s_agent_sandbox.integrations.executor import ComputerUseSandboxIntegratio
 from .base import BaseADKSandboxTool
 
 
-class ComputerUseSandboxTool(BaseADKSandboxTool):
+class ComputerUseADKSandboxTool(BaseADKSandboxTool):
     """
     An ADK tool that executes natural language queries in the Agent Sandbox.
     """

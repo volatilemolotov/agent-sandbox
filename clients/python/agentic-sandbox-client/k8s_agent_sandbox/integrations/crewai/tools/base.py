@@ -16,7 +16,7 @@ import json
 
 from crewai.tools import BaseTool
 
-from k8s_agent_sandbox.integrations.sandbox_utils import SandboxSettings
+from k8s_agent_sandbox.integrations import SandboxSettings
 from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
 
 

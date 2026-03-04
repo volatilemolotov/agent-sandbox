@@ -19,7 +19,7 @@ from google.adk.code_executors.code_execution_utils import (
 )
 
 from k8s_agent_sandbox.integrations.adk.code_executors.python_sandbox import (
-    PythonSandboxCodeExecutor,
+    PythonADKSandboxCodeExecutor,
 )
 from k8s_agent_sandbox.integrations.adk.code_executors.base import (
     sandbox_result_to_code_executor_result,
@@ -53,7 +53,7 @@ class TestADKPythonSandboxTool(SandboxTestBase):
         assert result == expected_result
 
     def _execute_in_sandbox(self):
-        executor = PythonSandboxCodeExecutor(self.sandbox_settings_mock)
+        executor = PythonADKSandboxCodeExecutor(self.sandbox_settings_mock)
         mock_invocation_context = mock.MagicMock()
 
         result = executor.execute_code(

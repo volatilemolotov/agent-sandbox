@@ -18,7 +18,7 @@ from typing import (
 from google.genai import types
 from google.adk.tools import BaseTool, ToolContext
 
-from k8s_agent_sandbox.integrations.sandbox_utils import SandboxSettings
+from k8s_agent_sandbox.integrations import SandboxSettings
 from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
 
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .sandbox_utils import SandboxSettings
+from .sandbox_settings import SandboxSettings
 
 __all__ = [
     "SandboxSettings",

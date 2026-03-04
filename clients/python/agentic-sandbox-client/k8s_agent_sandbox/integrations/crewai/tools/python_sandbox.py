@@ -17,7 +17,7 @@ from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegration
 from .base import BaseCrewAISandboxTool
 
 
-class PythonSandboxTool(BaseCrewAISandboxTool):
+class PythonCrewAISandboxTool(BaseCrewAISandboxTool):
 
     @classmethod
     def get_sandbox_executer_class(cls):
