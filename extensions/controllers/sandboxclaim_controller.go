@@ -147,6 +147,8 @@ func (r *SandboxClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, errors.Join(reconcileErr, updateErr)
 	}
 
+	r.recordCreationLatencyMetric(claim, originalClaimStatus, sandbox)
+
 	// Determine Result
 	var result ctrl.Result
 	if !claimExpired && timeLeft > 0 {
@@ -606,6 +608,39 @@ func (r *SandboxClaimReconciler) reconcileNetworkPolicy(ctx context.Context, cla
 
 	logger.Info("Successfully reconciled NetworkPolicy for claim", "NetworkPolicy.Name", np.Name)
 	return nil
+}
+
+// recordCreationLatencyMetric detects and records transitions to Ready state.
+func (r *SandboxClaimReconciler) recordCreationLatencyMetric(
+	claim *extensionsv1alpha1.SandboxClaim,
+	oldStatus *extensionsv1alpha1.SandboxClaimStatus,
+	sandbox *v1alpha1.Sandbox,
+) {
+
+	newStatus := &claim.Status
+	newReady := meta.FindStatusCondition(newStatus.Conditions, string(v1alpha1.SandboxConditionReady))
+	if newReady == nil || newReady.Status != metav1.ConditionTrue {
+		return
+	}
+
+	// Do not record creation metric if we have already seen the ready state.
+	oldReady := meta.FindStatusCondition(oldStatus.Conditions, string(v1alpha1.SandboxConditionReady))
+	if oldReady != nil && oldReady.Status == metav1.ConditionTrue {
+		return
+	}
+
+	launchType := asmetrics.LaunchTypeCold
+	// This is unlikely to happen; here for completeness only.
+	if sandbox == nil {
+		launchType = asmetrics.LaunchTypeUnknown
+	} else if sandbox.Annotations[sandboxcontrollers.SandboxPodNameAnnotation] != "" {
+		// Existence of the SandboxPodNameAnnotation implies the pod was adopted from a warm pool.
+		launchType = asmetrics.LaunchTypeWarm
+	}
+
+	// SandboxClaim doesn't react to TemplateRef updates currently, so we don't need to handle the
+	// startup latency when the TemplateRef is updated.
+	asmetrics.RecordClaimStartupLatency(claim.CreationTimestamp.Time, launchType, claim.Spec.TemplateRef.Name)
 }
 
 // isSandboxExpired checks the Sandbox status condition set by the Core Controller
