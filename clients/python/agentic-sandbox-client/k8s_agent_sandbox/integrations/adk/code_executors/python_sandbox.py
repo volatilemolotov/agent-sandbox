@@ -12,15 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.adk.agents.invocation_context import InvocationContext
-from google.adk.code_executors.code_execution_utils import CodeExecutionInput
-from google.adk.code_executors.code_execution_utils import CodeExecutionResult
-
-from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
+from k8s_agent_sandbox.integrations.adapter import PythonCodeSandboxIntegrationAdapter
 from .base import (
     BaseADKSandboxCodeExecutor,
-    sandbox_result_to_code_executor_result,
-    sandbox_error_to_code_executor_error,
 )
 
 
@@ -31,25 +26,8 @@ class PythonADKSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
     Args:
         sandbox_settings: Settings for a sandbox to create.
     """
-    
-    def execute_code(
-        self,
-        invocation_context: InvocationContext,
-        code_execution_input: CodeExecutionInput,
-    ) -> CodeExecutionResult:
-        """
-        Executes code in a sandbox.
-        """
 
-        try:
-            result = self._executor.execute(
-                code=code_execution_input.code,
-            )
-        except Exception as e:
-            return sandbox_error_to_code_executor_error(e)
+    SANDBOX_ADAPTER_CLS = PythonCodeSandboxIntegrationAdapter
 
-        return sandbox_result_to_code_executor_result(result)
-    
-    @classmethod
-    def get_sandbox_executer_class(cls) -> type[PythonCodeSandboxIntegrationExecutor]:
-        return PythonCodeSandboxIntegrationExecutor
+    def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
+        return self._adapter.execute(code=code, timeout=timeout)

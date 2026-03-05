@@ -12,30 +12,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.adk.code_executors.code_execution_utils import CodeExecutionResult
+from typing import ClassVar
+from abc import (
+    ABC,
+    abstractmethod,
+)
+import logging
+
+from google.adk.agents.invocation_context import InvocationContext
+from google.adk.code_executors.code_execution_utils import (
+    CodeExecutionResult,
+    CodeExecutionInput,
+)
 from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
-from k8s_agent_sandbox.integrations import SandboxSettings
-from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
+from k8s_agent_sandbox.integrations.sandbox_settings import BaseSandboxSettings
+from k8s_agent_sandbox.integrations.adapter.base import (
+    create_sandbox_error_message_with_traceback,
+    SANDBOX_ERROR_MESSAGE,
+)
+from k8s_agent_sandbox.integrations.adapter.base import BaseSandboxIntegrationAdapter
+
+logger = logging.getLogger(__name__)
 
 
-class BaseADKSandboxCodeExecutor(BaseCodeExecutor, SandboxExecutorMixin):
+class BaseADKSandboxCodeExecutor(BaseCodeExecutor, ABC):
     """
     A subclass of ADK's 'BaseCodeExecutor' that can interact with Agent Sandbox.
+
+    Attributes:
+        SANDBOX_ADAPTER_CLS: Class of the adapter that has to hadnle actual execution of a sandbox.
 
     Args:
         sandbox_settings: Settings for a sandbox to create.
     """
-    
-    def __init__(
-       self,
-       sandbox_settings: SandboxSettings,
-    ):
-        self._sandbox_settings = sandbox_settings
-        executor_cls = self.__class__.get_sandbox_executer_class()
-        self._executor = executor_cls(self._sandbox_settings)
 
+    SANDBOX_ADAPTER_CLS: ClassVar[type[BaseSandboxIntegrationAdapter]]
+
+    def __init__(
+        self,
+        sandbox_settings: BaseSandboxSettings,
+    ):
+        super().__init__()
+        self._sandbox_settings = sandbox_settings
+        self._adapter = self.__class__.SANDBOX_ADAPTER_CLS(self._sandbox_settings)
+
+    def execute_code(
+        self,
+        invocation_context: InvocationContext,
+        code_execution_input: CodeExecutionInput,
+    ) -> CodeExecutionResult:
+        """
+        Executes code in a sandbox.
+        """
+
+        try:
+            result = self._execute_code(
+                code=code_execution_input.code,
+            )
+        except Exception as e:
+            logger.exception(SANDBOX_ERROR_MESSAGE)
+            return sandbox_error_to_code_executor_error(e)
+
+        return sandbox_result_to_code_executor_result(result)
+
+    @abstractmethod
+    def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
+        """Implementation of the executor login"""
 
 
 def sandbox_result_to_code_executor_result(result: ExecutionResult):
@@ -48,6 +92,8 @@ def sandbox_result_to_code_executor_result(result: ExecutionResult):
 
 def sandbox_error_to_code_executor_error(error: Exception):
     """Creates code executor result from sandbox execution error"""
+    message = create_sandbox_error_message_with_traceback(error)
+
     return CodeExecutionResult(
-        stderr=f"Sandbox error: {str(error)}",
+        stderr=message,
     )

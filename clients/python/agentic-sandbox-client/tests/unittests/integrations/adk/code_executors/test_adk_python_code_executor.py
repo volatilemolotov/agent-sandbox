@@ -18,6 +18,7 @@ from google.adk.code_executors.code_execution_utils import (
     CodeExecutionInput,
 )
 
+from k8s_agent_sandbox.sandbox_client import ExecutionResult
 from k8s_agent_sandbox.integrations.adk.code_executors.python_sandbox import (
     PythonADKSandboxCodeExecutor,
 )
@@ -25,32 +26,10 @@ from k8s_agent_sandbox.integrations.adk.code_executors.base import (
     sandbox_result_to_code_executor_result,
     sandbox_error_to_code_executor_error,
 )
+from test_utils.integrations.sandbox_tests_base import SandboxResultTest
 
-from test_utils.integrations.sandbox_tests_base import SandboxTestBase
 
-
-class TestADKPythonSandboxTool(SandboxTestBase):
-
-    def test_success(self, result_success):
-
-        self._set_execution_result(result_success)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_result_to_code_executor_result(result_success)
-        assert result == expected_result
-
-    def test_failure(self, result_failure):
-
-        self._set_execution_result(result_failure)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_result_to_code_executor_result(result_failure)
-        assert result == expected_result
-
-    def test_sandbox_error(self, result_error):
-
-        self._set_execution_error(result_error)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_error_to_code_executor_error(result_error)
-        assert result == expected_result
+class TestADKPythonSandboxTool(SandboxResultTest):
 
     def _execute_in_sandbox(self):
         executor = PythonADKSandboxCodeExecutor(self.sandbox_settings_mock)
@@ -60,3 +39,9 @@ class TestADKPythonSandboxTool(SandboxTestBase):
             mock_invocation_context, CodeExecutionInput(code="some code")
         )
         return result
+
+    def convert_sandbox_result(self, result: ExecutionResult):
+        return sandbox_result_to_code_executor_result(result)
+
+    def convert_sandbox_error(self, error: Exception):
+        return sandbox_error_to_code_executor_error(error)

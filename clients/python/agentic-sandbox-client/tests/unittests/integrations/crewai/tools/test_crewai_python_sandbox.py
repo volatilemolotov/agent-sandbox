@@ -12,42 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-from unittest import mock
-
-from k8s_agent_sandbox.integrations.executor import (
-    sandbox_result_to_json,
-    sandbox_error_to_json,
-)
 from k8s_agent_sandbox.integrations.crewai.tools import PythonCrewAISandboxTool
 
-from test_utils.integrations.sandbox_tests_base import SandboxTestBase
+from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 
-class TestCrewAIPythonSandboxTool(SandboxTestBase):
-
-    def test_success(self, result_success):
-
-        self._set_execution_result(result_success)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_result_to_json(result_success)
-        assert result == expected_result
-
-    def test_failure(self, result_failure):
-
-        self._set_execution_result(result_failure)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_result_to_json(result_failure)
-        assert result == expected_result
-
-    def test_sandbox_error(self, result_error):
-
-        self._set_execution_error(result_error)
-        result = self._execute_in_sandbox()
-        expected_result = sandbox_error_to_json(result_error)
-        assert result == expected_result
+class TestCrewAIPythonSandboxTool(SandboxJsonResultTest):
 
     def _execute_in_sandbox(self):
-        tool = PythonCrewAISandboxTool(self.sandbox_settings_mock)
+        tool = PythonCrewAISandboxTool(sandbox_settings=self.sandbox_settings_mock)
         result = tool.run(code="some code")
         return result

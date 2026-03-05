@@ -13,7 +13,9 @@
 # limitations under the License.
 
 
-from k8s_agent_sandbox.integrations.executor import ComputerUseSandboxIntegrationExecutor
+from k8s_agent_sandbox.integrations.adapter import (
+    ComputerUseSandboxIntegrationAdapter,
+)
 from .base import BaseADKSandboxTool
 
 
@@ -22,7 +24,4 @@ class ComputerUseADKSandboxTool(BaseADKSandboxTool):
     An ADK tool that executes natural language queries in the Agent Sandbox.
     """
 
-    @classmethod
-    def get_sandbox_executer_class(cls):
-        return ComputerUseSandboxIntegrationExecutor
-
+    SANDBOX_ADAPTER_CLS = ComputerUseSandboxIntegrationAdapter

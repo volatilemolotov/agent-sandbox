@@ -17,29 +17,35 @@ from pydantic import Field
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
 from .base import (
-    IntegrationSandboxExecutor,
+    SandboxIntegrationAdapter,
     CommonBaseInputSchema,
     CommonExecutionResultSchema,
 )
 
 
-class ComputerUseSandboxIntegrationExecutor(IntegrationSandboxExecutor): 
-    """
-    Sandbox Executor that executes computer use queries.
-    """
-    
-    TOOL_NAME = "execute_action_in_sandbox"
-    TOOL_DESCRIPTION = "Executes natural language query in a sandbox and returns execution results."
+class _InputSchema(CommonBaseInputSchema):
+    code: str = Field(description="The code to execute.")
 
-    class INPUT_SCHEMA(CommonBaseInputSchema):
-        query: str = Field(description="String with a natural language query to execute within the sandbox.")
 
-    RESULT_SCHEMA=CommonExecutionResultSchema    
-    
-    def _execute_query(self, query: str, timeout: int = 60) -> ExecutionResult:
+class PythonCodeSandboxIntegrationAdapter(SandboxIntegrationAdapter):
+    """
+    Sandbox Executor that executes Python code.
+    """
+
+    TOOL_NAME = "execute_python_code_in_sandbox"
+    TOOL_DESCRIPTION = (
+        "Executes Python code in a sandbox and returns execution results."
+    )
+    INPUT_SCHEMA = _InputSchema
+
+    RESULT_SCHEMA = CommonExecutionResultSchema
+
+    def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
+
         with self._sandbox_settings.create_client() as sandbox:
-            result = sandbox.agent(query, timeout)
+            sandbox.write("main.py", code)
+            result = sandbox.run("python3 main.py", timeout)
             return result
 
     def execute(self, **args) -> ExecutionResult:
-        return self._execute_query(**args)
+        return self._execute_code(**args)

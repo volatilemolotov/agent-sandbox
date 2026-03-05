@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
-from .base import BaseLangChainSandboxTool
+from k8s_agent_sandbox.integrations.adapter import PythonCodeSandboxIntegrationAdapter
+from .base import LangChainSandboxTool
 
 
-class PythonLangChainSandboxTool(BaseLangChainSandboxTool):
+class PythonLangChainSandboxTool(LangChainSandboxTool):
     """
     A LangChain tool that executes Python code in the Agent Sandbox.
     """
 
-    @classmethod
-    def get_sandbox_executer_class(cls):
-        return PythonCodeSandboxIntegrationExecutor
+    SANDBOX_ADAPTER_CLS = PythonCodeSandboxIntegrationAdapter

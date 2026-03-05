@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .sandbox_settings import SandboxSettings
+from .sandbox_settings import (
+    SandboxSettings,
+    ComputerUseSandboxSettings,
+)
 
 __all__ = [
     "SandboxSettings",
+    "ComputerUseSandboxSettings",
 ]

@@ -13,16 +13,13 @@
 # limitations under the License.
 
 
-from k8s_agent_sandbox.integrations.executor import PythonCodeSandboxIntegrationExecutor
-from .base import BaseADKSandboxTool
+from k8s_agent_sandbox.integrations.adapter import PythonCodeSandboxIntegrationAdapter
+from .base import ADKSandboxTool
 
 
-class PythonADKSandboxTool(BaseADKSandboxTool):
+class PythonADKSandboxTool(ADKSandboxTool):
     """
     An ADK tool that executes Python code in the Agent Sandbox.
     """
 
-    @classmethod
-    def get_sandbox_executer_class(cls):
-        return PythonCodeSandboxIntegrationExecutor
-
+    SANDBOX_ADAPTER_CLS = PythonCodeSandboxIntegrationAdapter

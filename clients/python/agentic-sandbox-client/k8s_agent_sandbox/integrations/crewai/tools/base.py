@@ -12,30 +12,68 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import ClassVar
+from typing import Generic, TypeVar
 import json
 
+from pydantic import SkipValidation
 from crewai.tools import BaseTool
 
-from k8s_agent_sandbox.integrations import SandboxSettings
-from k8s_agent_sandbox.integrations.executor import SandboxExecutorMixin
+from k8s_agent_sandbox.integrations.sandbox_settings import (
+    BaseSandboxSettings,
+    SandboxSettings,
+)
+from k8s_agent_sandbox.integrations.adapter.base import BaseSandboxIntegrationAdapter
+
+BaseSandboxSettingsT = TypeVar("BaseSandboxSettingsT", bound=BaseSandboxSettings)
 
 
-class BaseCrewAISandboxTool(BaseTool, SandboxExecutorMixin):
-    def __init__(self, sandbox_settings: SandboxSettings, **kwargs):
-        executor_cls = self.__class__.get_sandbox_executer_class()
+class BaseCrewAISandboxTool(BaseTool, Generic[BaseSandboxSettingsT]):
+    """
+    A subclass of CrewAI 'BaseTool' that can interact with Agent Sandbox.
+
+    Attributes:
+        SANDBOX_ADAPTER_CLS: Class of the adapter that has to hadnle actual execution of a sandbox.
+
+    Args:
+        sandbox_settings: Settings for a sandbox to create.
+    """
+
+    SANDBOX_ADAPTER_CLS: ClassVar[type[BaseSandboxIntegrationAdapter]]
+
+    # Override the following base model fields to make them non-mandatory, since we set them from an adapter
+    name: str | None = None  # type: ignore
+    description: str | None = None  # type: ignore
+
+    sandbox_settings: BaseSandboxSettingsT
+
+    def __init__(self, name: str | None = None, description: str | None = None, **data):
+
+        adapter_cls = self.__class__.SANDBOX_ADAPTER_CLS
+        default_name = adapter_cls.TOOL_NAME
 
         # Since Langchain does not provilde ability to specify the result schema,
-        # we just put its json-schema formatted version to the description.
-        description = f"{executor_cls.TOOL_DESCRIPTION}\n" \
-                      f"The JSON Schema of the result is:\n {json.dumps(executor_cls.RESULT_SCHEMA.model_json_schema())}"
-        super().__init__(
-            name=executor_cls.TOOL_NAME,
-            description=description,
-            args_schemas=executor_cls.INPUT_SCHEMA,
-            **kwargs,
+        # we just put its json-schema to the description.
+        default_description = (
+            f"{adapter_cls.TOOL_DESCRIPTION}\n"
+            f"The JSON Schema of the result is:\n {json.dumps(adapter_cls.RESULT_SCHEMA.model_json_schema())}"
         )
-        self._sandbox_settings = sandbox_settings
-        self._executor = executor_cls(self._sandbox_settings)
-    
+
+        super().__init__(
+            name=name or default_name,
+            description=description or default_description,
+            args_schema=adapter_cls.INPUT_SCHEMA,
+            **data,
+        )
+        self._adapter = adapter_cls(self.sandbox_settings)
+
     def _run(self, *args, **kwargs) -> dict:
-        return self._executor.execute_as_tool(*args, **kwargs)
+        return self._adapter.execute_as_tool(*args, **kwargs)
+
+
+class CrewAISandboxTool(BaseCrewAISandboxTool):
+    """
+    Base CrewAI sandbox class that uses normal sandbox client.
+    """
+
+    sandbox_settings: SkipValidation[SandboxSettings]
