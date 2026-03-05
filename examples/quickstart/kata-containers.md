@@ -31,20 +31,9 @@ kubectl wait --for=condition=Ready nodes --all --timeout=120s
 
 ## Step 2: Install Kata Containers using Helm
 
+Follow the [official Kata Containers Helm chart README](https://github.com/kata-containers/kata-containers/blob/main/tools/packaging/kata-deploy/helm-chart/README.md) to install Kata Containers into the `kube-system` namespace, then continue below.
+
 ```bash
-# Clone Kata Containers repository
-git clone --depth 1 https://github.com/kata-containers/kata-containers.git
-cd kata-containers/tools/packaging/kata-deploy/helm-chart/kata-deploy
-
-# Update Helm chart dependencies
-helm dependency update
-
-# Install Kata Containers using local Helm chart
-helm install kata-deploy . \
-  --namespace kube-system \
-  --create-namespace \
-  --wait
-
 # Wait for kata-deploy pods to be ready
 kubectl -n kube-system wait --for=condition=Ready pod -l name=kata-deploy --timeout=300s
 
@@ -83,13 +72,13 @@ kubectl delete pod kata-test
 
 **Next:** Return to the [main quickstart guide — Step 3](README.md#step-3-install-agent-sandbox-controller) to continue setup. Remember to:
 
-- Use the **"With Kata Containers isolation"** command variant when applying the SandboxTemplate in Step 4
+- Uncomment the `runtimeClassName: kata-qemu` line in `python-sandbox-template.yaml` before applying in Step 4
 - Use `minikube image load` instead of `kind load` when loading the router image in Step 7
 - Use `minikube delete -p agent-sandbox-kata` instead of `kind delete cluster` for cleanup in Step 10
 
 ## Appendix: Kata-Specific Validation
 
-After completing the full setup from the main guide, you can run these additional checks to verify Kata isolation:
+After completing the full setup from the main guide (including [Step 5 — SandboxWarmPool](README.md#step-5-create-sandboxwarmpool)), you can run these additional checks to verify Kata isolation:
 
 ```bash
 # Create a test sandbox
