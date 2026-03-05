@@ -7,26 +7,10 @@ This guide sets up a KIND cluster with gVisor runtime isolation. After completin
 In addition to the [main prerequisites](README.md#prerequisites), you need:
 
 - Linux host (gVisor requires Linux)
-- wget
 
 ## Step 1: Install gVisor Runtime
 
-Install the gVisor `runsc` runtime on your host machine (root privileges required):
-
-```bash
-(
-  set -e
-  ARCH=$(uname -m)
-  GVISOR_RELEASE=20260216.0
-  URL=https://storage.googleapis.com/gvisor/releases/release/${GVISOR_RELEASE}/${ARCH}
-  wget ${URL}/runsc ${URL}/runsc.sha512
-  wget ${URL}/containerd-shim-runsc-v1 ${URL}/containerd-shim-runsc-v1.sha512
-  sha512sum -c runsc.sha512 -c containerd-shim-runsc-v1.sha512
-  rm -f runsc.sha512 containerd-shim-runsc-v1.sha512
-  chmod a+rx runsc containerd-shim-runsc-v1
-  sudo mv runsc containerd-shim-runsc-v1 /usr/local/bin
-)
-```
+Follow the [official gVisor installation guide](https://gvisor.dev/docs/user_guide/install/) to install the `runsc` runtime and `containerd-shim-runsc-v1` on your host machine.
 
 ## Step 2: Create KIND Cluster with gVisor
 
@@ -70,11 +54,11 @@ handler: runsc
 EOF
 ```
 
-**Next:** Return to the [main quickstart guide — Step 3](README.md#step-3-install-agent-sandbox-controller) to continue setup. When you reach Step 4 (Apply SandboxTemplate), use the **"With gVisor isolation"** command variant.
+**Next:** Return to the [main quickstart guide — Step 3](README.md#step-3-install-agent-sandbox-controller) to continue setup. When you reach Step 4 (Apply SandboxTemplate), uncomment the `runtimeClassName: gvisor` line in `python-sandbox-template.yaml` before applying.
 
 ## Appendix: gVisor-Specific Validation
 
-After completing the full setup from the main guide, you can run these additional checks to verify gVisor isolation:
+After completing the full setup from the main guide (including [Step 5 — SandboxWarmPool](README.md#step-5-create-sandboxwarmpool)), you can run these additional checks to verify gVisor isolation:
 
 ```bash
 # Create a test sandbox

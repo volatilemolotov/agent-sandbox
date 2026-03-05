@@ -17,7 +17,7 @@ This guide walks you through setting up Agent Sandbox from scratch. By default i
 
 - Docker (20.10+)
 - kubectl (1.28+)
-- [KIND](https://kind.sigs.k8s.io/) (0.20+)
+- [KIND](https://kind.sigs.k8s.io/) (0.20+) — default; or [minikube](https://minikube.sigs.k8s.io/) if using Kata Containers or gVisor on minikube
 - Python 3.9+
 - Git
 
@@ -35,8 +35,9 @@ cd agent-sandbox/
 Set the image references you will use throughout this quickstart:
 
 ```bash
-export PYTHON_RUNTIME_IMAGE=registry.k8s.io/agent-sandbox/python-runtime-sandbox:v0.1.1
 export ROUTER_IMAGE=sandbox-router:local
+export SANDBOX_NAMESPACE=agent-sandbox-demo
+export SANDBOX_TEMPLATE_NAME=python-runtime-template
 ```
 
 ## Step 2: Create Kubernetes Cluster
@@ -76,32 +77,11 @@ kubectl config set-context --current --namespace=agent-sandbox-demo
 
 The repository includes a ready-made SandboxTemplate at [`clients/python/agentic-sandbox-client/python-sandbox-template.yaml`](../../clients/python/agentic-sandbox-client/python-sandbox-template.yaml). Apply it to the `agent-sandbox-demo` namespace.
 
-**Without isolation** (default — removes the `runtimeClassName` line):
+If you are using gVisor or Kata Containers isolation, open the file and uncomment the appropriate `runtimeClassName` line before applying.
 
 ```bash
-sed -e 's/namespace: default/namespace: agent-sandbox-demo/' \
-    -e 's/name: python-sandbox-template/name: python-runtime-template/' \
-    -e '/runtimeClassName/d' \
-    clients/python/agentic-sandbox-client/python-sandbox-template.yaml \
-    | kubectl apply -f -
-```
-
-**With gVisor isolation** (the template already has `runtimeClassName: gvisor`):
-
-```bash
-sed -e 's/namespace: default/namespace: agent-sandbox-demo/' \
-    -e 's/name: python-sandbox-template/name: python-runtime-template/' \
-    clients/python/agentic-sandbox-client/python-sandbox-template.yaml \
-    | kubectl apply -f -
-```
-
-**With Kata Containers isolation** (change runtime to `kata-qemu`):
-
-```bash
-sed -e 's/namespace: default/namespace: agent-sandbox-demo/' \
-    -e 's/name: python-sandbox-template/name: python-runtime-template/' \
-    -e 's/runtimeClassName: gvisor/runtimeClassName: kata-qemu/' \
-    clients/python/agentic-sandbox-client/python-sandbox-template.yaml \
+envsubst '${SANDBOX_NAMESPACE} ${SANDBOX_TEMPLATE_NAME}' \
+    < clients/python/agentic-sandbox-client/python-sandbox-template.yaml \
     | kubectl apply -f -
 ```
 
@@ -123,6 +103,30 @@ spec:
   sandboxTemplateRef:
     name: python-runtime-template
 EOF
+```
+
+### 5.1 Create a SandboxClaim
+
+With the WarmPool running, create a SandboxClaim and verify it is fulfilled immediately from the pool:
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxClaim
+metadata:
+  name: quickstart-test
+  namespace: agent-sandbox-demo
+spec:
+  sandboxTemplateRef:
+    name: python-runtime-template
+EOF
+
+kubectl wait --for=condition=Ready sandbox/quickstart-test --timeout=60s
+
+POD_NAME=$(kubectl get sandbox quickstart-test -o jsonpath='{.metadata.annotations.agents\.x-k8s\.io/pod-name}')
+echo "Sandbox pod: $POD_NAME"
+
+kubectl delete sandboxclaim quickstart-test
 ```
 
 ### Understanding How WarmPool Works
@@ -172,12 +176,11 @@ minikube image load ${ROUTER_IMAGE} -p agent-sandbox-kata
 
 ### 7.2 Deploy the Router
 
-Apply the existing router manifest, replacing the image placeholder and setting the namespace:
+Open `clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.yaml` and uncomment the `imagePullPolicy: Never` line, then apply:
 
 ```bash
-sed -e "s|IMAGE_PLACEHOLDER|${ROUTER_IMAGE}|g" \
-    -e '/image:/a\        imagePullPolicy: Never' \
-    clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.yaml \
+envsubst '${ROUTER_IMAGE}' \
+    < clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.yaml \
     | kubectl apply -n agent-sandbox-demo -f -
 ```
 
