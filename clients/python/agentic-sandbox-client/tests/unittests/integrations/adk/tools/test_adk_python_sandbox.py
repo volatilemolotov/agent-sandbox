@@ -22,13 +22,6 @@ from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 class TestADKPythonSandboxResult(SandboxJsonResultTest):
 
-    # def test_sandbox_error(self):
-    #     raise
-    #     self._set_execution_result(result_failure)
-    #     result = self._execute_in_sandbox()
-    #     expected_result = self._convert_sandbox_result(result_failure)
-    #     assert result == expected_result
-
     def _execute_in_sandbox(self):
         tool = PythonADKSandboxTool(self.sandbox_settings_mock)
         result = asyncio.run(
