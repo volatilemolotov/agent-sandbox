@@ -22,7 +22,7 @@ from k8s_agent_sandbox.integrations.adk.tools.computer_use import (
 from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 
-class TestADKComputerUseSandboxTool(SandboxJsonResultTest):
+class TestADKComputerUseSandboxToolResult(SandboxJsonResultTest):
     def _execute_in_sandbox(self):
         tool = ComputerUseADKSandboxTool(self.sandbox_settings_mock)
         result = asyncio.run(

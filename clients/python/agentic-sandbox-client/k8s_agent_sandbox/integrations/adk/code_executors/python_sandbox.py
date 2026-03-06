@@ -15,11 +15,11 @@
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
 from k8s_agent_sandbox.integrations.adapter import PythonCodeSandboxIntegrationAdapter
 from .base import (
-    BaseADKSandboxCodeExecutor,
+    ADKSandboxCodeExecutor,
 )
 
 
-class PythonADKSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
+class PythonADKSandboxCodeExecutor(ADKSandboxCodeExecutor):
     """
     An ADK agent code executor that executes Python code in the Agent Sandbox
 

@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import ClassVar
+from typing import (
+    ClassVar,
+    Generic,
+    TypeVar,
+)
 from abc import (
     ABC,
     abstractmethod,
 )
 import logging
 
+from pydantic import SkipValidation
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.code_executors.code_execution_utils import (
     CodeExecutionResult,
@@ -27,17 +32,24 @@ from google.adk.code_executors.code_execution_utils import (
 from google.adk.code_executors.base_code_executor import BaseCodeExecutor
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
-from k8s_agent_sandbox.integrations.sandbox_settings import BaseSandboxSettings
+from k8s_agent_sandbox.integrations.sandbox_settings import (
+    SandboxSettings,
+    BaseSandboxSettings,
+)
 from k8s_agent_sandbox.integrations.adapter.base import (
     create_sandbox_error_message_with_traceback,
     SANDBOX_ERROR_MESSAGE,
 )
-from k8s_agent_sandbox.integrations.adapter.base import BaseSandboxIntegrationAdapter
+from k8s_agent_sandbox.integrations.adapter.base import (
+    BaseSandboxIntegrationAdapter,
+)
 
 logger = logging.getLogger(__name__)
 
+BaseSandboxSettingsT = TypeVar("BaseSandboxSettingsT", bound=BaseSandboxSettings)
 
-class BaseADKSandboxCodeExecutor(BaseCodeExecutor, ABC):
+
+class BaseADKSandboxCodeExecutor(BaseCodeExecutor, Generic[BaseSandboxSettingsT], ABC):
     """
     A subclass of ADK's 'BaseCodeExecutor' that can interact with Agent Sandbox.
 
@@ -50,13 +62,11 @@ class BaseADKSandboxCodeExecutor(BaseCodeExecutor, ABC):
 
     SANDBOX_ADAPTER_CLS: ClassVar[type[BaseSandboxIntegrationAdapter]]
 
-    def __init__(
-        self,
-        sandbox_settings: BaseSandboxSettings,
-    ):
-        super().__init__()
-        self._sandbox_settings = sandbox_settings
-        self._adapter = self.__class__.SANDBOX_ADAPTER_CLS(self._sandbox_settings)
+    sandbox_settings: BaseSandboxSettingsT
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._adapter = self.__class__.SANDBOX_ADAPTER_CLS(self.sandbox_settings)
 
     def execute_code(
         self,
@@ -80,6 +90,10 @@ class BaseADKSandboxCodeExecutor(BaseCodeExecutor, ABC):
     @abstractmethod
     def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
         """Implementation of the executor login"""
+
+
+class ADKSandboxCodeExecutor(BaseADKSandboxCodeExecutor):
+    sandbox_settings: SkipValidation[SandboxSettings]
 
 
 def sandbox_result_to_code_executor_result(result: ExecutionResult):

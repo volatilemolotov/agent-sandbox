@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, ClassVar
-from typing import Generic, TypeVar
+from typing import (
+    Any,
+    ClassVar,
+    Generic,
+    TypeVar,
+)
 import json
 
 
@@ -53,13 +57,13 @@ class BaseLangChainSandboxTool(BaseTool, Generic[BaseSandboxSettingsT]):
     def __init__(self, name: str | None = None, description: str | None = None, **data):
         adapter_cls = self.__class__.SANDBOX_ADAPTER_CLS
 
-        default_name = adapter_cls.TOOL_NAME
+        default_name = adapter_cls.NAME
 
         # Since Langchain does not provilde ability to specify the
         # result schema, we just put its json-schema to the description.
         json_schema = json.dumps(adapter_cls.RESULT_SCHEMA.model_json_schema())
         default_description = (
-            f"{adapter_cls.TOOL_DESCRIPTION}\n"
+            f"{adapter_cls.DESCRIPTION}\n"
             f"The JSON Schema of the result is:\n {json_schema}"
         )
 

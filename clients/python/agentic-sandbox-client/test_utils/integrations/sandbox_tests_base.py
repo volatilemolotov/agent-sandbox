@@ -19,6 +19,8 @@ from abc import (
 )
 from unittest import mock
 
+import pytest
+
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
 from k8s_agent_sandbox.integrations.adapter import (
     sandbox_result_to_json,
@@ -37,52 +39,44 @@ class SandboxTestBase(ABC):
 
 
 class SandboxResultTest(SandboxTestBase):
-    def test_success(self):
-
-        result_success = ExecutionResult(
+    @pytest.fixture
+    def result_success(self):
+        return ExecutionResult(
             stdout="some output",
             stderr="some logs",
             exit_code=0,
         )
 
+    @pytest.fixture
+    def result_failure(self):
+        return ExecutionResult(
+            stdout="some output",
+            stderr="some logs",
+            exit_code=0,
+        )
+
+    def test_success(self, result_success):
         self._set_execution_result(result_success)
         result = self._execute_in_sandbox()
-        expected_result = self.convert_sandbox_result(result_success)
-        assert result == expected_result
+        assert result == result_success
 
-    def test_failure(self):
-
-        result_failure = ExecutionResult(
-            stdout="some output",
-            stderr="some logs",
-            exit_code=0,
-        )
-
+    def test_failure(self, result_failure):
         self._set_execution_result(result_failure)
         result = self._execute_in_sandbox()
-        expected_result = self.convert_sandbox_result(result_failure)
-        assert result == expected_result
+        assert result == result_failure
 
     @abstractmethod
-    def _execute_in_sandbox(self):
-        pass
-
-    @abstractmethod
-    def convert_sandbox_result(self, result: ExecutionResult) -> Any:
-        pass
-
-    @abstractmethod
-    def convert_sandbox_error(self, error: Exception) -> Any:
+    def _execute_in_sandbox(self) -> Any:
         pass
 
     def test_sandbox_error(self):
-
         result_error = Exception("some error")
 
         self._set_execution_error(result_error)
-        result = self._execute_in_sandbox()
-        expected_result = self.convert_sandbox_error(result_error)
-        assert result == expected_result
+        with pytest.raises(Exception) as excinfo:
+            self._execute_in_sandbox()
+
+        assert "some error" in str(excinfo.value)
 
     def _set_execution_result(self, result: ExecutionResult):
         self.sandbox_client_mock.run.return_value = result
@@ -93,9 +87,39 @@ class SandboxResultTest(SandboxTestBase):
         self.sandbox_client_mock.agent.side_effect = error
 
 
-class SandboxJsonResultTest(SandboxResultTest):
-    def convert_sandbox_result(self, result: ExecutionResult):
+class SandboxConvertedResultTest(SandboxResultTest):
+    def test_success(self, result_success):
+        self._set_execution_result(result_success)
+        result = self._execute_in_sandbox()
+        expected_result = self._convert_sandbox_result(result_success)
+        assert result == expected_result
+
+    def test_failure(self, result_failure):
+        self._set_execution_result(result_failure)
+        result = self._execute_in_sandbox()
+        expected_result = self._convert_sandbox_result(result_failure)
+        assert result == expected_result
+
+    def test_sandbox_error(self):
+        result_error = Exception("some error")
+        self._set_execution_error(result_error)
+        result = self._execute_in_sandbox()
+        expected_result = self._convert_sandbox_error(result_error)
+        assert result == expected_result
+
+    @abstractmethod
+    def _convert_sandbox_result(self, result: ExecutionResult) -> Any:
+        pass
+
+    @abstractmethod
+    def _convert_sandbox_error(self, error: Exception) -> Any:
+        pass
+
+
+class SandboxJsonResultTest(SandboxConvertedResultTest):
+
+    def _convert_sandbox_result(self, result: ExecutionResult) -> dict:
         return sandbox_result_to_json(result)
 
-    def convert_sandbox_error(self, error: Exception):
+    def _convert_sandbox_error(self, error: Exception) -> dict:
         return sandbox_error_to_json(error)

@@ -17,7 +17,7 @@ from k8s_agent_sandbox.integrations.crewai.tools import PythonCrewAISandboxTool
 from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 
-class TestCrewAIPythonSandboxTool(SandboxJsonResultTest):
+class TestCrewAIPythonSandboxToolResult(SandboxJsonResultTest):
 
     def _execute_in_sandbox(self):
         tool = PythonCrewAISandboxTool(sandbox_settings=self.sandbox_settings_mock)

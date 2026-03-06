@@ -50,12 +50,12 @@ class BaseCrewAISandboxTool(BaseTool, Generic[BaseSandboxSettingsT]):
     def __init__(self, name: str | None = None, description: str | None = None, **data):
 
         adapter_cls = self.__class__.SANDBOX_ADAPTER_CLS
-        default_name = adapter_cls.TOOL_NAME
+        default_name = adapter_cls.NAME
 
         # Since Langchain does not provilde ability to specify the result schema,
         # we just put its json-schema to the description.
         default_description = (
-            f"{adapter_cls.TOOL_DESCRIPTION}\n"
+            f"{adapter_cls.DESCRIPTION}\n"
             f"The JSON Schema of the result is:\n {json.dumps(adapter_cls.RESULT_SCHEMA.model_json_schema())}"
         )
 

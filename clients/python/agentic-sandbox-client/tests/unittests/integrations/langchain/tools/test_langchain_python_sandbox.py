@@ -18,7 +18,7 @@ from k8s_agent_sandbox.integrations.langchain.tools import (
 from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 
-class TestLangchainPythonSandboxTool(SandboxJsonResultTest):
+class TestLangchainPythonSandboxToolResult(SandboxJsonResultTest):
 
     def _execute_in_sandbox(self):
         tool = PythonLangChainSandboxTool(sandbox_settings=self.sandbox_settings_mock)

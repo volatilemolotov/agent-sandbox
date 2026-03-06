@@ -18,7 +18,7 @@ from k8s_agent_sandbox.integrations.langchain.tools import (
 from test_utils.integrations.sandbox_tests_base import SandboxJsonResultTest
 
 
-class TestLangchainComputerUseSandboxTool(SandboxJsonResultTest):
+class TestLangchainComputerUseSandboxToolResult(SandboxJsonResultTest):
 
     def _execute_in_sandbox(self):
         tool = ComputerUseLangChainSandboxTool(

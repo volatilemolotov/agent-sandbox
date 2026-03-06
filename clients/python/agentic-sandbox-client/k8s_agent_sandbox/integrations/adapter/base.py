@@ -24,10 +24,16 @@ class BaseSandboxIntegrationAdapter(ABC):
 
     Args:
         sandbox_settings: Settings to create a sandbox.
+
+    Attributes:
+        NAME: Class attribute with adapter's name.
+        DESCRIPTION: Class attribute with tool adataper's description.
+        INPUT_SCHEMA: Class attribute with adapter's input schema.
+        RESULT_SCHEMA: Class Attribute with adapter's result schema.
     """
 
-    TOOL_NAME: str
-    TOOL_DESCRIPTION: str
+    NAME: str
+    DESCRIPTION: str
     INPUT_SCHEMA: type[BaseModel]
     RESULT_SCHEMA: type[BaseModel]
 

@@ -25,29 +25,26 @@ sandbox_settings = SandboxSettings(
     namespace="default",
 )
 # Instantiate the tool
-python_sandbox_tool = PythonCrewAISandboxTool(sandbox_settings)
+python_sandbox_tool = PythonCrewAISandboxTool(sandbox_settings=sandbox_settings)
 
 editor_agent = Agent(
-    llm='gemini/gemini-3-flash-preview',
-    role='Senior Software Engineer',
-    goal='Execute code in a sandbox',
-    backstory='You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.',
+    llm="gemini/gemini-3-flash-preview",
+    role="Senior Software Engineer",
+    goal="Execute code in a sandbox",
+    backstory="You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.",
     tools=[python_sandbox_tool],
     verbose=True,
-    memory=True
+    memory=True,
 )
 
 analysis_task = Task(
-    description='Write a code that calculates 2 to the power of 64.',
-    expected_output='A report containing the exact word count and a brief sentiment analysis.',
-    agent=editor_agent
+    description="Write a code that calculates 2 to the power of 64.",
+    expected_output="A report containing the exact word count and a brief sentiment analysis.",
+    agent=editor_agent,
 )
 
 crew = Crew(
-    agents=[editor_agent],
-    tasks=[analysis_task],
-    process='sequential',
-    verbose=True
+    agents=[editor_agent], tasks=[analysis_task], process="sequential", verbose=True
 )
 
 print("### Starting Crew Execution ###")
@@ -70,44 +67,44 @@ from pydantic import Field
 
 from k8s_agent_sandbox.sandbox_client import ExecutionResult
 from k8s_agent_sandbox.integrations import SandboxSettings
-from k8s_agent_sandbox.integrations.executor import (
-    IntegrationSandboxExecutor,
+from k8s_agent_sandbox.integrations.adapter import (
+    SandboxIntegrationAdapter,
     CommonBaseInputSchema,
     CommonExecutionResultSchema,
 )
 from k8s_agent_sandbox.integrations.crewai.tools import BaseCrewAISandboxTool
 
 
-class MyPythonSandbonExecutor(IntegrationSandboxExecutor):
+# Define an input schema for our adapter
+class InputSchema(CommonBaseInputSchema):
+    code: str = Field(description="The code to execute.")
 
-    TOOL_NAME = "execute_python_code_in_sandbox"
-    TOOL_DESCRIPTION = "Executes Python code in a sandbox and returns execution results."
 
-    class INPUT_SCHEMA(CommonBaseInputSchema):
-        code: str = Field(description="The code to execute.")
+# Define an adapter class.
+class MyPythonSandbonExecutor(SandboxIntegrationAdapter):
 
-    RESULT_SCHEMA=CommonExecutionResultSchema    
+    NAME = "execute_python_code_in_sandbox"
+    DESCRIPTION = "Executes Python code in a sandbox and returns execution results."
+    INPUT_SCHEMA = InputSchema
+    RESULT_SCHEMA = CommonExecutionResultSchema
 
-    # This is you main logic that interacts with sandbox 
+    # This is you main logic that interacts with sandbox
     # The arguments has to match the INPUT_SCHEMA arrtibute of this class
     def _execute_code(self, code: str, timeout: int = 60) -> ExecutionResult:
         with self._sandbox_settings.create_client() as sandbox:
             sandbox.write("main.py", code)
             result = sandbox.run("python3 main.py", timeout)
             return result
-    
-    # Implement this abstract method to invoke your code. 
+
+    # Implement this abstract method to invoke your code.
     def execute(self, **args) -> ExecutionResult:
         return self._execute_code(**args)
-    
+
 
 # Creating the CrewAI tool class.
-# All that we need to do is to override the abstract method and to specify our executor class.
+# All that we need to do is to specify the adapter class it know what to execute.
 class MyPythonSandboxTool(BaseCrewAISandboxTool):
-
-    @classmethod
-    def get_sandbox_executer_class(cls):
-        return MyPythonSandbonExecutor
+    SANDBOX_ADAPTER_CLS = MyPythonSandbonExecutor
 
 
 # Specify sandbox specific settings in the sandbox settings instance.
@@ -116,29 +113,26 @@ sandbox_settings = SandboxSettings(
     namespace="default",
 )
 # The tool will create a sandbox according to the settings from the 'sandbox_settings' argument.
-my_coding_tool = MyPythonSandboxTool(sandbox_settings)
+my_coding_tool = MyPythonSandboxTool(sandbox_settings=sandbox_settings)
 
 editor_agent = Agent(
-    llm='gemini/gemini-3-flash-preview',
-    role='Senior Software Engineer',
-    goal='Execute code in a sandbox',
-    backstory='You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.',
+    llm="gemini/gemini-3-flash-preview",
+    role="Senior Software Engineer",
+    goal="Execute code in a sandbox",
+    backstory="You are a helpful agent that can write and execute code in a sandbox environment to answer questions and solve problems.",
     tools=[my_coding_tool],
     verbose=True,
-    memory=True
+    memory=True,
 )
 
 analysis_task = Task(
-    description='Write a code that calculates 2 to the power of 64.',
-    expected_output='A report containing the exact word count and a brief sentiment analysis.',
-    agent=editor_agent
+    description="Write a code that calculates 2 to the power of 64.",
+    expected_output="A report containing the exact word count and a brief sentiment analysis.",
+    agent=editor_agent,
 )
 
 crew = Crew(
-    agents=[editor_agent],
-    tasks=[analysis_task],
-    process='sequential',
-    verbose=True
+    agents=[editor_agent], tasks=[analysis_task], process="sequential", verbose=True
 )
 
 print("### Starting Crew Execution ###")

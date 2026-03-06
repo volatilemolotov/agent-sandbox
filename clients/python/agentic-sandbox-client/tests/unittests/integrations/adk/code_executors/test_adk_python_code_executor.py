@@ -26,13 +26,15 @@ from k8s_agent_sandbox.integrations.adk.code_executors.base import (
     sandbox_result_to_code_executor_result,
     sandbox_error_to_code_executor_error,
 )
-from test_utils.integrations.sandbox_tests_base import SandboxResultTest
+from test_utils.integrations.sandbox_tests_base import SandboxConvertedResultTest
 
 
-class TestADKPythonSandboxTool(SandboxResultTest):
+class TestADKPythonSandboxCodeExecutorResult(SandboxConvertedResultTest):
 
     def _execute_in_sandbox(self):
-        executor = PythonADKSandboxCodeExecutor(self.sandbox_settings_mock)
+        executor = PythonADKSandboxCodeExecutor(
+            sandbox_settings=self.sandbox_settings_mock
+        )
         mock_invocation_context = mock.MagicMock()
 
         result = executor.execute_code(

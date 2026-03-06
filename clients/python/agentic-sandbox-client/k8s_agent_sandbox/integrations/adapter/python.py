@@ -32,10 +32,8 @@ class PythonCodeSandboxIntegrationAdapter(SandboxIntegrationAdapter):
     Sandbox Executor that executes Python code.
     """
 
-    TOOL_NAME = "execute_python_code_in_sandbox"
-    TOOL_DESCRIPTION = (
-        "Executes Python code in a sandbox and returns execution results."
-    )
+    NAME = "execute_python_code_in_sandbox"
+    DESCRIPTION = "Executes Python code in a sandbox and returns execution results."
     INPUT_SCHEMA = _InputSchema
 
     RESULT_SCHEMA = CommonExecutionResultSchema

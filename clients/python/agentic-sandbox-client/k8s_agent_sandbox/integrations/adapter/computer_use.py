@@ -35,8 +35,8 @@ class ComputerUseSandboxIntegrationAdapter(BaseSandboxIntegrationAdapter):
     Sandbox Executor that executes computer use queries.
     """
 
-    TOOL_NAME = "execute_action_in_sandbox"
-    TOOL_DESCRIPTION = (
+    NAME = "execute_action_in_sandbox"
+    DESCRIPTION = (
         "Executes natural language query in a sandbox and returns execution results."
     )
 

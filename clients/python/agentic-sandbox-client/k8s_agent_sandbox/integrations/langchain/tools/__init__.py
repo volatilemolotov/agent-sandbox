@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .base import BaseLangChainSandboxTool
+from .base import (
+    BaseLangChainSandboxTool,
+    LangChainSandboxTool,
+)
 from .python_sandbox import PythonLangChainSandboxTool
 from .computer_use_sandbox import ComputerUseLangChainSandboxTool
 
 __all__ = [
     "BaseLangChainSandboxTool",
+    "LangChainSandboxTool",
     "PythonLangChainSandboxTool",
     "ComputerUseLangChainSandboxTool",
 ]

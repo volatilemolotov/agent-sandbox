@@ -41,8 +41,8 @@ class BaseADKSandboxTool(BaseTool):
         sandbox_settings: BaseSandboxSettings,
     ):
         super().__init__(
-            name=self.__class__.SANDBOX_ADAPTER_CLS.TOOL_NAME,
-            description=self.__class__.SANDBOX_ADAPTER_CLS.TOOL_DESCRIPTION,
+            name=self.__class__.SANDBOX_ADAPTER_CLS.NAME,
+            description=self.__class__.SANDBOX_ADAPTER_CLS.DESCRIPTION,
         )
 
         self._sandbox_settings = sandbox_settings
