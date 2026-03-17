@@ -37,8 +37,6 @@ import (
 )
 
 const (
-	// poolLabel is used by the claim controller's legacy pod-adoption path.
-	poolLabel              = "agents.x-k8s.io/pool"
 	sandboxTemplateRefHash = "agents.x-k8s.io/sandbox-template-ref-hash"
 	warmPoolSandboxLabel   = "agents.x-k8s.io/warm-pool-sandbox"
 )
@@ -240,7 +238,6 @@ func (r *SandboxWarmPoolReconciler) createPoolSandbox(ctx context.Context, warmP
 	}
 
 	replicas := int32(1)
-	automount := false
 
 	sandbox := &sandboxv1alpha1.Sandbox{
 		ObjectMeta: metav1.ObjectMeta{
@@ -258,11 +255,6 @@ func (r *SandboxWarmPoolReconciler) createPoolSandbox(ctx context.Context, warmP
 				},
 			},
 		},
-	}
-
-	// Enforce secure-by-default
-	if sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken == nil {
-		sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken = &automount
 	}
 
 	// Set controller reference so the Sandbox is owned by the SandboxWarmPool

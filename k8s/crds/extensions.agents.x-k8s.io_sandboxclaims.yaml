@@ -92,8 +92,6 @@ spec:
                 properties:
                   Name:
                     type: string
-                  podIP:
-                    type: string
                 type: object
             type: object
         required:
