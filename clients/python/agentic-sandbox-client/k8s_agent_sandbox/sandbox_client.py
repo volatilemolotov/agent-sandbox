@@ -421,7 +421,7 @@ class SandboxClient:
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         headers = kwargs.get("headers", {})
-        headers["X-Sandbox-ID"] = self.claim_name
+        headers["X-Sandbox-ID"] = self.sandbox_name or self.claim_name
         headers["X-Sandbox-Namespace"] = self.namespace
         headers["X-Sandbox-Port"] = str(self.server_port)
         kwargs["headers"] = headers
