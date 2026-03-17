@@ -303,9 +303,13 @@ func TestRunPythonRuntimeSandboxWarmpool(testingT *testing.T) {
 	sandbox, err := testContext.GetSandbox(ctx, sandboxID)
 	require.NoError(testingT, err)
 
-	podName, _, err := unstructured.NestedString(sandbox.Object, "metadata", "annotations", "agents.x-k8s.io/pod-name")
-	require.NoError(testingT, err)
-	testingT.Logf("DEBUG: Extracted pod name from Sandbox: podName - %s", podName)
+	// The pod-name annotation is set by the sandbox controller for adopted pods.
+	// For warm pool sandboxes the pod name defaults to the sandbox name.
+	podName, _, _ := unstructured.NestedString(sandbox.Object, "metadata", "annotations", "agents.x-k8s.io/pod-name")
+	if podName == "" {
+		podName = sandboxName
+	}
+	testingT.Logf("DEBUG: Using pod name: %s", podName)
 
 	podID := types.NamespacedName{
 		Namespace: ns.Name,

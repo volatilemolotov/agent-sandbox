@@ -427,6 +427,10 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 			pod.Labels = make(map[string]string)
 		}
 		pod.Labels[sandboxLabel] = nameHash
+		// Propagate pod template labels to the existing pod (e.g., after warm pool adoption)
+		for k, v := range sandbox.Spec.PodTemplate.ObjectMeta.Labels {
+			pod.Labels[k] = v
+		}
 
 		// Set controller reference if the pod is not controlled by anything.
 		if controllerRef := metav1.GetControllerOf(pod); controllerRef == nil {
