@@ -183,8 +183,11 @@ func (r *SandboxClaimReconciler) reconcileActive(ctx context.Context, claim *ext
 		return nil, err
 	}
 	if sandbox != nil {
-		// Found or adopted — reconcile network policy (best-effort, non-blocking).
-		template, _ := r.getTemplate(ctx, claim)
+		// Found or adopted. Reconcile network policy (best effort, non blocking).
+		template, templateErr := r.getTemplate(ctx, claim)
+		if templateErr != nil {
+			logger.Error(templateErr, "failed to get template for network policy reconciliation")
+		}
 		if template != nil {
 			if npErr := r.reconcileNetworkPolicy(ctx, claim, template); npErr != nil {
 				logger.Error(npErr, "network policy reconcile failed after adoption (non-fatal)")
@@ -356,6 +359,12 @@ func (r *SandboxClaimReconciler) adoptSandboxFromCandidates(ctx context.Context,
 	delete(adopted.Labels, warmPoolSandboxLabel)
 	delete(adopted.Labels, sandboxTemplateRefHash)
 
+	// Extract pool name from owner reference before clearing
+	poolName := "none"
+	if controllerRef := metav1.GetControllerOf(adopted); controllerRef != nil {
+		poolName = controllerRef.Name
+	}
+
 	// Transfer ownership from SandboxWarmPool to SandboxClaim
 	adopted.OwnerReferences = nil
 	if err := controllerutil.SetControllerReference(claim, adopted, r.Scheme); err != nil {
@@ -389,7 +398,11 @@ func (r *SandboxClaimReconciler) adoptSandboxFromCandidates(ctx context.Context,
 		r.Recorder.Event(claim, corev1.EventTypeNormal, "SandboxAdopted", fmt.Sprintf("Adopted warm pool Sandbox %q", adopted.Name))
 	}
 
-	asmetrics.RecordSandboxClaimCreation(claim.Namespace, claim.Spec.TemplateRef.Name, asmetrics.LaunchTypeWarm, "none", "not_ready")
+	podCondition := "not_ready"
+	if isSandboxReady(adopted) {
+		podCondition = "ready"
+	}
+	asmetrics.RecordSandboxClaimCreation(claim.Namespace, claim.Spec.TemplateRef.Name, asmetrics.LaunchTypeWarm, poolName, podCondition)
 
 	return adopted, nil
 }
@@ -564,14 +577,14 @@ func (r *SandboxClaimReconciler) getOrCreateSandbox(ctx context.Context, claim *
 	if len(adoptionCandidates) > 0 {
 		adopted, err := r.adoptSandboxFromCandidates(ctx, claim, adoptionCandidates)
 		if err != nil {
-			logger.Error(err, "Failed to adopt sandbox from warm pool, falling back to creation")
+			return nil, err
 		}
 		if adopted != nil {
 			return adopted, nil
 		}
 	}
 
-	// No warm pool sandbox available — caller decides whether to create
+	// No warm pool sandbox available; caller decides whether to create
 	return nil, nil
 }
 
@@ -649,13 +662,8 @@ func (r *SandboxClaimReconciler) reconcileNetworkPolicy(ctx context.Context, cla
 
 		templateNP := template.Spec.NetworkPolicy
 
-		if len(templateNP.Ingress) > 0 {
-			np.Spec.Ingress = templateNP.Ingress
-		}
-
-		if len(templateNP.Egress) > 0 {
-			np.Spec.Egress = templateNP.Egress
-		}
+		np.Spec.Ingress = templateNP.Ingress
+		np.Spec.Egress = templateNP.Egress
 
 		return controllerutil.SetControllerReference(claim, np, r.Scheme)
 	})

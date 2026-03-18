@@ -1251,7 +1251,7 @@ func TestSandboxClaimCreationMetric(t *testing.T) {
 		}
 
 		// Verify metric
-		val := testutil.ToFloat64(asmetrics.SandboxClaimCreationTotal.WithLabelValues("default", "test-template", asmetrics.LaunchTypeWarm, "none", "not_ready"))
+		val := testutil.ToFloat64(asmetrics.SandboxClaimCreationTotal.WithLabelValues("default", "test-template", asmetrics.LaunchTypeWarm, "test-pool", "ready"))
 		if val != 1 {
 			t.Errorf("expected metric count 1, got %v", val)
 		}

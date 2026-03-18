@@ -70,7 +70,7 @@ func TestWarmPoolSandboxWatcher(t *testing.T) {
 		for _, sb := range sandboxList.Items {
 			if sb.DeletionTimestamp.IsZero() && metav1.IsControlledBy(&sb, warmPool) {
 				for _, cond := range sb.Status.Conditions {
-					if cond.Type == "Ready" && cond.Status == metav1.ConditionTrue {
+					if cond.Type == string(sandboxv1alpha1.SandboxConditionReady) && cond.Status == metav1.ConditionTrue {
 						poolSandboxName = sb.Name
 						return true
 					}
@@ -100,7 +100,7 @@ func TestWarmPoolSandboxWatcher(t *testing.T) {
 			return false
 		}
 		for _, cond := range claim.Status.Conditions {
-			if cond.Type == "Ready" && cond.Status == metav1.ConditionTrue {
+			if cond.Type == string(sandboxv1alpha1.SandboxConditionReady) && cond.Status == metav1.ConditionTrue {
 				return true
 			}
 		}
@@ -131,7 +131,7 @@ func TestWarmPoolSandboxWatcher(t *testing.T) {
 			return false
 		}
 		for _, cond := range adoptedSandbox.Status.Conditions {
-			if cond.Type == "Ready" && cond.Status != metav1.ConditionTrue {
+			if cond.Type == string(sandboxv1alpha1.SandboxConditionReady) && cond.Status != metav1.ConditionTrue {
 				return true
 			}
 		}

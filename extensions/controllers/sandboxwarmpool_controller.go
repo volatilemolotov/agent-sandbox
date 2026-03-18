@@ -231,6 +231,8 @@ func (r *SandboxWarmPoolReconciler) createPoolSandbox(ctx context.Context, warmP
 	for k, v := range template.Spec.PodTemplate.ObjectMeta.Labels {
 		podLabels[k] = v
 	}
+	// Propagate template ref hash to pod template for NetworkPolicy targeting
+	podLabels[sandboxTemplateRefHash] = sandboxcontrollers.NameHash(warmPool.Spec.TemplateRef.Name)
 
 	podAnnotations := make(map[string]string)
 	for k, v := range template.Spec.PodTemplate.ObjectMeta.Annotations {
@@ -255,6 +257,13 @@ func (r *SandboxWarmPoolReconciler) createPoolSandbox(ctx context.Context, warmP
 				},
 			},
 		},
+	}
+
+	// Enforce a secure-by-default policy by disabling the automatic mounting
+	// of the service account token for warm pool sandboxes.
+	if sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken == nil {
+		automount := false
+		sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken = &automount
 	}
 
 	// Set controller reference so the Sandbox is owned by the SandboxWarmPool

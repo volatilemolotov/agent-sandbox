@@ -225,6 +225,9 @@ class SandboxClient:
             field_selector=f"metadata.name={self.claim_name}",
             timeout_seconds=self.sandbox_ready_timeout
         ):
+            if event["type"] == "DELETED":
+                raise RuntimeError(
+                    f"SandboxClaim '{self.claim_name}' was deleted while resolving sandbox name")
             if event["type"] in ["ADDED", "MODIFIED"]:
                 claim_object = event['object']
                 sandbox_status = claim_object.get(
