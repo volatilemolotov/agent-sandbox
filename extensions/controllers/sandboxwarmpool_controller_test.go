@@ -69,10 +69,10 @@ func createPoolSandbox(poolName, namespace, poolNameHash, suffix string) *sandbo
 	}
 }
 
-func createTemplate(name, namespace string) *extensionsv1alpha1.SandboxTemplate {
+func createTemplate(namespace string) *extensionsv1alpha1.SandboxTemplate {
 	return &extensionsv1alpha1.SandboxTemplate{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      "test-template",
 			Namespace: namespace,
 		},
 		Spec: extensionsv1alpha1.SandboxTemplateSpec{
@@ -96,7 +96,7 @@ func TestReconcilePool(t *testing.T) {
 	templateName := "test-template"
 	replicas := int32(3)
 
-	template := createTemplate(templateName, poolNamespace)
+	template := createTemplate(poolNamespace)
 
 	warmPool := &extensionsv1alpha1.SandboxWarmPool{
 		ObjectMeta: metav1.ObjectMeta{
@@ -200,7 +200,7 @@ func TestReconcilePoolControllerRef(t *testing.T) {
 	templateName := "test-template"
 	replicas := int32(2)
 
-	template := createTemplate(templateName, poolNamespace)
+	template := createTemplate(poolNamespace)
 	scheme := newTestScheme()
 
 	warmPool := &extensionsv1alpha1.SandboxWarmPool{
@@ -427,7 +427,7 @@ func TestReconcilePoolReadyReplicas(t *testing.T) {
 	templateName := "test-template"
 	replicas := int32(3)
 
-	template := createTemplate(templateName, poolNamespace)
+	template := createTemplate(poolNamespace)
 	scheme := newTestScheme()
 
 	warmPool := &extensionsv1alpha1.SandboxWarmPool{
@@ -531,7 +531,7 @@ func TestReconcilePoolGCStuckSandboxes(t *testing.T) {
 	templateName := "test-template"
 	replicas := int32(2)
 
-	template := createTemplate(templateName, poolNamespace)
+	template := createTemplate(poolNamespace)
 	scheme := newTestScheme()
 
 	warmPool := &extensionsv1alpha1.SandboxWarmPool{

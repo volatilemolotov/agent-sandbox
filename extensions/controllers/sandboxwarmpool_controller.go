@@ -21,6 +21,7 @@ import (
 	"sort"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -288,6 +289,17 @@ func (r *SandboxWarmPoolReconciler) createPoolSandbox(ctx context.Context, warmP
 	if sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken == nil {
 		automount := false
 		sandbox.Spec.PodTemplate.Spec.AutomountServiceAccountToken = &automount
+	}
+
+	// Enforce DNS secure-by-default for warm pool sandboxes.
+	management := template.Spec.NetworkPolicyManagement
+	isManaged := management == "" || management == extensionsv1alpha1.NetworkPolicyManagementManaged
+	isSecureByDefault := isManaged && template.Spec.NetworkPolicy == nil
+	if isSecureByDefault && sandbox.Spec.PodTemplate.Spec.DNSPolicy == "" {
+		sandbox.Spec.PodTemplate.Spec.DNSPolicy = corev1.DNSNone
+		sandbox.Spec.PodTemplate.Spec.DNSConfig = &corev1.PodDNSConfig{
+			Nameservers: []string{"8.8.8.8", "1.1.1.1"},
+		}
 	}
 
 	// Set controller reference so the Sandbox is owned by the SandboxWarmPool
