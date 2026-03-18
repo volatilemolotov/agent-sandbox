@@ -17,6 +17,7 @@ package controllers
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -45,8 +46,9 @@ func createPoolSandbox(poolName, namespace, poolNameHash, suffix string) *sandbo
 	replicas := int32(1)
 	return &sandboxv1alpha1.Sandbox{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      poolName + suffix,
-			Namespace: namespace,
+			Name:              poolName + suffix,
+			Namespace:         namespace,
+			CreationTimestamp: metav1.Now(),
 			Labels: map[string]string{
 				warmPoolSandboxLabel: poolNameHash,
 			},
@@ -521,4 +523,105 @@ func TestReconcilePoolReadyReplicas(t *testing.T) {
 			require.Equal(t, tc.expectedReadyReplicas, warmPool.Status.ReadyReplicas)
 		})
 	}
+}
+
+func TestReconcilePoolGCStuckSandboxes(t *testing.T) {
+	poolName := "test-pool"
+	poolNamespace := "default"
+	templateName := "test-template"
+	replicas := int32(2)
+
+	template := createTemplate(templateName, poolNamespace)
+	scheme := newTestScheme()
+
+	warmPool := &extensionsv1alpha1.SandboxWarmPool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      poolName,
+			Namespace: poolNamespace,
+		},
+		Spec: extensionsv1alpha1.SandboxWarmPoolSpec{
+			Replicas: replicas,
+			TemplateRef: extensionsv1alpha1.SandboxTemplateRef{
+				Name: templateName,
+			},
+		},
+	}
+
+	poolNameHash := sandboxcontrollers.NameHash(poolName)
+
+	createSandboxWithAge := func(suffix string, ready metav1.ConditionStatus, age time.Duration) *sandboxv1alpha1.Sandbox {
+		sb := createPoolSandbox(poolName, poolNamespace, poolNameHash, suffix)
+		sb.CreationTimestamp = metav1.Time{Time: time.Now().Add(-age)}
+		sb.Status.Conditions = []metav1.Condition{
+			{
+				Type:   string(sandboxv1alpha1.SandboxConditionReady),
+				Status: ready,
+			},
+		}
+		return sb
+	}
+
+	t.Run("deletes non-ready sandbox older than grace period", func(t *testing.T) {
+		r := SandboxWarmPoolReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRuntimeObjects(
+					template,
+					createSandboxWithAge("-stuck", metav1.ConditionFalse, 10*time.Minute),
+					createSandboxWithAge("-healthy", metav1.ConditionTrue, 10*time.Minute),
+				).
+				Build(),
+			Scheme: scheme,
+		}
+
+		ctx := context.Background()
+		err := r.reconcilePool(ctx, warmPool)
+		require.NoError(t, err)
+
+		// The stuck sandbox should be deleted and replaced
+		list := &sandboxv1alpha1.SandboxList{}
+		err = r.List(ctx, list, &client.ListOptions{Namespace: poolNamespace})
+		require.NoError(t, err)
+
+		// Should have: 1 healthy (kept) + 1 newly created replacement = 2
+		poolCount := int32(0)
+		for _, sb := range list.Items {
+			if sb.Labels[warmPoolSandboxLabel] == poolNameHash {
+				poolCount++
+			}
+		}
+		require.Equal(t, replicas, poolCount)
+	})
+
+	t.Run("keeps non-ready sandbox within grace period", func(t *testing.T) {
+		r := SandboxWarmPoolReconciler{
+			Client: fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithRuntimeObjects(
+					template,
+					createSandboxWithAge("-starting", metav1.ConditionFalse, 2*time.Minute),
+					createSandboxWithAge("-healthy", metav1.ConditionTrue, 10*time.Minute),
+				).
+				Build(),
+			Scheme: scheme,
+		}
+
+		ctx := context.Background()
+		err := r.reconcilePool(ctx, warmPool)
+		require.NoError(t, err)
+
+		// Both should be kept (one healthy, one still within grace period)
+		list := &sandboxv1alpha1.SandboxList{}
+		err = r.List(ctx, list, &client.ListOptions{Namespace: poolNamespace})
+		require.NoError(t, err)
+
+		poolCount := int32(0)
+		for _, sb := range list.Items {
+			if sb.Labels[warmPoolSandboxLabel] == poolNameHash {
+				poolCount++
+			}
+		}
+		require.Equal(t, replicas, poolCount)
+		require.Equal(t, replicas, warmPool.Status.Replicas)
+	})
 }

@@ -914,6 +914,17 @@ func TestSandboxClaimSandboxAdoption(t *testing.T) {
 			expectedAdoptedSandbox:  "middle-ready",
 			expectNewSandboxCreated: false,
 		},
+		{
+			name: "cold starts when all warm pool sandboxes are non-ready",
+			existingObjects: []client.Object{
+				template,
+				claim,
+				createWarmPoolSandbox("not-ready-1", metav1.Time{Time: metav1.Now().Add(-2 * time.Hour)}, false),
+				createWarmPoolSandbox("not-ready-2", metav1.Time{Time: metav1.Now().Add(-1 * time.Hour)}, false),
+			},
+			expectSandboxAdoption:   false,
+			expectNewSandboxCreated: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -352,7 +352,19 @@ func (r *SandboxClaimReconciler) adoptSandboxFromCandidates(ctx context.Context,
 		return candidates[i].CreationTimestamp.Before(&candidates[j].CreationTimestamp)
 	})
 
-	adopted := candidates[0]
+	var readyCandidates []*v1alpha1.Sandbox
+	for _, c := range candidates {
+		if isSandboxReady(c) {
+			readyCandidates = append(readyCandidates, c)
+		}
+	}
+	if len(readyCandidates) == 0 {
+		log.Info("No ready warm pool candidates, falling through to cold start",
+			"totalCandidates", len(candidates))
+		return nil, nil
+	}
+
+	adopted := readyCandidates[0]
 	log.Info("Adopting sandbox from warm pool", "sandbox", adopted.Name)
 
 	// Remove warm pool labels so the sandbox no longer appears in warm pool queries

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -141,6 +142,25 @@ func (r *SandboxWarmPoolReconciler) reconcilePool(ctx context.Context, warmPool 
 				"controllerKind", controllerRef.Kind)
 		}
 	}
+
+	const warmPoolReadinessGracePeriod = 5 * time.Minute
+
+	now := time.Now()
+	var healthySandboxes []sandboxv1alpha1.Sandbox
+	for _, sb := range activeSandboxes {
+		if !isSandboxReady(&sb) && !sb.CreationTimestamp.IsZero() && now.Sub(sb.CreationTimestamp.Time) > warmPoolReadinessGracePeriod {
+			log.Info("Deleting stuck warm pool sandbox",
+				"sandbox", sb.Name,
+				"age", now.Sub(sb.CreationTimestamp.Time).Round(time.Second))
+			if err := r.Delete(ctx, &sb); err != nil {
+				log.Error(err, "Failed to delete stuck sandbox", "sandbox", sb.Name)
+				allErrors = errors.Join(allErrors, err)
+			}
+			continue
+		}
+		healthySandboxes = append(healthySandboxes, sb)
+	}
+	activeSandboxes = healthySandboxes
 
 	desiredReplicas := warmPool.Spec.Replicas
 	currentReplicas := int32(len(activeSandboxes))
