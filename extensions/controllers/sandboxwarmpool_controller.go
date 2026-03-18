@@ -156,12 +156,9 @@ func (r *SandboxWarmPoolReconciler) reconcilePool(ctx context.Context, warmPool 
 
 	// Calculate ready replicas by checking Sandbox Ready condition
 	readyReplicas := int32(0)
-	for _, sb := range activeSandboxes {
-		for _, cond := range sb.Status.Conditions {
-			if cond.Type == string(sandboxv1alpha1.SandboxConditionReady) && cond.Status == metav1.ConditionTrue {
-				readyReplicas++
-				break
-			}
+	for i := range activeSandboxes {
+		if isSandboxReady(&activeSandboxes[i]) {
+			readyReplicas++
 		}
 	}
 	warmPool.Status.ReadyReplicas = readyReplicas
@@ -184,7 +181,14 @@ func (r *SandboxWarmPoolReconciler) reconcilePool(ctx context.Context, warmPool 
 		sandboxesToDelete := currentReplicas - desiredReplicas
 		log.Info("Deleting excess sandboxes", "count", sandboxesToDelete)
 
+		// Prioritize deleting unready sandboxes before ready ones,
+		// then newest first within each group.
 		sort.Slice(activeSandboxes, func(i, j int) bool {
+			iReady := isSandboxReady(&activeSandboxes[i])
+			jReady := isSandboxReady(&activeSandboxes[j])
+			if iReady != jReady {
+				return !iReady // unready first
+			}
 			return activeSandboxes[i].CreationTimestamp.After(activeSandboxes[j].CreationTimestamp.Time)
 		})
 
