@@ -63,14 +63,10 @@ export HF_TOKEN='your_huggingface_token_here'
 
 Get a token from [HuggingFace](https://huggingface.co/settings/tokens).
 
-### 3. Clone the repository and navigate to the examples, coding-agent directory
+### 3. Navigate to the examples, langchain directory
 
 ```bash
-# Clone the repository
-git clone https://github.com/kubernetes-sigs/agent-sandbox.git
-
-# Navigate to the examples/coding-agent directory
-cd examples/coding-agent
+cd examples/langchain
 ```
 
 ### 4. Set your huggingface token
@@ -87,7 +83,9 @@ type: Opaque
 stringData:
   token: "<HF_TOKEN>"  # Replace with your actual HuggingFace token
 ```
+
 ### 5. Build and Deploy
+
 ```bash
 # Build init container image
 docker build -f Dockerfile.init -t model-downloader:latest .
