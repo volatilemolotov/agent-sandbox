@@ -40,6 +40,7 @@ from .models import (
     SandboxTracerConfig
 )
 from .k8s_helper import K8sHelper
+from .exceptions import SandboxNotFoundError
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -143,12 +144,12 @@ class SandboxClient(Generic[T]):
             sandbox_id = self.k8s_helper.resolve_sandbox_name(claim_name, namespace, timeout=resolve_timeout)
             sandbox_object = self.k8s_helper.get_sandbox(sandbox_id, namespace)
             if not sandbox_object:
-                raise RuntimeError(f"Underlying Sandbox '{sandbox_id}' not found.")
+                raise SandboxNotFoundError(f"Underlying Sandbox '{sandbox_id}' not found.")
         except Exception as e:
             if existing:
                 existing.terminate()
             self._active_connection_sandboxes.pop(key, None)
-            raise RuntimeError(f"Sandbox claim '{claim_name}' not found or resolution failed in namespace '{namespace}': {e}") from e
+            raise SandboxNotFoundError(f"Sandbox claim '{claim_name}' not found or resolution failed in namespace '{namespace}': {e}") from e
 
         # If it's already in the registry and active (and verified on K8s), return the existing object
         if existing and existing.is_active:
@@ -260,7 +261,7 @@ class SandboxClient(Generic[T]):
     def _wait_for_sandbox_ready(self, sandbox_id: str, namespace: str, timeout: int):
         """Waits for the Sandbox custom resource to have a 'Ready' status."""
         self.k8s_helper.wait_for_sandbox_ready(sandbox_id, namespace, timeout)
-        
+
     @trace_span("delete_claim")
     def _delete_claim(self, claim_name: str, namespace: str):
         """Deletes the SandboxClaim custom resource from the Kubernetes cluster."""
