@@ -68,10 +68,4 @@
 {{- end -}}
 >>>>>>> 3b2584b (Refining approach for link replacement and adding link checker)
 
-{{/* Rewrite remaining relative links to point to the GitHub repo */}}
-{{- $ghBase := "https://github.com/kubernetes-sigs/agent-sandbox/blob/main/" -}}
-{{- $ghTree := "https://github.com/kubernetes-sigs/agent-sandbox/tree/main/" -}}
-{{- $content = replaceRE `\]\(([a-zA-Z][a-zA-Z0-9_/.+-]*)/\)` (printf "](%s$1/)" $ghTree) $content -}}
-{{- $content = replaceRE `\]\(([a-zA-Z][a-zA-Z0-9_/.+-]*\.[a-zA-Z0-9]+)\)` (printf "](%s$1)" $ghBase) $content -}}
-
-{{- $content | .Page.RenderString -}}
+{{- $content | markdownify -}}
