@@ -10,10 +10,7 @@ Install the SDK:
 ```bash
 pip install k8s-agent-sandbox
 ```
-
-
-
-
+Start with a simple run command:
 
 ```python
 from k8s_agent_sandbox import SandboxClient
@@ -28,6 +25,20 @@ result = sandbox.commands.run("echo 'Hello from Agent Sandbox!'")
 print(result.stdout)
 # Hello from Agent Sandbox!
 ```
+
+Or write a file into the sandbox filesystem, then read it:
+
+```python
+sandbox.files.write(
+    "hello.py",
+    'print("Hello, World! Greetings from inside the sandbox.")\n',
+)
+
+result = sandbox.commands.run("python3 hello.py")
+print(result.stdout)
+# Hello, World! Greetings from inside the sandbox.
+```
+
 
 ## References
 
