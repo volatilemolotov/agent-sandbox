@@ -1,7 +1,8 @@
-import subprocess
+import json
 from fastapi import FastAPI
 from pydantic import BaseModel
 import uvicorn
+from playwright.async_api import async_playwright
 
 app = FastAPI()
 
@@ -14,25 +15,33 @@ async def health_check():
     return {"status": "ok", "message": "Sandbox Runtime is active."}
 
 @app.post("/execute")
-def execute_command(req: ExecuteRequest):
+async def execute_command(req: ExecuteRequest):
     try:
-        result = subprocess.run(
-            req.command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=120 # Give Playwright enough time to run
-        )
+        url = req.command
 
-        # Return the exact schema the SDK expects
-        return {
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "exitCode": result.returncode
-        }
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto(url, timeout=15000)
+            content = await page.evaluate("document.body.innerText")
+            await browser.close()
+
+            success_output = json.dumps({"status": "success", "content": content[:2000]})
+
+            return {
+                "stdout": success_output,
+                "stderr": "",
+                "exitCode": 0
+            }
+
     except Exception as e:
+        error_output = json.dumps({"status": "error", "message": str(e)})
+
         return {
             "stdout": "",
-            "stderr": str(e),
+            "stderr": error_output,
             "exitCode": 1
         }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

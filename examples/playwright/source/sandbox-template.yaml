@@ -6,10 +6,10 @@ metadata:
 spec:
   podTemplate:
     spec:
-      runtimeClassName: gvisor
       containers:
-      - name: sandbox
-        image: us-central1-docker.pkg.dev/<PROJECT_ID>/agent-sandbox/playwright:1.0.0
+      - name: playwright-agent
+        image: local-playwright-sandbox:v1
+        imagePullPolicy: Never
         ports:
         - containerPort: 8888
         readinessProbe:

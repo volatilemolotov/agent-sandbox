@@ -1,10 +1,7 @@
-import sys
 from k8s_agent_sandbox import SandboxClient
 
 with SandboxClient(template_name="playwright-template", namespace="default") as sandbox:
-    target_url = sys.argv[1]
-
-    result = sandbox.run(f"python3 /app/search.py '{target_url}'")
+    result = sandbox.run("https://kubernetes.io")
 
     print("--- STDOUT ---")
     print(result.stdout)
