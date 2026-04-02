@@ -18,8 +18,9 @@ Before using the client, you must deploy the `sandbox-router`. This is a one-tim
     Ensure a `SandboxTemplate` exists in your target namespace. In the `./source` directory run the following commands to build and deploy Playwright Sandbox Template:
     
     ```bash
-    gcloud builds submit . # replace <PROJECT_ID> with your actual project id
-    kubectl apply -f sandbox-template.yaml # replace <PROJECT_ID> with your actual project id
+    docker build -t local-playwright-sandbox:v1 .
+    kind load docker-image local-playwright-sandbox:v1 --name agent-sandbox
+    kubectl apply -f sandbox-template.yaml
     ```
 
 ## Test
@@ -33,7 +34,7 @@ pip install k8s-agent-sandbox
 Run the example script:
 
 ```bash
-python3 example.py https://kubernetes.io
+python3 example.py
 ```
 
 The output should look like this:
