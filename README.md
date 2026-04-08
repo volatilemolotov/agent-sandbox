@@ -36,6 +36,44 @@ The `extensions` module provides additional CRDs and controllers that build on t
 *   `SandboxClaim`: Allows users to create Sandboxes from a template, abstracting away the details of the underlying Sandbox configuration.
 *   `SandboxWarmPool`: Manages a pool of pre-warmed Sandbox Pods that can be quickly allocated to users, reducing the time it takes to get a new Sandbox up and running.
 
+## Using the Python SDK
+
+Install the SDK and create a client to start managing sandboxes programmatically:
+
+```bash
+pip install k8s-agent-sandbox
+```
+
+```python
+from k8s_agent_sandbox import SandboxClient
+
+client = SandboxClient()
+
+sandbox = client.create_sandbox(
+    template="python-sandbox-template",
+    namespace="default",
+)
+
+try:
+    result = sandbox.commands.run("echo 'Hello from Agent Sandbox!'")
+    print("Command output:", result.stdout)
+
+    sandbox.files.write(
+        "hello.py",
+        'print("Hello, World! Greetings from inside the sandbox.")\n',
+    )
+
+    result = sandbox.commands.run("python3 hello.py")
+    print("Script output:", result.stdout)
+
+    content = sandbox.files.read("hello.py")
+    print("File content:", content)
+
+finally:
+    sandbox.terminate()
+    print("Sandbox terminated.")
+```
+
 ## Architecture
 
 agent-sandbox follows the Kubernetes controller pattern. Users create a Sandbox custom resource, and the controller manages the underlying runtime resources.
