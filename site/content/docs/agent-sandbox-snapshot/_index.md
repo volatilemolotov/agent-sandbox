@@ -1,17 +1,24 @@
-# Sandbox Snapshots
+---
+title: "Agent Sandbox Snapshot"
+linkTitle: "Agent Sandbox Snapshot"
+weight: 15
+description: >
+  Create a Sandbox and optimize the GKE cluster resource usage without losing the session data in your Sandbox.
+---
+## Sandbox Snapshots
 
 In many agentic workflows, you don't need a sandbox running indefinitely, but you need to preserve the exact state of a session—including filesystem changes and memory state—to resume it later.
 
 While standard sandboxes are ephemeral, the `PodSnapshotSandboxClient` allows you to manually "freeze" a gVisor-protected sandbox and rehydrate that state into a new instance later.
 
-## Prerequisites
+### Prerequisites
 
 This guide assumes you have already configured your GKE Autopilot cluster with a gVisor node pool and applied the necessary CRDs.
 
 - For infrastructure setup instructions, see [GKE Cluster Setup](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots).
 - Ensure your Google Cloud credentials are configured in your environment.
 
-## Manual Snapshot & Restore
+### Manual Snapshot & Restore
 
 Unlike automatic pausing, snapshots give you granular control over when state is saved. This is ideal for multi-turn agents where the environment needs to be "parked" between user prompts to save costs.
 
