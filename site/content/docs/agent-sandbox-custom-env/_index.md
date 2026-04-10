@@ -3,7 +3,7 @@ title: "Agent Sandbox Custom Environment"
 linkTitle: "Agent Sandbox Custom Environment"
 weight: 15
 description: >
-  Create a Sandbox and optimize the GKE cluster resource usage without losing the session data in your Sandbox.
+  Create a Sandbox with custom environment variables.
 ---
 ## Executing Commands with Custom Environment Variables
 
