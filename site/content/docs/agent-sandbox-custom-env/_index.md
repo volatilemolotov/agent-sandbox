@@ -61,7 +61,7 @@ def execute_command(req: ExecuteRequest):
 
         # Return the exact schema the SDK expects
         return {
-            "stdout": f"funny output: {result.stdout}",
+            "stdout": result.stdout},
             "stderr": result.stderr,
             "exitCode": result.returncode
         }
