@@ -54,10 +54,7 @@ Follow the [Kata Containers Installation Guide](https://github.com/kata-containe
 
 ### 3. Install the Agent Sandbox controller
 
-```bash
-export VERSION="vX.Y.Z"  # Replace with a version from https://github.com/kubernetes-sigs/agent-sandbox/releases
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/manifest.yaml
-```
+Follow the [Agent Sandbox installation instructions]({{< ref "/docs/overview" >}}) to install the controller on your cluster.
 
 ### 4. Deploy a sandbox with Kata
 
@@ -76,7 +73,7 @@ The output should show `sandbox-example: kata-qemu`.
 
 ## Accessing the Sandbox
 
-With Kata runtimes, direct pod port-forwarding is not compatible. Use the Sandbox Router:
+With Kata runtimes, direct pod port-forwarding is not compatible. Use the [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/clients/python/agentic-sandbox-client/sandbox-router) — a lightweight reverse proxy that acts as a single entry point for all sandbox traffic and routes requests to the correct sandbox pod based on an `X-Sandbox-ID` header:
 
 ```bash
 # Deploy the router
