@@ -6,6 +6,10 @@ description: >
   Transfer files between your local machine and the sandbox filesystem.
 ---
 
+{{% alert title="Prerequisite" color="info" %}}
+These examples use a `SandboxTemplate` named `python-sandbox-template`. If it isn't installed in your cluster, `create_sandbox()` will return `NotFound`. See [Filesystem → Prerequisites]({{< ref "/docs/filesystem" >}}#prerequisites) for a one-line install snippet.
+{{% /alert %}}
+
 ## Upload a Local File
 
 Use `sandbox.files.write()` with the contents of a local file to upload it to the sandbox.
