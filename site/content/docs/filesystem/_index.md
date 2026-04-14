@@ -10,6 +10,35 @@ The Agent Sandbox Python SDK (`k8s-agent-sandbox`) provides a `files` API on eve
 
 All file operations are also available as async methods via `AsyncSandboxClient`.
 
+## Prerequisites
+
+The examples below reference a `SandboxTemplate` named `python-sandbox-template`. A `SandboxTemplate` is a cluster resource that defines the pod spec (image, resources, probes, optional `runtimeClassName` for gVisor/Kata) used when a sandbox is created. It must exist in the target namespace before `create_sandbox(template=...)` will succeed — otherwise the call returns a `NotFound` error.
+
+Apply this minimal template once per namespace:
+
+```bash
+kubectl apply -n default -f - <<'EOF'
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: python-sandbox-template
+spec:
+  podTemplate:
+    spec:
+      containers:
+      - name: python-runtime
+        image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox:latest-main
+        ports:
+        - containerPort: 8888
+        readinessProbe:
+          httpGet: { path: "/", port: 8888 }
+          periodSeconds: 1
+      restartPolicy: OnFailure
+EOF
+```
+
+The full template (with isolation runtime options) lives at [`clients/python/agentic-sandbox-client/python-sandbox-template.yaml`](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/python-sandbox-template.yaml) in the repository.
+
 ## Connect to a sandbox
 
 ```python

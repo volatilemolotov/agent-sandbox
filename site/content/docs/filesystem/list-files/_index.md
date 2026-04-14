@@ -6,6 +6,10 @@ description: >
   List directory contents and check if paths exist in the sandbox filesystem.
 ---
 
+{{% alert title="Prerequisite" color="info" %}}
+These examples use a `SandboxTemplate` named `python-sandbox-template`. If it isn't installed in your cluster, `create_sandbox()` will return `NotFound`. See [Filesystem → Prerequisites]({{< ref "/docs/filesystem" >}}#prerequisites) for a one-line install snippet.
+{{% /alert %}}
+
 ## List Directory Contents
 
 Use `sandbox.files.list()` to get the contents of a directory inside the sandbox. It returns a list of `FileEntry` objects.

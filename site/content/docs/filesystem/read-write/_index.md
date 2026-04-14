@@ -6,6 +6,10 @@ description: >
   Read file contents from and write files to the sandbox filesystem using the Python SDK.
 ---
 
+{{% alert title="Prerequisite" color="info" %}}
+These examples use a `SandboxTemplate` named `python-sandbox-template`. If it isn't installed in your cluster, `create_sandbox()` will return `NotFound`. See [Filesystem → Prerequisites]({{< ref "/docs/filesystem" >}}#prerequisites) for a one-line install snippet.
+{{% /alert %}}
+
 ## Write a File
 
 Use `sandbox.files.write()` to create or overwrite a file inside the sandbox. The method accepts a path and content as either a string or bytes.
