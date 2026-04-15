@@ -54,7 +54,6 @@ sleep()
 
 # 4. Snapshot the Sandbox
 # This freezes the gVisor container state.
-# (Check step 3 below if the exact method name differs in your SDK version)
 snapshot_response = sandbox.snapshots.create("my-trigger")
 sleep()
 assert snapshot_response is not None
