@@ -1,6 +1,6 @@
 ---
-title: "Agent Sandbox Snapshot"
-linkTitle: "Agent Sandbox Snapshot"
+title: "Snapshots"
+linkTitle: "Snapshots"
 weight: 15
 description: >
   Create a Sandbox and optimize the GKE cluster resource usage without losing the session data in your Sandbox.
