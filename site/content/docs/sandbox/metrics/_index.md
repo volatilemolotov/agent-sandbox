@@ -1,6 +1,6 @@
 ---
-title: "Agent Sandbox Metrics"
-linkTitle: "Agent Sandbox Metrics"
+title: "Metrics"
+linkTitle: "Metrics"
 weight: 15
 description: >
   Create a Sandbox and check its metrics.
