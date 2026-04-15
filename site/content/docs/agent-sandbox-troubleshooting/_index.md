@@ -11,6 +11,8 @@ In complex agentic workflows, execution failures can happen at multiple layersâ€
 
 While standard errors are often surfaced directly in your script, the `k8s_agent_sandbox` SDK provides specialized tools and methodologies to inspect, trace, and debug your sandbox environments effectively.
 
+> Note: the source code can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/docs-agent-sandbox-troubleshooting/site/content/docs/agent-sandbox-troubleshooting/source)
+
 ### Built-in Log Tracing
 
 When you need granular visibility into the API calls the SDK is making to the Sandbox Router, you can enable built-in log tracing. This is particularly useful when sandbox creation hangs or connection errors occur.
