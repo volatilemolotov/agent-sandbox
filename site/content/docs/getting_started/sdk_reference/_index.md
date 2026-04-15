@@ -1,9 +1,9 @@
 ---
-title: "Agent Sandbox Reference"
-linkTitle: "Agent Sandbox Reference"
+title: "SDK Reference"
+linkTitle: "SDK Reference"
 weight: 15
 description: >
-  Agent Sandbox Reference.
+  Agent Sandbox Python SDK Reference.
 ---
 <a id="k8s_agent_sandbox.sandbox_client"></a>
 
