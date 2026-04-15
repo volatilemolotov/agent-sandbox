@@ -1,6 +1,6 @@
 ---
-title: "Agent Sandbox Custom Environment"
-linkTitle: "Agent Sandbox Custom Environment"
+title: "Custom Environment"
+linkTitle: "Custom Environment"
 weight: 15
 description: >
   Create a Sandbox with custom environment variables.
