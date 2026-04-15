@@ -15,9 +15,9 @@ Agent Sandbox provides isolated environments with graphical desktop capabilities
 ## Why Use a Sandbox for Computer Use?
 
 - **Visual isolation** — Each agent gets its own desktop or browser environment, completely separated from your systems.
-- **Full desktop stack** — The [AIO Sandbox](/docs/examples/aio-sandbox/) bundles VNC, VSCode, Jupyter, and Terminal in a single unified environment, based on the [agent-infra/sandbox](https://github.com/agent-infra/sandbox) project.
+- **Full desktop stack** — The [AIO Sandbox](/docs/use-cases/examples/aio-sandbox/) bundles VNC, VSCode, Jupyter, and Terminal in a single unified environment, based on the [agent-infra/sandbox](https://github.com/agent-infra/sandbox) project.
 - **Browser task execution** — The [Gemini Computer Use](/docs/runtime-templates/computer-use/) template runs a FastAPI server that accepts browser tasks via an `/agent` endpoint and executes them using the `computer-use-preview` model with a Gemini API key.
-- **Network control** — Combine with [Network Policies](/docs/examples/network-policies/) to restrict what the agent can access on the network.
+- **Network control** — Combine with [Network Policies](/docs/use-cases/examples/network-policies/) to restrict what the agent can access on the network.
 
 ## How It Works
 
@@ -37,4 +37,4 @@ Agent Sandbox provides isolated environments with graphical desktop capabilities
 ## Examples
 
 - [Gemini Computer Use Agent](/docs/runtime-templates/computer-use/) — A FastAPI server running the Gemini `computer-use-preview` agent. Accepts browser tasks via an `/agent` endpoint with `AgentQuery` (query + API key) and returns `AgentResponse` (stdout, stderr, exit_code). Includes Docker test scripts and Kind cluster integration.
-- [All-in-One (AIO) Sandbox](/docs/examples/aio-sandbox/) — A multi-tool sandbox with VNC, VSCode, Jupyter, and Terminal. Accessible via port-forwarding at port 8080. Controllable via the `agent-sandbox` Python SDK for programmatic browser, shell, and filesystem interaction.
+- [All-in-One (AIO) Sandbox](/docs/use-cases/examples/aio-sandbox/) — A multi-tool sandbox with VNC, VSCode, Jupyter, and Terminal. Accessible via port-forwarding at port 8080. Controllable via the `agent-sandbox` Python SDK for programmatic browser, shell, and filesystem interaction.

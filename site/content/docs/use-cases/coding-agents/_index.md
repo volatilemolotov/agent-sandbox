@@ -21,7 +21,7 @@ Agent Sandbox is well-suited for this because each sandbox is a stateful, single
 
 ## How It Works
 
-1. **Deploy a sandbox** with the agent container, dependencies, and persistent storage. The [LangGraph example](/docs/examples/langchain/) uses an init container to download the Salesforce/codegen-350M-mono model (~350M parameters) to a PVC, and a main container running the LangGraph-based agent.
+1. **Deploy a sandbox** with the agent container, dependencies, and persistent storage. The [LangGraph example](/docs/use-cases/examples/langchain/) uses an init container to download the Salesforce/codegen-350M-mono model (~350M parameters) to a PVC, and a main container running the LangGraph-based agent.
 2. **User provides a task** — the user attaches to the agent via `kubectl attach` and enters a coding task (e.g., "Generate code to calculate factorial of 5").
 3. **Agent generates code** — using the locally-cached transformer model to produce Python code from the prompt.
 4. **Code executes in the sandbox** — the agent runs the generated code and captures stdout and stderr.
@@ -30,4 +30,4 @@ Agent Sandbox is well-suited for this because each sandbox is a stateful, single
 
 ## Agent Examples
 
-- [Coding Agent on LangGraph](/docs/examples/langchain/) — A complete coding agent deployed on Kind using the Salesforce/codegen-350M-mono model with LangGraph. Architecture includes an init container for model download, a persistent volume for model caching, and a main container running Python 3.13 with PyTorch and Transformers. The agent generates Python code, executes it, and auto-fixes errors up to 3 times. Requires a HuggingFace token.
+- [Coding Agent on LangGraph](/docs/use-cases/examples/langchain/) — A complete coding agent deployed on Kind using the Salesforce/codegen-350M-mono model with LangGraph. Architecture includes an init container for model download, a persistent volume for model caching, and a main container running Python 3.13 with PyTorch and Transformers. The agent generates Python code, executes it, and auto-fixes errors up to 3 times. Requires a HuggingFace token.
