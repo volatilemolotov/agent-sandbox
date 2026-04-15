@@ -1,6 +1,6 @@
 ---
-title: "Agent Sandbox Custom Docker Image"
-linkTitle: "Agent Sandbox Custom Docker Image"
+title: "Image"
+linkTitle: "Image"
 weight: 15
 description: >
   Create a Sandbox with custom dependencies.
