@@ -17,14 +17,18 @@ This guide assumes you have already configured your GKE Autopilot cluster with a
 
 - For infrastructure setup instructions, see [GKE Cluster Setup](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/pod-snapshots).
 - Ensure your Google Cloud credentials are configured in your environment.
+- The [Agent Sandbox Controller](https://github.com/kubernetes-sigs/agent-sandbox?tab=readme-ov-file#installation) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) installed.
 
 ### Manual Snapshot & Restore
 
 Unlike automatic pausing, snapshots give you granular control over when state is saved. This is ideal for multi-turn agents where the environment needs to be "parked" between user prompts to save costs.
 
-Basic Workflow Example
+#### Basic Workflow Example
 
 The following example demonstrates creating a sandbox, modifying its filesystem, taking a snapshot, and restoring that state into a completely new sandbox.
+
+> Note: this example uses `simple-sandbox-template`, which you should create in your GKE cluster first. The associated resources can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/docs-agent-sandbox-snapshot/site/content/docs/agent-sandbox-snapshot/source).
 
 
 ```python
