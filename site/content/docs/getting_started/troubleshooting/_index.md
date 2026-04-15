@@ -1,6 +1,6 @@
 ---
-title: "Agent Sandbox Troubleshooting"
-linkTitle: "Agent Sandbox Troubleshooting"
+title: "Troubleshooting"
+linkTitle: "Troubleshooting"
 weight: 15
 description: >
   How to troubleshoot in Agent Standbox.
@@ -11,7 +11,7 @@ In complex agentic workflows, execution failures can happen at multiple layersâ€
 
 While standard errors are often surfaced directly in your script, the `k8s_agent_sandbox` SDK provides specialized tools and methodologies to inspect, trace, and debug your sandbox environments effectively.
 
-> Note: the source code can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/docs-agent-sandbox-troubleshooting/site/content/docs/agent-sandbox-troubleshooting/source)
+> Note: the source code can be found [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/docs-agent-sandbox-troubleshooting/site/content/docs/getting_started/troubleshooting/source)
 
 ### Built-in Log Tracing
 
