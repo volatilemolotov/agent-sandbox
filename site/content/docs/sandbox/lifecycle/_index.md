@@ -1,11 +1,11 @@
 ---
-title: "Agent Sandbox Shutdown Time"
-linkTitle: "Agent Sandbox Shutdown Time"
+title: "Lifecycle"
+linkTitle: "Lifecycle"
 weight: 2
 description: >
-  Set up a specific time when the Sandbox must be deleted.
+  How to control the sandbox  lifecycle
 ---
-{{% include-file file="additional/examples/analytics-tool/README.md" %}}
+## Using ShutdownTime
 
 ## Sandbox Expiration
 
