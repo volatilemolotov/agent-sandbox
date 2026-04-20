@@ -31,17 +31,14 @@ description: >
    kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/extensions.yaml
    ```
 
-3. Before using the client, you must deploy the `sandbox-router`. Follow these [instructions](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md).
+3. Before using the client, you must deploy the `sandbox-router`. Follow these there steps:
+   ```sh
+   curl -sSLO https://raw.githubusercontent.com/kubernetes-sigs/agent-sandbox/main/clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.yaml
+   sed -i '' 's|${ROUTER_IMAGE}|us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/sandbox-router:latest-main|g' sandbox_router.yaml
+   kubectl apply -f sandbox_router.yaml
+   ```
 
 4. Create a Sandbox Template. For example the [python-runtime-sandbox](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/examples/python-runtime-sandbox/).
     ```bash
     kubectl apply -f python-sandbox-template.yaml
     ```
-
-
-
-
-
-
-
-
