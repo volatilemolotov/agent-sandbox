@@ -11,12 +11,12 @@ In many agentic workflows, you need to execute isolated commands inside the sand
 
 By extending the sandbox's FastAPI runtime, you can accept a dynamic `env` dictionary per request and merge it seamlessly into the specific execution context of that process.
 
-### Prerequisites
+## Prerequisites
 
-This guide assumes you have already configured your Kubernetes cluster with the Agent Sandbox controllers and built a custom container image containing your FastAPI runtime.
-
-- Ensure your local environment has the SDK installed via `pip install k8s-agent-sandbox`.
-- You have applied a SandboxTemplate (e.g., `simple-sandbox-template`) to your cluster that uses your custom FastAPI server as its entrypoint.
+- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster, configured to use your custom FastAPI server as its entrypoint. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- The [Python SDK]({{< ref "/docs/python-client" >}}) installed: `pip install k8s-agent-sandbox`.
 
 ### 1. The Custom Sandbox Runtime (Server-Side)
 
@@ -86,7 +86,7 @@ from k8s_agent_sandbox import SandboxClient
 client = SandboxClient()
 
 # 2. Create the sandbox using your custom runtime template
-sandbox = client.create_sandbox("simple-sandbox-template")
+sandbox = client.create_sandbox("python-sandbox-template")
 
 # 3. Run a command and inject environment variables via the payload
 # The FastAPI server parses this into the ExecuteRequest model
