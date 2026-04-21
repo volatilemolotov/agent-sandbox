@@ -6,7 +6,7 @@ description: >
   This guide shows how install Agent Sandbox resources in [Kubernetes in Docker (KinD)](https://kind.sigs.k8s.io/) and in [GKE](https://cloud.google.com/kubernetes-engine).
 ---
 
-# Prerequisites
+## Prerequisites
 
 * [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/docs/installation) installed.
 * [kind](https://kubernetes.io/docs/tasks/tools/#kind) CLI tool.
