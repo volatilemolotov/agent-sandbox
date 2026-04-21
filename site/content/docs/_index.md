@@ -53,4 +53,3 @@ A first-class [Python client](./python-client/) lets agents and applications cre
 | **Scheduled deletion** | Automatic cleanup of sandboxes after a configurable TTL |
 
 ## Where to go next
-
