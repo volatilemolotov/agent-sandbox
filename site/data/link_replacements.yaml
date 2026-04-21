@@ -48,10 +48,10 @@ replacements:
     replacement: '](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/test_client.py)'
     description: "test_client.py to GitHub"
 
-  # Python-runtime-sandbox (absolute repo path) - redirect to /docs/runtime-templates/python/
-  - pattern: '\]\(/examples/python-runtime-sandbox/\)'
+  # Python-runtime-sandbox README (absolute repo path) - redirect to /docs/runtime-templates/python/
+  - pattern: '\]\(/examples/python-runtime-sandbox/README\.md\)'
     replacement: '](/docs/runtime-templates/python/)'
-    description: "Python runtime sandbox absolute path to docs page"
+    description: "Python runtime sandbox README absolute path to docs page"
 
   # Python-runtime-sandbox (relative path 3 levels up) - redirect to /docs/runtime-templates/python/
   - pattern: '\]\(\.\./\.\./\.\./examples/python-runtime-sandbox/\)'

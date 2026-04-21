@@ -6,7 +6,7 @@ Agent Sandbox is a quick and easy way to start secure containers that will let a
 
 - A running Kubernetes cluster with the [Agent Sandbox Controller](/README.md/#installation) installed.
 - The [Sandbox Router](/clients/python/agentic-sandbox-client/README.md#setup-deploying-the-router) deployed in your cluster.
-- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox](/examples/python-runtime-sandbox/) guide for setup instructions.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox](/examples/python-runtime-sandbox/README.md) guide for setup instructions.
 - The [Python SDK](/clients/python/agentic-sandbox-client/README.md) installed: `pip install k8s-agent-sandbox`.
 
 ## Usage
