@@ -5,8 +5,6 @@ weight: 2
 description: >
   Set up a specific time when the Sandbox must be deleted.
 ---
-{{% include-file file="additional/examples/analytics-tool/README.md" %}}
-
 ## Sandbox Expiration
 
 In many agentic workflows, you don't need a sandbox running indefinitely. To prevent resource leaks, runaway tasks, or unbounded compute costs, you need a way to ensure that a session is automatically terminated after a specific deadline.
