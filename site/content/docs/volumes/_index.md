@@ -9,6 +9,14 @@ description: >
 
 # Use volumeClaimTemplates to persist data from Agent Sandbox 
 
+## Prerequisites
+
+- A running GKE cluster with the [Agent Sandbox controller]({{< ref "/docs/overview" >}}) installed.
+- GKE cluster with [GCS FUSE CSI driver](https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/cloud-storage-fuse-csi-driver) enabled and Workload Identity configured.
+- `kubectl` configured to connect to your cluster.
+- [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`) installed and authenticated.
+
+## Steps
 
 1. Specify environment variables:
    ```sh
