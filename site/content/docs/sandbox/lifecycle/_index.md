@@ -13,13 +13,11 @@ In many agentic workflows, you don't need a sandbox running indefinitely. To pre
 
 While standard sandboxes run until manually deleted, configuring a `shutdownTime` allows you to schedule an exact expiration timestamp. Once this timestamp is reached, the sandbox and its associated resources are automatically garbage-collected by the control plane.
 
-### Prerequisites
-
-This guide assumes you have a running Kubernetes cluster. Because we are leveraging standard Kubernetes manifests and `kubectl`, this workflow is natively supported across both **macOS** and **Linux** environments (such as a local KinD cluster, Minikube, or Docker Desktop).
+## Prerequisites
 
 - A running Kubernetes cluster.
-- The `kubectl` CLI tool installed and configured to point to your cluster.
-- The [Agent Sandbox Controller](https://github.com/kubernetes-sigs/agent-sandbox?tab=readme-ov-file#installation) installed.
+- The [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) CLI tool installed and configured to point to your cluster.
+- The [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
 
 ### Scheduled Shutdown
 
