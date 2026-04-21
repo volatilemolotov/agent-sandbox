@@ -27,9 +27,7 @@ spec:
       runtimeClassName: kata-qemu
 ```
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Host machine that supports nested virtualization. Verify:
   ```sh
@@ -38,7 +36,10 @@ spec:
   # Output must be "Y" or 1
   ```
 - [minikube](https://minikube.sigs.k8s.io/docs/start/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) installed and configured to point to your cluster.
+- The [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed on your cluster.
+
+## Getting Started
 
 ### 1. Create a minikube cluster with Kata support
 
@@ -52,17 +53,13 @@ minikube start --vm-driver kvm2 --memory 8192 --container-runtime=containerd --b
 
 Follow the [Kata Containers Installation Guide](https://github.com/kata-containers/kata-containers/tree/main/docs/install).
 
-### 3. Install the Agent Sandbox controller
-
-Follow the [Agent Sandbox installation instructions]({{< ref "/docs/overview" >}}) to install the controller on your cluster.
-
-### 4. Deploy a sandbox with Kata
+### 3. Deploy a sandbox with Kata
 
 ```shell
 kubectl apply -k examples/vscode-sandbox/overlays/kata
 ```
 
-### 5. Verify Kata is active
+### 4. Verify Kata is active
 
 ```shell
 kubectl wait --for=condition=Ready sandbox sandbox-example
