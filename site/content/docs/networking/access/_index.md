@@ -6,6 +6,13 @@ description: >
   How to connect to a running sandbox from your agent or application
 ---
 
+## Prerequisites
+
+- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- The [Python SDK]({{< ref "/docs/python-client" >}}) installed: `pip install k8s-agent-sandbox`.
+
 All sandbox access flows through the [Sandbox Router](../#sandbox-router) --
 a reverse proxy that routes requests to the correct sandbox pod using
 `X-Sandbox-*` headers. The Python and Go client SDKs handle this automatically.
@@ -19,12 +26,6 @@ There are three connection modes, each suited to a different environment:
 | **Direct** | In-cluster agents, custom domains | Client → provided URL → Router → Sandbox |
 
 ## Python client
-
-Install the package:
-
-```bash
-pip install k8s-agent-sandbox
-```
 
 ### Gateway mode
 
