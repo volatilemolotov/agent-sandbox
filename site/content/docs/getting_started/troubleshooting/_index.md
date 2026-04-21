@@ -13,6 +13,13 @@ While standard errors are often surfaced directly in your script, the `k8s_agent
 
 > Note: the source code can be found [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/docs-agent-sandbox-troubleshooting/site/content/docs/getting_started/troubleshooting/source)
 
+## Prerequisites
+
+- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- The [Python SDK]({{< ref "/docs/python-client" >}}) installed with the tracing extra: `pip install "k8s-agent-sandbox[tracing]"`.
+
 ### Built-in Log Tracing
 
 When you need granular visibility into the API calls the SDK is making to the Sandbox Router, you can enable built-in log tracing. This is particularly useful when sandbox creation hangs or connection errors occur.
@@ -29,7 +36,7 @@ Example code:
 from k8s_agent_sandbox import SandboxClient
 
 client = SandboxClient()
-sandbox = client.create_sandbox("simple-sandbox-template")
+sandbox = client.create_sandbox("python-sandbox-template")
 payload = "echo 'Hello World!'"
 response = sandbox.commands.run(payload)
 
@@ -38,7 +45,7 @@ print(response)
 
 Example output:
 ```log
-Creating SandboxClaim 'sandbox-claim-66ae1a5e' in namespace 'default' using template 'simple-sandbox-template'...
+Creating SandboxClaim 'sandbox-claim-66ae1a5e' in namespace 'default' using template 'python-sandbox-template'...
 2026-04-15 16:52:11,634 - INFO - Resolving sandbox name from claim 'sandbox-claim-66ae1a5e'...
 2026-04-15 16:52:11,651 - INFO - Resolved sandbox name 'sandbox-claim-66ae1a5e' from claim status
 2026-04-15 16:52:11,651 - INFO - Watching for Sandbox sandbox-claim-66ae1a5e to become ready...
@@ -68,7 +75,7 @@ from k8s_agent_sandbox import SandboxClient
 client = SandboxClient()
 
 # 1. Create a sandbox using a template that references your custom Docker image
-sandbox = client.create_sandbox("simple-sandbox-template")
+sandbox = client.create_sandbox("python-sandbox-template")
 
 # 2. Run a command that might fail (e.g., executing a script with missing dependencies)
 response = sandbox.commands.run("python3 /app/agent_script.py")
