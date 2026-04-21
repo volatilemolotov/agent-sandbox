@@ -13,13 +13,15 @@ In many agentic workflows, you don't need a sandbox running indefinitely. To pre
 
 While standard sandboxes run until manually deleted, configuring a `shutdownTime` allows you to schedule an exact expiration timestamp. Once this timestamp is reached, the sandbox and its associated resources are automatically garbage-collected by the control plane.
 
-### Prerequisites
+## Prerequisites
 
-This guide assumes you have a running Kubernetes cluster. Because we are leveraging standard Kubernetes manifests and `kubectl`, this workflow is natively supported across both **macOS** and **Linux** environments (such as a local KinD cluster, Minikube, or Docker Desktop).
+This guide uses `kubectl` directly and is compatible with any Kubernetes environment (KinD, Minikube, Docker Desktop, GKE, etc.).
 
 - A running Kubernetes cluster.
-- The `kubectl` CLI tool installed and configured to point to your cluster.
-- The [Agent Sandbox Controller](https://github.com/kubernetes-sigs/agent-sandbox?tab=readme-ov-file#installation) installed.
+- The [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) CLI tool installed and configured to point to your cluster.
+- The [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- The [Python SDK]({{< ref "/docs/python-client" >}}) installed: `pip install k8s-agent-sandbox`.
 
 ### Scheduled Shutdown
 
@@ -74,7 +76,7 @@ Using `k8s_agent_sandbox` SDK you can specify the following attributes:
 from k8s_agent_sandbox import SandboxClient
 
 client = SandboxClient()
-sandbox = client.create_sandbox("simple-sandbox-template", sandbox_ready_timeout=5, shutdown_after_seconds=10)
+sandbox = client.create_sandbox("python-sandbox-template", sandbox_ready_timeout=5, shutdown_after_seconds=10)
 payload = "echo 'Hello World!'"
 response = sandbox.commands.run(payload)
 
