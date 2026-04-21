@@ -1,15 +1,16 @@
 # Python SDK Quickstart
 
-Agent Sandbox is a quick and easy way to start secure containers that will let agents run, execute code , call tools and interact with data. Using the SDK users can easily interact with the sandboxes without using kubernetes primitives.
+Agent Sandbox is a quick and easy way to start secure containers that will let agents run, execute code, call tools and interact with data. Using the SDK users can easily interact with the sandboxes without using Kubernetes primitives.
 
+## Prerequisites
 
+- A running Kubernetes cluster with the [Agent Sandbox Controller](/README.md/#installation) installed.
+- The [Sandbox Router](/clients/python/agentic-sandbox-client/README.md#setup-deploying-the-router) deployed in your cluster.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox](/examples/python-runtime-sandbox/) guide for setup instructions.
+- The [Python SDK](/clients/python/agentic-sandbox-client/README.md) installed: `pip install k8s-agent-sandbox`.
 
+## Usage
 
-Install the SDK:
-
-```bash
-pip install k8s-agent-sandbox
-```
 Start with a simple run command:
 
 ```python
