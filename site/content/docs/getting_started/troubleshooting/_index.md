@@ -3,7 +3,7 @@ title: "Troubleshooting"
 linkTitle: "Troubleshooting"
 weight: 15
 description: >
-  How to troubleshoot in Agent Standbox.
+  How to troubleshoot in Agent Sandbox.
 ---
 ## Troubleshooting Agent Sandboxes
 
