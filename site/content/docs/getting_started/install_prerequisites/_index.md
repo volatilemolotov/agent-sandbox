@@ -1,9 +1,9 @@
 ---
-title: "Agent Sandbox in KinD cluster"
-linkTitle: "Agent Sandbox in KinD"
+title: "Agent Sandbox Installation"
+linkTitle: "Agent Sandbox Installation"
 weight: 2
 description: >
-  This guide shows how to create a [Kubernetes in Docker (KinD)](https://kind.sigs.k8s.io/) cluster to install Agent Sandbox.
+  This guide shows how install Agent Sandbox resources in [Kubernetes in Docker (KinD)](https://kind.sigs.k8s.io/) and in [GKE](https://cloud.google.com/kubernetes-engine).
 ---
 
 # Prerequisites
@@ -11,11 +11,17 @@ description: >
 * [docker](https://docs.docker.com/engine/install/) or [podman](https://podman.io/docs/installation) installed.
 * [kind](https://kubernetes.io/docs/tasks/tools/#kind) CLI tool.
 * [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) CLI tool.
+* [gcloud CLI](https://cloud.google.com/cli)
 
 
 1. Run command to create a cluster in KinD:
    ```sh
    kind create cluster --name agent-sandbox-test
+   ```
+   Or run these commands to create a cluster in GKE and get credentials to your cluster:
+   ```sh
+   gcloud container clusters create-auto agent-sandbox-test --region=us-central1
+   gcloud container clusters get-credentials agent-sandbox-test --location us-central1
    ```
 
 2. Install the agent-sandbox controller and its CRDs with the following command:
