@@ -24,12 +24,6 @@ While standard errors are often surfaced directly in your script, the `k8s_agent
 
 When you need granular visibility into the API calls the SDK is making to the Sandbox Router, you can enable built-in log tracing. This is particularly useful when sandbox creation hangs or connection errors occur.
 
-To use this feature, you must install the SDK with the `tracing` extra:
-
-```bash
-pip install "k8s-agent-sandbox[tracing]"
-```
-
 Example code:
 
 ```python
