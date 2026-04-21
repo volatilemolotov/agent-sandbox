@@ -11,12 +11,12 @@ When building agentic workflows, you often need to inspect the latency, executio
 
 Using OpenTelemetry's auto-instrumentation tools, you can surface rich metric and trace data directly in your local console for rapid debugging, all without writing any custom telemetry code or setting up external observability backends.
 
-### Prerequisites
+## Prerequisites
 
-This guide assumes you have already configured your Kubernetes cluster with the Agent Sandbox controllers.
-
-- Ensure your local environment has the SDK installed with tracing extras, alongside the OpenTelemetry CLI tools: `pip install "k8s-agent-sandbox[tracing]" opentelemetry-distro`.
-- You have applied a basic SandboxTemplate (e.g., `simple-sandbox-template`) to your cluster.
+- A running Kubernetes cluster with the [Agent Sandbox controller]({{< ref "/docs/overview" >}}) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
+- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- The [Python SDK]({{< ref "/docs/python-client" >}}) installed with tracing extras and the OpenTelemetry CLI tools: `pip install "k8s-agent-sandbox[tracing]" opentelemetry-distro`.
 
 ### 1. The Client Execution Workflow
 
@@ -31,7 +31,7 @@ from k8s_agent_sandbox import SandboxClient
 client = SandboxClient()
 
 # 2. Create the sandbox using your template
-sandbox = client.create_sandbox("simple-sandbox-template")
+sandbox = client.create_sandbox("python-sandbox-template")
 
 # 3. Define and run a standard command
 payload = "echo 'Hello World!'"
