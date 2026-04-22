@@ -18,7 +18,7 @@ This guide uses `kubectl` directly and is compatible with any Kubernetes environ
 - A running Kubernetes cluster.
 - The [`kubectl`](https://kubernetes.io/docs/tasks/tools/#kubectl) CLI tool installed and configured to point to your cluster.
 - The [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
-- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- A `SandboxTemplate` named `simple-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
 - The [Python SDK]({{< ref "/docs/python-client" >}}) installed: `pip install k8s-agent-sandbox`.
 
 ### Scheduled Shutdown
@@ -32,7 +32,7 @@ The following example demonstrates how to define a sandbox claim with an explici
 Define the shutdown time (in this example it's the current time plus 1 minute):
 
 ```bash
-SHUTDOWN_TIME=$(date -u -v+1M +%Y-%m-%dT%H:%M:%SZ)
+SHUTDOWN_TIME=$(date -u -d "+1 minute" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 Apply an example sandbox with the `shutdownPolicy` and `shutdownTime`:
@@ -59,24 +59,56 @@ EOF
 Verify that the sandbox is deleted:
 
 ```bash
-kubectl get sandboxclaim dynamic-ephemeral-sandbox
+kubectl get sandbox dynamic-ephemeral-sandbox
 sleep 60
-kubectl get sandboxclaim dynamic-ephemeral-sandbox
+kubectl get sandbox dynamic-ephemeral-sandbox
 ```
 
 #### Basic Workflow Example with Python SDK
 
-Using `k8s_agent_sandbox` SDK you can specify the following attributes:
-- `sandbox_ready_timeout`: Seconds to wait for the sandbox to be ready. 
-- `shutdown_after_seconds`: Optional TTL in seconds. When set, the claim's `spec.lifecycle` is populated with a `shutdownTime` of *now + shutdown_after_seconds* (UTC) and a `shutdownPolicy` of `"Delete"`, so the controller auto-deletes the claim on expiry. Must be a positive integer.
+When creating a new sandbox via the `k8s_agent_sandbox` SDK, you can customize its readiness checks and lifecycle behavior using optional parameters:
+
+* **`sandbox_ready_timeout`**: The maximum time (in seconds) the client will wait for the sandbox environment to become ready before timing out.
+* **`shutdown_after_seconds`**: A Time-To-Live (TTL) integer in seconds. Setting this parameter tells the SDK to automatically populate the underlying Kubernetes claim's `spec.lifecycle` with a `shutdownPolicy` of `"Delete"` and schedule the deletion for *now + shutdown_after_seconds* (UTC). 
+
+The following example demonstrates how to pass these parameters. Notice how the SDK handles the cluster cleanup policy for you:
 
 ```python
+import time
 from k8s_agent_sandbox import SandboxClient
 
-client = SandboxClient()
-sandbox = client.create_sandbox("python-sandbox-template", sandbox_ready_timeout=5, shutdown_after_seconds=10)
-payload = "echo 'Hello World!'"
-response = sandbox.commands.run(payload)
+def verify_sandbox_lifecycle():
+    client = SandboxClient()
+    ttl_seconds = 5
 
-print(response)
+    print(f"Creating sandbox with a {ttl_seconds}-second TTL...")
+
+    # 1. Verify creation and sandbox_ready_timeout
+    # If the sandbox doesn't become ready within 15 seconds, this will raise an error.
+    sandbox = client.create_sandbox(
+        "simple-sandbox-template",
+        sandbox_ready_timeout=15,
+        shutdown_after_seconds=ttl_seconds
+    )
+
+    print("Sandbox created successfully! Running initial command...")
+    response = sandbox.commands.run("echo 'Sandbox is alive!'")
+    print(f"Output: {response}\n")
+
+    # 2. Verify shutdown_after_seconds (Auto-deletion)
+    wait_time = ttl_seconds + 3  # Add a small buffer for the Kubernetes controller sync
+    print(f"Waiting {wait_time} seconds for the cluster to auto-delete the sandbox...")
+    time.sleep(wait_time)
+
+    print("Attempting to run a command on the expired sandbox...")
+    try:
+        # This should fail because the shutdownPolicy: "Delete" was triggered by the cluster
+        sandbox.commands.run("echo 'Is anyone there?'")
+        print("❌ FAILED: Sandbox is still alive! The shutdown policy did not trigger.")
+    except Exception as e:
+        print(f"✅ SUCCESS: Sandbox is no longer accessible! The cluster cleaned it up.")
+        print(f"   Error received: {e}")
+
+if __name__ == "__main__":
+    verify_sandbox_lifecycle()
 ```
