@@ -1,3 +1,4 @@
+import shlex
 import subprocess
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -15,16 +16,16 @@ async def health_check():
 @app.post("/execute")
 def execute_command(req: ExecuteRequest):
     try:
+        args = shlex.split(req.command)
         result = subprocess.run(
-            req.command,
-            shell=True,
+            args,
             capture_output=True,
             text=True,
             timeout=120
         )
         # Return the exact schema the SDK expects
         return {
-            "stdout": {result.stdout},
+            "stdout": result.stdout,
             "stderr": result.stderr,
             "exitCode": result.returncode
         }

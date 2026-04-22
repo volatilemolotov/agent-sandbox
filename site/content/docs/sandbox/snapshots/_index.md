@@ -19,7 +19,7 @@ This guide requires a GKE Autopilot cluster with a gVisor node pool. See [GKE Cl
 - Google Cloud credentials configured in your environment.
 - The [Agent Sandbox Controller]({{< ref "/docs/overview" >}}) installed.
 - The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
-- A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
+- A `SandboxTemplate` named `simple-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
 - The [Python SDK]({{< ref "/docs/python-client" >}}) installed: `pip install k8s-agent-sandbox`.
 
 ### Manual Snapshot & Restore
@@ -30,7 +30,7 @@ Unlike automatic pausing, snapshots give you granular control over when state is
 
 The following example demonstrates creating a sandbox, modifying its filesystem, taking a snapshot, and restoring that state into a completely new sandbox.
 
-> Note: this example uses `python-sandbox-template`, which you should create in your GKE cluster first. The associated resources can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/docs-agent-sandbox-snapshot/site/content/docs/sandbox/snapshots/source).
+> Note: this example uses `simple-sandbox-template`, which you should create in your GKE cluster first. The associated resources can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/main/site/content/docs/sandbox/snapshots/source).
 
 
 ```python
@@ -46,7 +46,7 @@ def sleep():
 client = PodSnapshotSandboxClient()
 
 # 2. Create the sandbox
-sandbox = client.create_sandbox("python-sandbox-template")
+sandbox = client.create_sandbox("simple-sandbox-template")
 print(sandbox)
 
 # 3. Run a command that alters the filesystem (e.g., Playwright caching data)
@@ -67,7 +67,7 @@ sandbox.terminate()
 sleep()
 
 # 6. Later, restore the sandbox from the snapshot
-restored_sandbox = client.create_sandbox("python-sandbox-template")
+restored_sandbox = client.create_sandbox("simple-sandbox-template")
 is_restored = restored_sandbox.is_restored_from_snapshot(snapshot_response.snapshot_uid)
 print(f"Is restored?\nAnswer: {is_restored}")
 
