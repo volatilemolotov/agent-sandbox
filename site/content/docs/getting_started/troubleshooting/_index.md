@@ -1,7 +1,8 @@
 ---
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
-weight: 15
+weight: 20
+url: "/docs/getting-started/"
 description: >
   How to troubleshoot in Agent Sandbox.
 ---
@@ -11,7 +12,7 @@ In complex agentic workflows, execution failures can happen at multiple layersâ€
 
 While standard errors are often surfaced directly in your script, the `k8s_agent_sandbox` SDK provides specialized tools and methodologies to inspect, trace, and debug your sandbox environments effectively.
 
-> Note: the source code can be found [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/docs-agent-sandbox-troubleshooting/site/content/docs/getting_started/troubleshooting/source)
+> Note: the source code can be found [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/site/content/docs/getting_started/troubleshooting/source)
 
 ## Prerequisites
 
@@ -20,17 +21,20 @@ While standard errors are often surfaced directly in your script, the `k8s_agent
 - A `SandboxTemplate` named `python-sandbox-template` applied to your cluster. See the [Python Runtime Sandbox]({{< ref "/docs/runtime-templates/python" >}}) guide for setup instructions.
 - The [Python SDK]({{< ref "/docs/python-client" >}}) installed with the tracing extra: `pip install "k8s-agent-sandbox[tracing]"`.
 
-### Built-in Log Tracing
+### SDK Logging
 
-When you need granular visibility into the API calls the SDK is making to the Sandbox Router, you can enable built-in log tracing. This is particularly useful when sandbox creation hangs or connection errors occur.
+When you need granular visibility into the API calls the SDK is making to the Sandbox Router, configure Python logging to show the SDK's built-in log output. This is particularly useful when sandbox creation hangs or connection errors occur.
 
 Example code:
 
 ```python
+import logging
 from k8s_agent_sandbox import SandboxClient
 
+logging.basicConfig(level=logging.INFO)
+
 client = SandboxClient()
-sandbox = client.create_sandbox("python-sandbox-template")
+sandbox = client.create_sandbox("simple-sandbox-template")
 payload = "echo 'Hello World!'"
 response = sandbox.commands.run(payload)
 
@@ -120,5 +124,5 @@ Finally, the Sandbox Router is responsible for translating the SDK's REST calls 
 kubectl get pods -n default | grep sandbox-router
 
 # Tail the logs for errors
-kubectl logs <sandbox-router-pod-name> -f
+kubectl logs -n default <sandbox-router-pod-name> -f
 ```

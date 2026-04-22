@@ -1,3 +1,4 @@
+import shlex
 import subprocess
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -15,9 +16,9 @@ async def health_check():
 @app.post("/execute")
 def execute_command(req: ExecuteRequest):
     try:
+        args = shlex.split(req.command)
         result = subprocess.run(
-            req.command,
-            shell=True,
+            args,
             capture_output=True,
             text=True,
             timeout=120

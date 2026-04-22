@@ -14,7 +14,6 @@ spec:
       containers:
       - name: simple-sandbox
         image: <IMAGE_URL>
-        imagePullPolicy: Never
         ports:
         - containerPort: 8888
         readinessProbe:
