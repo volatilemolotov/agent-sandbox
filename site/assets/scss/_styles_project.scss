@@ -426,7 +426,6 @@ h1.text-center {
 
 .use-case-card {
   all: unset;
-  // Use a fixed width that fits 3 per row with gaps, matching the grid container
   width: calc(33.333% - 1rem);
   max-width: calc(33.333% - 1rem);
   display: flex;
@@ -437,6 +436,16 @@ h1.text-center {
   cursor: pointer;
   box-sizing: border-box;
   transition: background 0.2s ease, border-color 0.2s ease;
+
+  @include media-breakpoint-down(md) {
+    width: calc(50% - 1rem);
+    max-width: calc(50% - 1rem);
+  }
+
+  @include media-breakpoint-down(sm) {
+    width: 100%;
+    max-width: 100%;
+  }
 
   &:hover {
     background: rgba($primary, 0.15);

@@ -8,7 +8,7 @@ description: >
 
 ## Overview
 
-[gVisor](https://gvisor.dev/docs/) provides a virtualization layer between applications and the host operating system that creates a strong layer of isolation. It implements the Linux kernel in userspace and minimizes the risk of a workload gaining access to the host machine.
+[gVisor](https://gvisor.dev/) provides a virtualization layer between applications and the host operating system that creates a strong layer of isolation. It implements the Linux kernel in userspace and minimizes the risk of a workload gaining access to the host machine.
 
 The `Sandbox` API provides lifecycle features useful for managing long-running sandbox workloads on Kubernetes. In real-world scenarios, you often want to combine these lifecycle features with workload isolation for running untrusted code. gVisor achieves this by intercepting application system calls and handling them in a sandboxed kernel — the container never directly touches the host kernel.
 
@@ -63,7 +63,7 @@ With gVisor or Kata runtimes, direct pod port-forwarding is not compatible. Use 
 
 ```bash
 # Deploy the router
-kubectl apply -f clients/python/agentic-sandbox-client/sandbox_router/sandbox_router.yaml
+kubectl apply -f clients/python/agentic-sandbox-client/sandbox-router/sandbox_router.yaml
 
 # Port-forward to the router service
 kubectl port-forward svc/sandbox-router-svc 8080:8080 -n default
