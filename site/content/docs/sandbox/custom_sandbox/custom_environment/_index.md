@@ -74,7 +74,7 @@ def execute_command(req: ExecuteRequest):
         }
 ```
 
-> Note: you can find the rest of the Sandbox Docker image [here]()
+> Note: you can find the rest of the Sandbox Docker image [here](https://github.com/volatilemolotov/agent-sandbox/tree/main/site/content/docs/sandbox/custom_sandbox/custom_environment/source)
 
 ### 2. Client Execution Workflow
 
