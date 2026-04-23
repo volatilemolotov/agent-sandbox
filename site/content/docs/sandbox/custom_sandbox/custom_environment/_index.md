@@ -24,17 +24,16 @@ This code runs **inside** the sandbox pod. The `ExecuteRequest` model is extende
 
 ```python
 import os
+import shlex
+import string
 import subprocess
-from typing import Dict, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel
-import json
 
 app = FastAPI()
 
 class ExecuteRequest(BaseModel):
-    command: str
-    env: Optional[Dict[str, str]] = None  # Added to accept environment variables
+    command: dict[str, dict[str, str]]
 
 @app.get("/", summary="Health Check")
 async def health_check():
@@ -45,23 +44,25 @@ async def health_check():
 def execute_command(req: ExecuteRequest):
     try:
         current_env = os.environ.copy()
-        command_payload = json.loads(req.command)
 
         if "env" in req.command:
-            current_env.update(command_payload["env"])
+            current_env.update(req.command["env"])
+
+        raw_command = req.command["command"]["content"]
+        expanded_string = string.Template(raw_command).safe_substitute(current_env)
+        safe_command = shlex.split(expanded_string)
 
         result = subprocess.run(
-            req.command,
-            shell=True,
+            safe_command,
             capture_output=True,
             text=True,
             timeout=120,
-            env=command_payload["command"]
+            env=current_env,
         )
 
         # Return the exact schema the SDK expects
         return {
-            "stdout": result.stdout},
+            "stdout": result.stdout,
             "stderr": result.stderr,
             "exitCode": result.returncode
         }
@@ -72,6 +73,8 @@ def execute_command(req: ExecuteRequest):
             "exitCode": 1
         }
 ```
+
+> Note: you can find the rest of the Sandbox Docker image [here]()
 
 ### 2. Client Execution Workflow
 
@@ -86,11 +89,14 @@ from k8s_agent_sandbox import SandboxClient
 client = SandboxClient()
 
 # 2. Create the sandbox using your custom runtime template
-sandbox = client.create_sandbox("python-sandbox-template")
+sandbox = client.create_sandbox("simple-sandbox-template")
 
 # 3. Run a command and inject environment variables via the payload
 # The FastAPI server parses this into the ExecuteRequest model
-payload = {"command": "echo $TEST", "env": {"TEST": "True"}}
+payload = {
+    "command": {"content": "echo $TEST"},
+    "env": {"TEST": "True"}
+}
 response = sandbox.commands.run(payload)
 
 # 4. Verify the output
