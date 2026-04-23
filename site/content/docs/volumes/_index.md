@@ -3,8 +3,7 @@ title: "Volumes"
 linkTitle: "Volumes"
 weight: 25
 description: >
-  Use Volumes with Agent Sandbox
-
+  Use Volumes with Agent Sandbox.
 ---
 
 # Use volumeClaimTemplates to persist data from Agent Sandbox 
@@ -23,6 +22,7 @@ description: >
    export PROJECT_ID="your-gcp-project-id"
    export BUCKET_NAME="your-unique-bucket-name"
    export BUCKET_LOCATION="us-central1"
+   export NAMESPACE="default"
    export GSA_NAME="sandbox-gcs-accessor"
    export KSA_NAME="your-sandbox-sa"
    ```
@@ -42,7 +42,7 @@ description: >
      --display-name="Service Account for Sandbox GCS Access"
    ```
 
-4. Creant access to GCS bucket:
+4. Create access to GCS bucket:
    ```sh
    gcloud storage buckets add-iam-policy-binding gs://$BUCKET_NAME \
      --member="serviceAccount:$GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
@@ -51,30 +51,31 @@ description: >
 
 5. Create the Kubernetes Service Account
    ```sh
-   kubectl create serviceaccount $KSA_NAME
+   kubectl -n $NAMESPACE create serviceaccount $KSA_NAME
    ```
 
 6. Bind the GSA and KSA with Workload Identity Federation:
    ```sh
    gcloud iam service-accounts add-iam-policy-binding $GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
      --role="roles/iam.workloadIdentityUser" \
-     --member="serviceAccount:$PROJECT_ID.svc.id.goog[default/$KSA_NAME]" \
+     --member="serviceAccount:$PROJECT_ID.svc.id.goog[$NAMESPACE/$KSA_NAME]" \
      --project=$PROJECT_ID
    ```
 7. Annotate the Kubernetes Service Account:
    ```sh
-   kubectl annotate serviceaccount $KSA_NAME \
+   kubectl -n $NAMESPACE annotate serviceaccount $KSA_NAME \
      iam.gke.io/gcp-service-account=$GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com
    ```
 
-8. Cretae Persistent Volume
+8. Create Persistent Volume
 
-   ```yaml
+   ```sh
    kubectl apply -f - <<EOF
    apiVersion: v1
    kind: PersistentVolume
    metadata:
      name: my-gcs-bucket-pv
+     namespace: "${NAMESPACE}"
    spec:
      accessModes:
      - ReadWriteMany
@@ -93,13 +94,13 @@ description: >
 
 9. Create a sandbox 
 
-   ```yaml
+   ```sh
    kubectl apply -f - <<EOF
    apiVersion: agents.x-k8s.io/v1alpha1
    kind: Sandbox
    metadata:
      name: sandbox-example
-     namespace: default
+     namespace: "${NAMESPACE}"
    spec:
      podTemplate:
        metadata:
