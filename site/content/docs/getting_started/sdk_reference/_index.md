@@ -30,6 +30,29 @@ Tracks all active handles to ensure flat code structure and safe cleanup.
 
 type: ignore
 
+<a id="k8s_agent_sandbox.sandbox_client.SandboxClient.__init__"></a>
+
+##### \_\_init\_\_
+
+```python
+def __init__(connection_config: SandboxConnectionConfig | None = None,
+             tracer_config: SandboxTracerConfig | None = None,
+             cleanup: bool = False)
+```
+
+Initializes the SandboxClient.
+
+**Arguments**:
+
+- `connection_config` - Configuration for connecting to the sandboxes.
+  Defaults to SandboxLocalTunnelConnectionConfig() which uses
+  kubectl port-forwarding. Can also be SandboxDirectConnectionConfig
+  or SandboxGatewayConnectionConfig.
+- `tracer_config` - Configuration for OpenTelemetry tracing.
+  Defaults to an empty SandboxTracerConfig (tracing disabled).
+- `cleanup` - If True, registers an atexit hook to automatically delete
+  all tracked sandboxes when the program terminates. Defaults to False.
+
 <a id="k8s_agent_sandbox.sandbox_client.SandboxClient.create_sandbox"></a>
 
 ##### create\_sandbox
@@ -148,7 +171,6 @@ def delete_all()
 ```
 
 Cleanup all tracked sandboxes managed by this client.
-Triggered automatically on script exit via atexit.
 
 **Example**:
 
