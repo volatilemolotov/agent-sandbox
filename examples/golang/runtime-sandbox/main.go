@@ -42,7 +42,7 @@ import (
 	"time"
 )
 
-const baseDir = "/"
+const baseDir = "/tmp"
 
 // getSafePath resolves filePath relative to baseDir and returns an error if
 // the result escapes baseDir (path traversal protection).
