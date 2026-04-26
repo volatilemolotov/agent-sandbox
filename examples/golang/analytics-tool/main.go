@@ -37,7 +37,7 @@ import (
 	"strings"
 )
 
-const baseDir = "/app"
+const baseDir = "/tmp"
 
 var allowedCommands = map[string]bool{
 	"ls":     true,
