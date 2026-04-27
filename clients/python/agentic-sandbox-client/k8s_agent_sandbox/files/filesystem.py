@@ -15,6 +15,7 @@
 import json
 import logging
 import os
+import posixpath
 import urllib.parse
 from typing import List
 from k8s_agent_sandbox.connector import SandboxConnector
@@ -63,20 +64,20 @@ class Filesystem:
         check ``foo\\x00../etc/passwd`` would survive the ``..`` split (no
         part equals ``".."`` because the NUL-prefixed segment doesn't
         match) yet resolve to ``foo`` on the filesystem — or worse,
-        something server-dependent. Match the defence already applied in
-        the langchain backend's ``_to_internal``.
+        something server-dependent.``.
         """
-        stripped = path.strip()
-        if not stripped:
-            raise ValueError("Upload path cannot be empty.")
-        if any(ord(c) < 0x20 for c in stripped):
+        if any(ord(c) < 0x20 or ord(c) == 0x7F for c in path):
             raise ValueError(
                 f"Upload path contains ASCII control characters: {path!r}"
             )
-        normalized = os.path.normpath(stripped).lstrip("/")
+        stripped = path.strip()
+        if not stripped:
+            raise ValueError("Upload path cannot be empty.")
+
+        normalized = posixpath.normpath(stripped).lstrip("/")
         if not normalized or normalized == ".":
             raise ValueError(f"Upload path '{path}' does not name a file.")
-        parts = normalized.split(os.sep)
+        parts = normalized.split("/")
         if any(part == ".." for part in parts):
             raise ValueError(
                 f"Upload path '{path}' escapes the sandbox root."
