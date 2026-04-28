@@ -73,6 +73,21 @@ If you change one of these, preview the rendered output (`hugo server` from [sit
 - API changes are versioned (`v1alpha1`). Treat any user-visible field, label, or annotation rename as a breaking change — discuss in an issue or KEP first ([docs/keps/](docs/keps/)).
 - Match existing kubebuilder marker style; required vs optional, default values, and validation belong on the type, not in the controller.
 
+## Python SDK conventions
+
+The Python SDK lives at [clients/python/agentic-sandbox-client/](clients/python/agentic-sandbox-client/) and is the second supported client surface alongside the Go SDK. It has its own conventions; treat it as a Python project, not as appendage code.
+
+- **Three names, do not confuse them:** repo directory `agentic-sandbox-client`, importable package `k8s_agent_sandbox` (underscore), PyPI distribution `k8s-agent-sandbox` (hyphen). Examples and docs install with `pip install k8s-agent-sandbox` and import `from k8s_agent_sandbox import ...`.
+- **Supported Python:** `>=3.10` ([pyproject.toml](clients/python/agentic-sandbox-client/pyproject.toml)). Do not use syntax or stdlib features beyond 3.10 unless you also raise the floor deliberately.
+- **Sync/async parity:** every public sync module (`sandbox_client.py`, `sandbox.py`, `k8s_helper.py`, `connector.py`, `files/filesystem.py`, `commands/command_executor.py`) has a `async_*` sibling. When you change one, change the other — drift between sync and async is a real bug surface here. Async-only deps (`httpx`, `kubernetes_asyncio`) belong behind the `async` optional extra, not in the base `dependencies` list.
+- **Optional extras structure:** the project ships three extras — `async`, `test`, `tracing`. New optional functionality should follow the same pattern (extra in `[project.optional-dependencies]`, lazy import inside the relevant module) rather than adding to the base install footprint. The base deps are intentionally minimal: `kubernetes`, `requests`, `pydantic`.
+- **Use `pydantic` for data models.** Configuration and wire-format types belong in [k8s_agent_sandbox/models.py](clients/python/agentic-sandbox-client/k8s_agent_sandbox/models.py); extend those rather than passing free-form dicts.
+- **File headers and docstrings:** every `.py` file in the package starts with the Apache-2.0 boilerplate header followed by a module docstring (triple-quoted, one paragraph minimum). Match the existing style — `git show` an existing file if unsure.
+- **Tests:** unit tests live in [k8s_agent_sandbox/test/unit/](clients/python/agentic-sandbox-client/k8s_agent_sandbox/test/unit/) and run via pytest. They are wired into `make test-unit` — [dev/tools/test-unit](dev/tools/test-unit) creates an isolated venv, runs `pip install -e .[test]`, and writes JUnit XML to `bin/python-k8s-agent-sandbox-junit.xml`. Do not invent a different layout. New behavior needs a unit test in the existing suite.
+- **`sandbox-router/` is a separate app**, not part of the published wheel. `pyproject.toml` includes only `k8s_agent_sandbox*`. The router has its own `requirements.txt` and its own pytest run in CI. Don't import from the SDK package into the router or vice versa unless you mean it.
+- **Versioning** is handled by `setuptools_scm` with `root = "../../.."` (the repo root). The generated `VERSION` file is gitignored — never commit it.
+- **No enforced formatter or linter** at the time of writing — there is no ruff/black/mypy config in the repo. **Match the style of the file you are editing**; do not reformat unrelated code, and do not add a tool config as part of an unrelated PR.
+
 ## Tests
 
 - Unit tests live next to the code they cover (`*_test.go`) and run under `make test-unit`. New behavior needs a unit test.
