@@ -181,91 +181,113 @@ sandbox.terminate()
 package main
 
 import (
-	"fmt"
-	"io"
-	"net/http"
+     "fmt"
+     "io"
+     "net/http"
+     "bytes"
+     "encoding/json"
 )
 
 const sandboxAPIBase = "http://sandbox-service.default.svc.cluster.local"
 
 type SandboxClient struct {
-	http    *http.Client
-	baseURL string
+     http    *http.Client
+     baseURL string
 }
 
 func NewSandboxClient() *SandboxClient {
-	return &SandboxClient{http: &http.Client{}, baseURL: sandboxAPIBase}
+     return &SandboxClient{http: &http.Client{}, baseURL: sandboxAPIBase}
 }
 
 type Sandbox struct {
-	ID     string
-	client *SandboxClient
+     ID     string
+     client *SandboxClient
 }
 
 type FileService struct {
-	sandbox *Sandbox
+     sandbox *Sandbox
 }
 
 func (s *Sandbox) Files() *FileService {
-	return &FileService{sandbox: s}
+     return &FileService{sandbox: s}
+}
+
+func (c *SandboxClient) CreateSandbox(template, namespace string) (*Sandbox, error) {
+    body, _ := json.Marshal(map[string]string{
+        "template":  template,
+        "namespace": namespace,
+    })
+    resp, err := c.http.Post(c.baseURL+"/sandboxes", "application/json", bytes.NewReader(body))
+    if err != nil {
+        return nil, fmt.Errorf("create sandbox: %w", err)
+    }
+    defer resp.Body.Close()
+
+    var result struct {
+        ID string `json:"id"`
+    }
+    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+        return nil, fmt.Errorf("decode sandbox response: %w", err)
+    }
+    return &Sandbox{ID: result.ID, client: c}, nil
 }
 
 // Read returns the raw bytes of a file in the sandbox.
 // For text files, call string(data) or use ReadText below.
 func (f *FileService) Read(path string) ([]byte, error) {
-	url := fmt.Sprintf("%s/sandboxes/%s/files%s", f.sandbox.client.baseURL, f.sandbox.ID, path)
-	resp, err := f.sandbox.client.http.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("read file %s: %w", path, err)
-	}
-	defer resp.Body.Close()
-	return io.ReadAll(resp.Body)
+     url := fmt.Sprintf("%s/sandboxes/%s/files%s", f.sandbox.client.baseURL, f.sandbox.ID, path)
+     resp, err := f.sandbox.client.http.Get(url)
+     if err != nil {
+        return nil, fmt.Errorf("read file %s: %w", path, err)
+     }
+     defer resp.Body.Close()
+     return io.ReadAll(resp.Body)
 }
 
 // ReadText is a convenience wrapper that decodes the file bytes as UTF-8.
 func (f *FileService) ReadText(path string) (string, error) {
-	data, err := f.Read(path)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
+     data, err := f.Read(path)
+     if err != nil {
+        return "", err
+     }
+     return string(data), nil
 }
 
 func (s *Sandbox) Terminate() error {
-	url := fmt.Sprintf("%s/sandboxes/%s", s.client.baseURL, s.ID)
-	req, _ := http.NewRequest(http.MethodDelete, url, nil)
-	resp, err := s.client.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("terminate: %w", err)
-	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
-	return nil
+     url := fmt.Sprintf("%s/sandboxes/%s", s.client.baseURL, s.ID)
+     req, _ := http.NewRequest(http.MethodDelete, url, nil)
+     resp, err := s.client.http.Do(req)
+     if err != nil {
+        return fmt.Errorf("terminate: %w", err)
+     }
+     io.Copy(io.Discard, resp.Body)
+     resp.Body.Close()
+     return nil
 }
 
 func main() {
-	client := NewSandboxClient()
-	sandbox, err := client.CreateSandbox("python-sandbox-template", "default")
-	if err != nil {
-		panic(err)
-	}
-	defer sandbox.Terminate()
+     client := NewSandboxClient()
+     sandbox, err := client.CreateSandbox("python-sandbox-template", "default")
+     if err != nil {
+        panic(err)
+     }
+     defer sandbox.Terminate()
 
-	files := sandbox.Files()
+     files := sandbox.Files()
 
-	// Read a text file
-	text, err := files.ReadText("/home/user/greeting.txt")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(text) // Hello, world!
+     // Read a text file
+     text, err := files.ReadText("/home/user/greeting.txt")
+     if err != nil {
+        panic(err)
+     }
+     fmt.Println(text) // Hello, world!
 
-	// Read a binary file
-	data, err := files.Read("/home/user/data.bin")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(data) // [0 1 2 3]
+     // Read a binary file
+     data, err := files.Read("/home/user/data.bin")
+     if err != nil {
+        panic(err)
+     }
+     fmt.Println(data) // [0 1 2 3]
 }
   {{< /blocks/tab >}}
 {{< /blocks/tabs >}}
@@ -484,11 +506,10 @@ asyncio.run(main())
   {{< blocks/tab name="Go" codelang="go" >}}
 package main
 
-package main
-
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
