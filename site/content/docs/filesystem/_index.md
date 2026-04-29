@@ -1,7 +1,7 @@
 ---
 title: "Filesystem"
 linkTitle: "Filesystem"
-weight:  25
+weight: 25
 description: >
   Read, write, list, and transfer files inside sandboxes using the Python SDK.
 ---
