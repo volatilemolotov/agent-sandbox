@@ -379,7 +379,7 @@ func (f *FileService) List(path string) ([]FileEntry, error) {
 	return entries, nil
 }
 
-// --- printTree (mirrors the Python recursive function) ---
+// --- printTree ---
 
 func printTree(sandbox *Sandbox, path string, indent int) error {
 	entries, err := sandbox.Files().List(path)
