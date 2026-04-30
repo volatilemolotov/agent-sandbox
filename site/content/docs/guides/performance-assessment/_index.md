@@ -17,12 +17,30 @@ The `agent-sandbox-controller` exposes several flags that directly affect throug
 | `--sandbox-concurrent-workers` | `1` | Max concurrent reconciles for the Sandbox controller |
 | `--sandbox-claim-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxClaim controller |
 | `--sandbox-warm-pool-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxWarmPool controller |
-| `--kube-api-qps` | unlimited | Max QPS sent to the Kubernetes API server |
+| `--sandbox-template-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxTemplate controller |
+| `--kube-api-qps` | `-1` (unlimited) | Max QPS sent to the Kubernetes API server |
 | `--kube-api-burst` | `10` | Max burst for API server throttle requests |
 
 ### Applying Flags
 
-**Via manifest** — edit `manifest.yaml` (core) or `extensions.yaml` (extensions):
+**Via manifest** — edit the relevant manifest for your deployment:
+
+*Core install (`manifest.yaml`):*
+
+```yaml
+containers:
+- name: agent-sandbox-controller
+  image: ko://sigs.k8s.io/agent-sandbox/cmd/agent-sandbox-controller
+  args:
+  - --leader-elect=true
+  - --sandbox-concurrent-workers=10
+  - --sandbox-claim-concurrent-workers=10
+  - --sandbox-warm-pool-concurrent-workers=10
+  - --kube-api-qps=50
+  - --kube-api-burst=100
+```
+
+*Extensions install (`extensions.yaml`) — note the additional `--extensions` flag, which enables the SandboxTemplate controller and its associated RBAC:*
 
 ```yaml
 containers:
@@ -34,6 +52,7 @@ containers:
   - --sandbox-concurrent-workers=10
   - --sandbox-claim-concurrent-workers=10
   - --sandbox-warm-pool-concurrent-workers=10
+  - --sandbox-template-concurrent-workers=10
   - --kube-api-qps=50
   - --kube-api-burst=100
 ```
@@ -48,37 +67,71 @@ kubectl patch deployment agent-sandbox-controller \
     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--sandbox-concurrent-workers=10"},
     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--sandbox-claim-concurrent-workers=10"},
     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--sandbox-warm-pool-concurrent-workers=10"},
+    {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--sandbox-template-concurrent-workers=10"},
     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kube-api-qps=50"},
     {"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kube-api-burst=100"}
   ]'
 ```
 
-**Via Kustomize** — create `patch-args.yaml` and reference it from `kustomization.yaml`:
+**Via Kustomize** — use a JSON 6902 patch to append flags without replacing the existing `args` list. A strategic-merge patch on `containers[].args` replaces the entire list, which silently drops required flags such as `--leader-elect` and `--extensions`.
+
+*Core install:*
 
 ```yaml
 # patch-args.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: agent-sandbox-controller
-  namespace: agent-sandbox-system
-spec:
-  template:
-    spec:
-      containers:
-      - name: agent-sandbox-controller
-        args:
-        - --sandbox-concurrent-workers=10
-        - --sandbox-claim-concurrent-workers=10
-        - --sandbox-warm-pool-concurrent-workers=10
-        - --kube-api-qps=50
-        - --kube-api-burst=100
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-claim-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-warm-pool-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--kube-api-qps=50"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--kube-api-burst=100"
 ```
+
+*Extensions install — also tune `--sandbox-template-concurrent-workers`:*
+
+```yaml
+# patch-args.yaml
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-claim-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-warm-pool-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--sandbox-template-concurrent-workers=10"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--kube-api-qps=50"
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: "--kube-api-burst=100"
+```
+
+Reference the patch from `kustomization.yaml` using `patches` with an explicit `target` and `options.type: json`:
 
 ```yaml
 # kustomization.yaml
 patches:
   - path: patch-args.yaml
+    target:
+      kind: Deployment
+      name: agent-sandbox-controller
+      namespace: agent-sandbox-system
+    options:
+      type: json
 ```
 
 ---
@@ -99,7 +152,7 @@ The repository ships Go benchmarks in `test/e2e/` that measure Sandbox and Sandb
 Run all e2e benchmarks:
 
 ```bash
-make test-e2e --suite=benchmarks
+make test-e2e-benchmarks
 ```
 
 Or target a specific benchmark directly with `go test`:
@@ -197,12 +250,11 @@ chmod +x run_rapid_burst.sh
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BURST_SIZE` | `50` | SandboxClaims created per burst iteration |
-| `QPS` | `100` | Max creation rate (queries per second) |
-| `TOTAL_BURSTS` | `100` | Total number of burst iterations |
-| `WARMPOOL_SIZE` | `200` | Pre-warmed sandboxes to maintain |
-| `RUNTIME_CLASS` | `gvisor` | RuntimeClassName for the SandboxTemplate |
-| `NAMESPACES` | `1` | Namespaces to spread load across |
+| `BURST_SIZE` | `1000` | SandboxClaims created per burst iteration |
+| `QPS` | `1000` | Max creation rate (queries per second) |
+| `TOTAL_BURSTS` | `10` | Total number of burst iterations |
+| `WARMPOOL_SIZE` | `1000` | Pre-warmed sandboxes to maintain |
+| `RUNTIME_CLASS` | `""` (none) | RuntimeClassName for the SandboxTemplate — set to `gvisor` if your cluster supports it |
 
 Total claims created = `BURST_SIZE × TOTAL_BURSTS`.
 
@@ -215,6 +267,7 @@ args:
 - --sandbox-concurrent-workers=1000
 - --sandbox-claim-concurrent-workers=1000
 - --sandbox-warm-pool-concurrent-workers=1000
+- --sandbox-template-concurrent-workers=1000
 ```
 
 #### Output
@@ -233,9 +286,9 @@ Measures the end-to-end time from SandboxClaim creation to the underlying pod be
 
 | Metric | Prometheus query | Default threshold |
 |--------|-----------------|-------------------|
-| `StartupLatency50` | `histogram_quantile(0.50, …agent_sandbox_claim_startup_latency_ms_bucket…)` | 1 000 ms |
-| `StartupLatency90` | `histogram_quantile(0.90, …agent_sandbox_claim_startup_latency_ms_bucket…)` | 1 000 ms |
-| `StartupLatency99` | `histogram_quantile(0.99, …agent_sandbox_claim_startup_latency_ms_bucket…)` | 5 000 ms |
+| `StartupLatency50` | `histogram_quantile(0.50, sum(rate(agent_sandbox_claim_startup_latency_ms_bucket{}[%v])) by (le))` | 1 000 ms |
+| `StartupLatency90` | `histogram_quantile(0.90, sum(rate(agent_sandbox_claim_startup_latency_ms_bucket{}[%v])) by (le))` | 1 000 ms |
+| `StartupLatency99` | `histogram_quantile(0.99, sum(rate(agent_sandbox_claim_startup_latency_ms_bucket{}[%v])) by (le))` | 5 000 ms |
 
 ### SandboxClaim controller startup latency
 
@@ -243,9 +296,9 @@ Measures the time the controller spends processing each SandboxClaim reconcile l
 
 | Metric | Prometheus query | Default threshold |
 |--------|-----------------|-------------------|
-| `ControllerStartupLatency50` | `histogram_quantile(0.50, …agent_sandbox_claim_controller_startup_latency_ms_bucket…)` | 1 000 ms |
-| `ControllerStartupLatency90` | `histogram_quantile(0.90, …agent_sandbox_claim_controller_startup_latency_ms_bucket…)` | 1 000 ms |
-| `ControllerStartupLatency99` | `histogram_quantile(0.99, …agent_sandbox_claim_controller_startup_latency_ms_bucket…)` | 5 000 ms |
+| `ControllerStartupLatency50` | `histogram_quantile(0.50, sum(rate(agent_sandbox_claim_controller_startup_latency_ms_bucket{}[%v])) by (le))` | 1 000 ms |
+| `ControllerStartupLatency90` | `histogram_quantile(0.90, sum(rate(agent_sandbox_claim_controller_startup_latency_ms_bucket{}[%v])) by (le))` | 1 000 ms |
+| `ControllerStartupLatency99` | `histogram_quantile(0.99, sum(rate(agent_sandbox_claim_controller_startup_latency_ms_bucket{}[%v])) by (le))` | 5 000 ms |
 
 ### Scheduling throughput
 
@@ -257,6 +310,6 @@ The controller exposes all metrics at its `/metrics` endpoint; a Prometheus `Ser
 
 ## See Also
 
-- [Configuration reference](../../../docs/configuration/) — full flag reference for the controller
+- [Configuration reference](https://github.com/volatilemolotov/agent-sandbox/blob/main/docs/configuration.md) — full flag reference for the controller
 - [Running tests](../../contribution-guidelines/testing/) — unit, integration and e2e test commands
 - [ClusterLoader2 getting started](https://github.com/kubernetes/perf-tests/blob/master/clusterloader2/docs/GETTING_STARTED.md)
