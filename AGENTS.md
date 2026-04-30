@@ -39,7 +39,7 @@ All standard tasks go through the [Makefile](Makefile). Prefer `make` targets ov
 
 - `make all` — runs `fix-go-generate`, `build`, `lint-go`, `lint-api`, `test-unit`, `toc-verify`. Run this before sending a PR.
 - `make build` — compiles `bin/manager` from `cmd/agent-sandbox-controller`.
-- `make test-unit` — Go unit tests with `-race` enabled.
+- `make test-unit` — runs Go unit tests with `-race` enabled and the Python unit test suites via `dev/tools/test-unit`.
 - `make test-e2e` / `make test-e2e-race` — e2e suite against a kind cluster (much slower; e2e is not raced by default).
 - `make lint-go` / `make fix-go` — `golangci-lint` (config in [dev/tools/.golangci.yaml](dev/tools/.golangci.yaml)).
 - `make lint-api` / `make fix-api` — KAL API linter for kubebuilder tags and CRD conventions.
@@ -57,7 +57,7 @@ The Hugo site at [site/](site/) mounts these repo paths into `assets/additional/
 - [docs/testing.md](docs/testing.md) → `/docs/contribution-guidelines/testing/`
 - [clients/go/README.md](clients/go/README.md) → `/docs/go-client/`
 - [clients/python/agentic-sandbox-client/README.md](clients/python/agentic-sandbox-client/README.md) → `/docs/python-client/`
-- Every `examples/*/README.md` (and a few `extensions/examples/*/README.md`) → pages under `/docs/use-cases/examples/` and `/docs/runtime-templates/`
+- Many `examples/*/README.md` files (and some `extensions/examples/*/README.md` files) → pages under `/docs/use-cases/examples/` and `/docs/runtime-templates/`
 
 If you change one of these, preview the rendered output (`hugo server` from [site/](site/) — Hugo extended is required; check `module.hugoVersion` in [site/hugo.yaml](site/hugo.yaml) for the declared minimum, but in practice run a recent stable Hugo release). Do not edit the generated `site/public/` or `site/resources/` directories.
 
@@ -110,7 +110,7 @@ The Python SDK lives at [clients/python/agentic-sandbox-client/](clients/python/
 - Do not modify hand-written page sources under [site/content/](site/content/) (e.g., `sandbox/lifecycle`, `sandbox/snapshots`, `use-cases/*`) unless the task is explicitly about docs. Note: the repo-root files listed in "Docs site mounts" above are part of the docs site too — edit them with that in mind.
 - Do not commit anything under [site/public/](site/) or `site/resources/` — those are Hugo build artifacts.
 - Do not bypass hooks (`--no-verify`), skip `gofmt`, or disable lint rules to make CI pass — fix the underlying issue.
-- Do not introduce new external runtime dependencies without strong justification; the controller image is `distroless/static` and stays small.
+- Do not introduce new external runtime dependencies without strong justification; the controller image is `gcr.io/distroless/static-debian13:nonroot` and stays small.
 - Do not change `OWNERS` files, release tooling under [dev/tools/release*](dev/tools/), or anything in [k8s/](k8s/) by hand outside of regeneration flows.
 
 ## Useful pointers
