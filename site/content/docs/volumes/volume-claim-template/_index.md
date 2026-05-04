@@ -3,7 +3,7 @@ title: "volumeClaimTemplates"
 linkTitle: "volumeClaimTemplates"
 weight: 15
 description: >
-  This guide shows how to use `volumeClaimTemplates` in `SandboxClaim`.
+  This guide shows how to use `volumeClaimTemplates` in `SandboxTemplate`.
 ---
 ## The Purpose of Sandbox Volumes
 By default, containers are ephemeral, meaning any data generated or modified inside a Sandbox is lost when the Pod terminates. 
@@ -98,7 +98,7 @@ kubectl exec -it my-stateful-sandbox -- df -h /data
 
 ### Validate Data Persistence
 
-To validate the data persistance, destroy the underlying pod to simulate a crash or eviction, and then verify that our data survived when the sandbox controller spins up a replacement.
+To validate the data persistence, destroy the underlying pod to simulate a crash or eviction, and then verify that our data survived when the sandbox controller spins up a replacement.
 
 **1. Write data to the persistent volume**
 Execute a command inside your running sandbox container to create a text file within the mounted `/data` directory:
@@ -119,7 +119,7 @@ kubectl delete pod my-stateful-sandbox
 ```
 
 **4. Wait for the controller to recreate the sandbox**
-The Sandbox controller will detect that the pod is missing and automatically recreate it. Because of the StatefulSet semantics introduced in the pull request, the controller will reattach the *exact same PVC* to the new pod.
+The Sandbox controller will detect that the pod is missing and automatically recreate it. Because `volumeClaimTemplates` use StatefulSet-like semantics, the controller will reattach the *exact same PVC* to the new pod.
 Watch your pods until the new one is running:
 ```bash
 kubectl get pods -w
@@ -135,7 +135,15 @@ kubectl exec -it my-stateful-sandbox -- cat /data/evidence.txt
 
 ### Python SDK
 
-If you want to use `volumeClaimTemplates` with `k8s_agent_sandbox`, you need to make sure that you re-use the existing sandbox and delete it manually. The source for this example code can be found [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/site/content/docs/volumes/volume-claim-template/source). Here is the example Python script:
+If you want to use `volumeClaimTemplates` with `k8s_agent_sandbox`, you need to make sure that you re-use the existing sandbox and delete it manually. To run the following an example Python script, you need to build a custom Docker image and apply the SandboxTemplate from [here](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/site/content/docs/volumes/volume-claim-template/source).
+
+Install `k8s_agent_sandbox`:
+
+```bash
+pip install k8s_agent_sandbox
+```
+
+And run the example Python script:
 
 ```python
 from k8s_agent_sandbox import SandboxClient
@@ -148,7 +156,8 @@ sandbox1 = client.create_sandbox("simple-sandbox-template")
 response1 = sandbox1.commands.run(f"sh -c \"echo '{validation_message}' > /data/volume_validation.txt\"")
 print(f"Claim Name: {sandbox1.claim_name}")
 
-sandbox2 = client.get_sandbox(sandbox1.claim_name)
+client2 = SandboxClient()
+sandbox2 = client2.get_sandbox(sandbox1.claim_name)
 response2 = sandbox2.commands.run(f"sh -c \"cat /data/volume_validation.txt\"")
 
 assert response2.stdout.strip() == validation_message, f"\"{response2.stdout.strip()}\" != \"{validation_message}\"."
@@ -156,7 +165,7 @@ print(f"response2.stdout.strip(): {response2.stdout.strip()}")
 sandbox2.terminate()
 ```
 
-The expected output:
+The expected output should be similar to this:
 ```log
 Claim Name: sandbox-claim-bd10bdbc
 response2.stdout.strip(): volume validation
