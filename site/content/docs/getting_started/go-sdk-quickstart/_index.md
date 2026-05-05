@@ -10,7 +10,7 @@ Agent Sandbox is a quick and easy way to start secure containers that will let a
 
 ## Prerequisites
 
-- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/overview/_index.md#installation" >}}) installed.
+- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/getting_started/overview/_index.md#installation" >}}) installed.
 - The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
 - A *SandboxTemplate* created in the target namespace, for example [python-sandbox-template](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/python-sandbox-template.yaml).
 - Go 1.26+ and Agent Sandbox Go client: `go get sigs.k8s.io/agent-sandbox/clients/go/sandbox`.
