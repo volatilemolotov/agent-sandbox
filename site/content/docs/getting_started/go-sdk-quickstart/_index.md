@@ -10,14 +10,14 @@ Agent Sandbox is a quick and easy way to start secure containers that will let a
 
 ## Prerequisites
 
-- A running Kubernetes cluster with the [Agent Sandbox Controller](/README.md/#installation) installed.
-- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/README.md#setup-deploying-the-router) deployed in your cluster.
-- A *SandboxTemplate* created in the target namespace.
+- A running Kubernetes cluster with the [Agent Sandbox Controller]({{< ref "/docs/overview/_index.md#installation" >}}) installed.
+- The [Sandbox Router](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/sandbox-router/README.md) deployed in your cluster.
+- A *SandboxTemplate* created in the target namespace, for example [python-sandbox-template](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/python/agentic-sandbox-client/python-sandbox-template.yaml).
 - Go 1.26+ and Agent Sandbox Go client: `go get sigs.k8s.io/agent-sandbox/clients/go/sandbox`.
 
 ## Connection Modes
 
-In this example the client is in the *Tunnel Mode* which is suitable for local development and testing. Learn more about the other modes in the [Go Client's main page](/docs/go-client/).
+In this example the client is in the *Port-Forward mode* which is suitable for local development and testing. Learn more about the other modes in the [Go Client's main pageee]({{< ref "/docs/go-client/_index.md" >}}).
 
 
 ## Usage
@@ -36,12 +36,12 @@ import (
 func main() {
 	ctx := context.Background()
 
-    templateName := "my-sandbox-template"
+	templateName := "my-sandbox-template"
 
 	// Create client with shared configuration.
 	client, err := sandbox.NewClient(ctx, sandbox.Options{
-    TemplateName: templateName,
-		Namespace: "default",
+		TemplateName: templateName,
+		Namespace:    "default",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -63,7 +63,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("stdout: %s", result.Stdout)
+	fmt.Printf("stdout: %s\n", result.Stdout)
 	fmt.Printf("exit_code: %d\n", result.ExitCode)
 
 	// Write and read a file.
