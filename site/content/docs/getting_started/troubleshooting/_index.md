@@ -2,7 +2,7 @@
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
 weight: 20
-url: "/docs/getting-started/"
+url: "/docs/getting-started/troubleshooting/"
 description: >
   How to troubleshoot in Agent Sandbox.
 ---
