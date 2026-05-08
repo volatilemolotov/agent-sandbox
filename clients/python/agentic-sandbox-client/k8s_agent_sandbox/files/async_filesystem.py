@@ -32,7 +32,12 @@ class AsyncFilesystem:
         self.trace_service_name = trace_service_name
 
     @async_trace_span("write")
-    async def write(self, path: str, content: bytes | str, timeout: int = 60):
+    async def write(
+        self,
+        path: str, content: bytes | str,
+        timeout: int = 60,
+        allow_unsafe_paths: bool = False,
+    ):
         span = trace.get_current_span()
         if span.is_recording():
             span.set_attribute("sandbox.file.path", path)
@@ -47,19 +52,27 @@ class AsyncFilesystem:
         # alone is not sufficient: basename("foo\x00../etc/passwd")
         # returns the string unchanged, and the NUL truncates at the
         # runtime's C layer.
-        safe_path = Filesystem._safe_upload_path(path)
-        files_payload = {"file": (safe_path, content)}
+        if not allow_unsafe_paths:
+            path = Filesystem._safe_upload_path(path)
+        files_payload = {"file": (path, content)}
         await self.connector.send_request(
             "POST", "upload", files=files_payload, timeout=timeout
         )
         logging.info(f"File '{path}' uploaded successfully.")
 
     @async_trace_span("read")
-    async def read(self, path: str, timeout: int = 60) -> bytes:
+    async def read(
+        self,
+        path: str,
+        timeout: int = 60,
+        allow_unsafe_paths: bool = False,
+    ) -> bytes:
         span = trace.get_current_span()
         if span.is_recording():
             span.set_attribute("sandbox.file.path", path)
 
+        if not allow_unsafe_paths:
+            path = Filesystem._safe_upload_path(path)
         encoded_path = urllib.parse.quote(path, safe="")
         response = await self.connector.send_request(
             "GET", f"download/{encoded_path}", timeout=timeout

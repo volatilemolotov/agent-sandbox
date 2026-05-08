@@ -15,7 +15,8 @@
 
 import asyncio
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
+import urllib.parse
 
 from k8s_agent_sandbox.files.async_filesystem import AsyncFilesystem
 from k8s_agent_sandbox.files.filesystem import Filesystem
@@ -95,6 +96,60 @@ class TestAsyncFilesystemSafeUploadPath(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "escapes the sandbox root"):
             asyncio.run(fs.write("../etc/passwd", b"payload"))
 
+
+class TestFilesystemSafePaths(unittest.TestCase):
+    def setUp(self):
+        self._connector = MagicMock()
+        tracer = MagicMock()
+        self._fs = Filesystem(self._connector, tracer, trace_service_name="test")
+
+    def _make_async_fs(self) -> AsyncFilesystem:
+        self._connector = AsyncMock()
+        tracer = AsyncMock()
+        return AsyncFilesystem(self._connector, tracer, trace_service_name="test")
+
+    def _get_path_from_last_connector_upload_request(self):
+        return self._connector.send_request.call_args.kwargs["files"]["file"][0]
+
+    def _get_path_from_last_connector_download_request(self):
+        quoted_request_path = self._connector.send_request.call_args.args[1]
+        _, quoted_file_path = quoted_request_path.split("/")
+        return urllib.parse.unquote(quoted_file_path)
+
+    def _do_write(self, **kwargs):
+        self._fs.write("/dir/foo.txt", "some content", **kwargs)
+
+    def _do_read(self, **kwargs):
+        self._fs.read("/dir/foo.txt", **kwargs)
+
+    def test_write_file_paths(self):
+        self._do_write()
+        assert self._get_path_from_last_connector_upload_request() == "dir/foo.txt"
+
+    def test_write_file_unsafe_paths(self):
+        self._do_write(allow_unsafe_paths=True)
+        assert self._get_path_from_last_connector_upload_request() == "/dir/foo.txt"
+
+    def test_read_file_paths(self):
+        self._do_read()
+        assert self._get_path_from_last_connector_download_request() == "dir/foo.txt"
+
+    def test_read_file_unsafe_paths(self):
+        self._do_read(allow_unsafe_paths=True)
+        assert self._get_path_from_last_connector_download_request() == "/dir/foo.txt"
+
+
+class TestAsyncFilesystemSafePaths(TestFilesystemSafePaths):
+    def setUp(self):
+        self._connector = AsyncMock()
+        tracer = MagicMock()
+        self._fs = AsyncFilesystem(self._connector, tracer, trace_service_name="test")
+
+    def _do_write(self, **kwargs):
+        asyncio.run(self._fs.write("/dir/foo.txt", "some content", **kwargs))
+
+    def _do_read(self, **kwargs):
+        asyncio.run(self._fs.read("/dir/foo.txt", **kwargs))
 
 if __name__ == '__main__':
     unittest.main()

@@ -32,7 +32,12 @@ class Filesystem:
         self.trace_service_name = trace_service_name
 
     @trace_span("write")
-    def write(self, path: str, content: bytes | str, timeout: int = 60):
+    def write(
+        self,
+        path: str, content: bytes | str,
+        timeout: int = 60,
+        allow_unsafe_paths: bool = False,
+    ):
         span = trace.get_current_span()
         if span.is_recording():
             span.set_attribute("sandbox.file.path", path)
@@ -48,8 +53,10 @@ class Filesystem:
         # confinement by sending filename='/etc/passwd' or '../etc/...'.
         # Sanitize here to guarantee the filename is a normalized
         # relative path with no upward traversal.
-        safe_path = self._safe_upload_path(path)
-        files_payload = {'file': (safe_path, content)}
+        if not allow_unsafe_paths:
+            path = self._safe_upload_path(path)
+
+        files_payload = {'file': (path, content)}
         self.connector.send_request("POST", "upload",
                       files=files_payload, timeout=timeout)
         logging.info(f"File '{path}' uploaded successfully.")
@@ -85,10 +92,19 @@ class Filesystem:
         return normalized
 
     @trace_span("read")
-    def read(self, path: str, timeout: int = 60) -> bytes:
+    def read(
+        self,
+        path: str,
+        timeout: int = 60,
+        allow_unsafe_paths: bool = False,
+
+    ) -> bytes:
         span = trace.get_current_span()
         if span.is_recording():
             span.set_attribute("sandbox.file.path", path)
+
+        if not allow_unsafe_paths:
+            path = self._safe_upload_path(path)
 
         encoded_path = urllib.parse.quote(path, safe='')
         response = self.connector.send_request(
