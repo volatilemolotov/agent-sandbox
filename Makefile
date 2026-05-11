@@ -6,11 +6,29 @@ fix-go-generate:
 	dev/tools/fix-go-generate
 
 .PHONY: generate-api-docs
-generate-api-docs: ## Generate API reference documentation
+generate-api-docs: # Generate API reference documentation
 	@echo "Generating API Docs..."
 	go install github.com/elastic/crd-ref-docs@latest
-	$(GOPATH)/bin/crd-ref-docs --source-path=./ --config=./docs/crd-ref-docs.yaml --renderer=markdown --output-path=./docs/api.md --max-depth=10
-	rm -rf ./tmp-api-source
+	crd-ref-docs --source-path=./ --config=./docs/crd-ref-docs.yaml --renderer=markdown --output-path=./docs/api.md --max-depth=10
+
+.PHONY: generate-go-docs
+generate-go-docs: # Generate Go SDK reference documentation
+	@echo "Generating Go SDK Documentation..."
+	go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
+	gomarkdoc \
+		--repository.url "https://github.com/kubernetes-sigs/agent-sandbox" \
+		--repository.default-branch "main" \
+		--repository.path "/" \
+		./clients/go/sandbox/... | sed 's/^#/##/' > ./docs/go_sdk_reference.md
+	cat ./docs/go_sdk_reference.md | tail -n +2 > ./docs/go_sdk_reference_temp.md && mv ./docs/go_sdk_reference_temp.md ./docs/go_sdk_reference.md
+
+.PHONY: generate-python-docs
+generate-python-docs: # Generate Python SDK reference documentation
+	@echo "Generating Python SDK Documentation..."
+	python -m pip install --upgrade pip
+	pip install pydoc-markdown
+	pip install -e ./clients/python/agentic-sandbox-client/
+	pydoc-markdown -I ./clients/python/agentic-sandbox-client/ -m k8s_agent_sandbox.sandbox_client -m k8s_agent_sandbox.models | sed 's/^#/##/' > ./docs/python_sdk_reference.md
 
 VERSION_PKG := sigs.k8s.io/agent-sandbox/internal/version
 

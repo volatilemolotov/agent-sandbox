@@ -2,10 +2,12 @@ name: Check API Documentation
 
 on:
   pull_request:
-    # Only run this workflow if Go files in the API directories or the config changes
+    # Run this workflow if CRD, Go SDK, or Python SDK files change
     paths:
       - 'api/**/*.go'
       - 'extensions/api/**/*.go'
+      - 'clients/go/**/*.go'
+      - 'clients/python/**/*.py'
       - 'config.yaml'
       - '.github/workflows/check-api-docs.yml'
 
@@ -20,34 +22,43 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
         with:
-          # Automatically uses the Go version defined in the repo's go.mod
           go-version-file: 'go.mod'
           cache: true
 
-      - name: Install crd-ref-docs
-        run: go install github.com/elastic/crd-ref-docs@latest
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Adjust if your SDK requires a different version
+          cache: 'pip'
 
-      - name: Generate API Documentation
+      - name: Generate CRD API Documentation
         run: |
           echo "Running crd-ref-docs..."
-          crd-ref-docs \
-            --source-path=./ \
-            --config=./docs/crd-ref-docs.yaml \
-            --renderer=markdown \
-            --output-path=./docs/api.md \
-            --max-depth=10
+          make generate-api-docs
+
+      - name: Generate Go SDK Documentation
+        run: |
+          echo "Running gomarkdoc..."
+          # Generate and shift headers, outputting to the root docs folder
+          make generate-go-docs
+
+      - name: Generate Python SDK Documentation
+        run: |
+          echo "Running pydoc-markdown..."
+          # Generate and shift headers, outputting to the root docs folder
+          make generate-python-docs
 
       - name: Verify no uncommitted changes
         run: |
-          # Stage the file so git diff can check it
-          git add ./docs/api.md
+          # Stage all generated documentation files
+          git add ./docs/api.md ./docs/go_sdk_reference.md ./docs/python_sdk_reference.md
 
           # Check if there are any differences
           if ! git diff --staged --exit-code; then
-            echo "::error::API documentation is out of date!"
-            echo "Please generate the API documentation locally and include it in your commit."
+            echo "::error::API or SDK documentation is out of date!"
+            echo "Please run the documentation generators locally and include the changes in your commit."
             echo "You can view the diff below:"
             git diff --staged
             exit 1
           fi
-          echo "API documentation is up to date!"
+          echo "All documentation is up to date!"
