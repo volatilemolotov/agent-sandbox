@@ -2,13 +2,15 @@ name: Check API Documentation
 
 on:
   pull_request:
-    # Run this workflow if CRD, Go SDK, or Python SDK files change
+    # Run this workflow if doc sources or generator inputs change
     paths:
       - 'api/**/*.go'
       - 'extensions/api/**/*.go'
       - 'clients/go/**/*.go'
       - 'clients/python/**/*.py'
       - 'config.yaml'
+      - 'Makefile'
+      - 'docs/crd-ref-docs.yaml'
       - '.github/workflows/check-api-docs.yml'
 
 jobs:
