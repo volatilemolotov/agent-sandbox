@@ -95,6 +95,24 @@ Execution Failed with exit code: 2
 Error Details (stderr): python3: can't open file '/app/agent_script.py': [Errno 2] No such file or directory
 ```
 
+### Controller Log Level and Debug Flags
+
+The Agent Sandbox Controller defaults to `info`-level logging. When debugging, you can increase verbosity or enable additional diagnostics by adding arguments to the controller's container spec:
+
+```yaml
+containers:
+  - name: agent-sandbox-controller
+    args:
+      - --zap-log-level=debug
+      - --enable-pprof-debug
+      - --enable-tracing 
+```
+
+To view the controller logs after changing the log level:
+```bash
+kubectl logs -n agent-sandbox-system deployment/agent-sandbox-controller -f
+```
+
 ### Infrastructure Diagnostics with kubectl
 
 If the Python SDK is timing out before a sandbox is even returned, the issue is likely occurring at the cluster infrastructure layer. Because the SDK interacts with Kubernetes Custom Resource Definitions (CRDs) under the hood, `kubectl` is the best way to verify cluster state.
