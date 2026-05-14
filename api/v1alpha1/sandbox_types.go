@@ -122,6 +122,7 @@ type SandboxSpec struct {
 	// volumeClaimTemplates is a list of claims that the sandbox pod is allowed to reference.
 	// Every claim in this list must have at least one matching access mode with a provisioner volume.
 	// +optional
+	// +listType=atomic
 	VolumeClaimTemplates []PersistentVolumeClaimTemplate `json:"volumeClaimTemplates,omitempty" protobuf:"bytes,4,rep,name=volumeClaimTemplates"`
 
 	// Lifecycle defines when and how the sandbox should be shut down.
@@ -136,6 +137,15 @@ type SandboxSpec struct {
 	// +kubebuilder:default=1
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// service controls whether the controller should automatically create a
+	// headless Service for this Sandbox.
+	// When unset (nil), the controller preserves existing Services for backward
+	// compatibility but does not create new ones. Set to true to enable or false
+	// to explicitly disable and remove the Service.
+	//nolint:kubeapilinter
+	// +optional
+	Service *bool `json:"service,omitempty"`
 }
 
 // ShutdownPolicy describes the policy for deleting the Sandbox when it expires.

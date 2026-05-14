@@ -89,6 +89,26 @@ func resolvePodName(sandbox *sandboxv1alpha1.Sandbox) string {
 	return sandbox.Name
 }
 
+// MergeVolumeClaimVolumes merges PVC-backed volumes into an existing volume
+// list, replacing any volumes with matching names. This follows StatefulSet
+// semantics where volumeClaimTemplate volumes take priority.
+func MergeVolumeClaimVolumes(existing []corev1.Volume, pvcVolumes []corev1.Volume) []corev1.Volume {
+	if len(pvcVolumes) == 0 {
+		return existing
+	}
+	vctNames := make(map[string]struct{}, len(pvcVolumes))
+	for _, v := range pvcVolumes {
+		vctNames[v.Name] = struct{}{}
+	}
+	filtered := make([]corev1.Volume, 0, len(existing))
+	for _, v := range existing {
+		if _, ok := vctNames[v.Name]; !ok {
+			filtered = append(filtered, v)
+		}
+	}
+	return append(filtered, pvcVolumes...)
+}
+
 var (
 	// Scheme for use by sandbox controllers. Registers required types for client.
 	Scheme = runtime.NewScheme()
@@ -213,7 +233,7 @@ func (r *SandboxReconciler) reconcileChildResources(ctx context.Context, sandbox
 
 	var allErrors error
 
-	// Reconcile PVCs
+	// Reconcile PVCs from volumeClaimTemplates
 	err := r.reconcilePVCs(ctx, sandbox, nameHash)
 	allErrors = errors.Join(allErrors, err)
 
@@ -222,7 +242,6 @@ func (r *SandboxReconciler) reconcileChildResources(ctx context.Context, sandbox
 	allErrors = errors.Join(allErrors, err)
 	if pod == nil {
 		sandbox.Status.Replicas = 0
-		sandbox.Status.LabelSelector = ""
 		sandbox.Status.PodIPs = nil
 	} else {
 		sandbox.Status.Replicas = 1
@@ -293,12 +312,25 @@ func (r *SandboxReconciler) computeReadyCondition(sandbox *sandboxv1alpha1.Sandb
 		}
 	}
 
-	svcReady := false
-	if svc != nil {
-		message += "; Service Exists"
-		svcReady = true
-	} else {
-		message += "; Service does not exist"
+	// svcRequired: true if the sandbox explicitly requests a service or if a
+	// service already exists.
+	svcRequired := false
+	if sandbox.Spec.Service != nil {
+		svcRequired = *sandbox.Spec.Service
+	} else if svc != nil {
+		// Backward compatibility: require service readiness
+		svcRequired = true
+	}
+
+	svcReady := true
+	if svcRequired {
+		svcReady = false
+		if svc != nil {
+			message += "; Service Exists"
+			svcReady = true
+		} else {
+			message += "; Service does not exist"
+		}
 	}
 
 	readyCondition.Message = message
@@ -378,110 +410,134 @@ func NameHash(objectName string) string {
 
 func (r *SandboxReconciler) reconcileService(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox, nameHash string) (*corev1.Service, error) {
 	log := log.FromContext(ctx)
+	desired := sandbox.Spec.Service
+
 	service := &corev1.Service{}
 	if err := r.Get(ctx, types.NamespacedName{Name: sandbox.Name, Namespace: sandbox.Namespace}, service); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			log.Error(err, "Failed to get Service")
 			return nil, fmt.Errorf("service get failed: %w", err)
 		}
-	} else {
-		log.Info("Found Service", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
-
-		ownership, controllerRef := checkOwnership(service, sandbox)
-		switch ownership {
-		case resourceOwnedByOther:
-			log.Info("Refusing to use service: service is owned by a different controller",
-				"Service.Name", service.Name, "Sandbox.Name", sandbox.Name,
-				"Owner.Kind", controllerRef.Kind, "Owner.Name", controllerRef.Name, "Owner.UID", controllerRef.UID)
-			return nil, fmt.Errorf("service %q is owned by %s/%s (UID: %s), not by sandbox %q",
-				service.Name, controllerRef.Kind, controllerRef.Name, controllerRef.UID, sandbox.Name)
-
-		case resourceUnowned:
-			// ClusterIP is immutable — refuse adoption if the service is not headless.
-			if service.Spec.ClusterIP != corev1.ClusterIPNone && service.Spec.ClusterIP != "" {
-				log.Info("Refusing to adopt service: ClusterIP mismatch (immutable, expected None)",
-					"Service.Name", service.Name, "Sandbox.Name", sandbox.Name,
-					"Service.ClusterIP", service.Spec.ClusterIP)
-				return nil, fmt.Errorf("cannot adopt service %q: ClusterIP is %q (expected %q, field is immutable)",
-					service.Name, service.Spec.ClusterIP, corev1.ClusterIPNone)
+		// Service does not exist, and desired is true — create service
+		if desired != nil && *desired {
+			log.Info("Creating a new Headless Service", "Service.Namespace", sandbox.Namespace, "Service.Name", sandbox.Name)
+			service = &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sandbox.Name,
+					Namespace: sandbox.Namespace,
+					Labels: map[string]string{
+						sandboxLabel: nameHash,
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					ClusterIP: "None",
+					Selector: map[string]string{
+						sandboxLabel: nameHash,
+					},
+				},
 			}
-
-			log.Info("Adopting unowned service", "Service.Name", service.Name, "Sandbox.Name", sandbox.Name)
-
-			// Enforce intended labels and selector to prevent traffic hijack.
-			if service.Labels == nil {
-				service.Labels = make(map[string]string)
-			}
-			service.Labels[sandboxLabel] = nameHash
-			service.Spec.Selector = map[string]string{
-				sandboxLabel: nameHash,
-			}
-
+			service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
 			if err := ctrl.SetControllerReference(sandbox, service, r.Scheme); err != nil {
+				log.Error(err, "Failed to set controller reference")
 				return nil, fmt.Errorf("SetControllerReference for Service failed: %w", err)
 			}
-			if err := r.Update(ctx, service); err != nil {
-				return nil, fmt.Errorf("failed to update service with owner reference: %w", err)
+			err := r.Create(ctx, service, client.FieldOwner(sandboxControllerFieldOwner))
+			if err != nil {
+				log.Error(err, "Failed to create", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
+				return nil, err
 			}
+			r.setServiceStatus(sandbox, service)
+			return service, nil
+		}
+		// nil or false — do not create
+		r.clearServiceStatus(sandbox)
+		return nil, nil
+	}
 
-		case resourceOwnedBySandbox:
-			desiredSelector := map[string]string{
-				sandboxLabel: nameHash,
-			}
-			patch := client.MergeFrom(service.DeepCopy())
-			needsUpdate := false
+	// Service exists
+	log.Info("Found Service", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
 
-			if service.Labels == nil {
-				service.Labels = make(map[string]string)
-			}
-			if service.Labels[sandboxLabel] != nameHash {
-				service.Labels[sandboxLabel] = nameHash
-				needsUpdate = true
-			}
-			if !reflect.DeepEqual(service.Spec.Selector, desiredSelector) {
-				service.Spec.Selector = desiredSelector
-				needsUpdate = true
-			}
+	ownership, controllerRef := checkOwnership(service, sandbox)
 
-			if needsUpdate {
-				log.Info("Reconciling owned service drift", "Service.Namespace", service.Namespace, "Service.Name", service.Name, "Sandbox.Namespace", sandbox.Namespace, "Sandbox.Name", sandbox.Name)
-				if err := r.Patch(ctx, service, patch); err != nil {
-					return nil, fmt.Errorf("failed to patch owned service: %w", err)
-				}
+	if desired != nil && !*desired {
+		// desired is false — delete owned service
+		if ownership == resourceOwnedBySandbox {
+			log.Info("Deleting owned service because service is disabled",
+				"Service.Name", service.Name, "Sandbox.Name", sandbox.Name)
+			if err := r.Delete(ctx, service); err != nil && !k8serrors.IsNotFound(err) {
+				return nil, fmt.Errorf("failed to delete service: %w", err)
 			}
+		}
+		r.clearServiceStatus(sandbox)
+		return nil, nil
+	}
 
+	// desired == nil or true
+	switch ownership {
+	case resourceOwnedByOther:
+		log.Info("Refusing to use service: service is owned by a different controller",
+			"Service.Name", service.Name, "Sandbox.Name", sandbox.Name,
+			"Owner.Kind", controllerRef.Kind, "Owner.Name", controllerRef.Name, "Owner.UID", controllerRef.UID)
+		return nil, fmt.Errorf("service %q is owned by %s/%s (UID: %s), not by sandbox %q",
+			service.Name, controllerRef.Kind, controllerRef.Name, controllerRef.UID, sandbox.Name)
+
+	case resourceUnowned:
+		if desired == nil {
+			// desired is nil + unowned service — do not adopt
+			r.clearServiceStatus(sandbox)
+			return nil, nil
+		}
+		// desired is true + unowned service — adopt
+		if service.Spec.ClusterIP != corev1.ClusterIPNone && service.Spec.ClusterIP != "" {
+			log.Info("Refusing to adopt service: ClusterIP mismatch (immutable, expected None)",
+				"Service.Name", service.Name, "Sandbox.Name", sandbox.Name,
+				"Service.ClusterIP", service.Spec.ClusterIP)
+			return nil, fmt.Errorf("cannot adopt service %q: ClusterIP is %q (expected %q, field is immutable)",
+				service.Name, service.Spec.ClusterIP, corev1.ClusterIPNone)
 		}
 
-		r.setServiceStatus(sandbox, service)
-		return service, nil
-	}
+		log.Info("Adopting unowned service", "Service.Name", service.Name, "Sandbox.Name", sandbox.Name)
 
-	log.Info("Creating a new Headless Service", "Service.Namespace", sandbox.Namespace, "Service.Name", sandbox.Name)
-	service = &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sandbox.Name,
-			Namespace: sandbox.Namespace,
-			Labels: map[string]string{
-				sandboxLabel: nameHash,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			ClusterIP: "None",
-			Selector: map[string]string{
-				sandboxLabel: nameHash,
-			},
-		},
-	}
-	service.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Service"))
-	if err := ctrl.SetControllerReference(sandbox, service, r.Scheme); err != nil {
-		log.Error(err, "Failed to set controller reference")
-		return nil, fmt.Errorf("SetControllerReference for Service failed: %w", err)
-	}
+		if service.Labels == nil {
+			service.Labels = make(map[string]string)
+		}
+		service.Labels[sandboxLabel] = nameHash
+		service.Spec.Selector = map[string]string{
+			sandboxLabel: nameHash,
+		}
 
-	err := r.Create(ctx, service, client.FieldOwner(sandboxControllerFieldOwner))
-	if err != nil {
-		log.Error(err, "Failed to create", "Service.Namespace", service.Namespace, "Service.Name", service.Name)
-		return nil, err
+		if err := ctrl.SetControllerReference(sandbox, service, r.Scheme); err != nil {
+			return nil, fmt.Errorf("SetControllerReference for Service failed: %w", err)
+		}
+		if err := r.Update(ctx, service); err != nil {
+			return nil, fmt.Errorf("failed to update service with owner reference: %w", err)
+		}
+
+	case resourceOwnedBySandbox:
+		desiredSelector := map[string]string{
+			sandboxLabel: nameHash,
+		}
+		patch := client.MergeFrom(service.DeepCopy())
+		needsUpdate := false
+
+		if service.Labels == nil {
+			service.Labels = make(map[string]string)
+		}
+		if service.Labels[sandboxLabel] != nameHash {
+			service.Labels[sandboxLabel] = nameHash
+			needsUpdate = true
+		}
+		if !reflect.DeepEqual(service.Spec.Selector, desiredSelector) {
+			service.Spec.Selector = desiredSelector
+			needsUpdate = true
+		}
+
+		if needsUpdate {
+			log.Info("Reconciling owned service drift", "Service.Namespace", service.Namespace, "Service.Name", service.Name, "Sandbox.Namespace", sandbox.Namespace, "Sandbox.Name", sandbox.Name)
+			if err := r.Patch(ctx, service, patch); err != nil {
+				return nil, fmt.Errorf("failed to patch owned service: %w", err)
+			}
+		}
 	}
 
 	r.setServiceStatus(sandbox, service)
@@ -507,6 +563,12 @@ func (r *SandboxReconciler) clearPodNameAnnotation(ctx context.Context, sandbox 
 func (r *SandboxReconciler) setServiceStatus(sandbox *sandboxv1alpha1.Sandbox, service *corev1.Service) {
 	sandbox.Status.Service = service.Name
 	sandbox.Status.ServiceFQDN = service.Name + "." + service.Namespace + ".svc." + r.ClusterDomain
+}
+
+// clearServiceStatus clears the service-related fields from sandbox status.
+func (r *SandboxReconciler) clearServiceStatus(sandbox *sandboxv1alpha1.Sandbox) {
+	sandbox.Status.Service = ""
+	sandbox.Status.ServiceFQDN = ""
 }
 
 func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1alpha1.Sandbox, nameHash string) (*corev1.Pod, error) {
@@ -615,8 +677,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 		return nil
 	}
 
-	// 2. PATH: Existing Pod found (e.g., adopted from WarmPool or already exists)
-	if pod != nil {
+	reconcileExistingPod := func(pod *corev1.Pod) (*corev1.Pod, error) {
 		log.Info("Found Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 
 		if r.Tracer.IsRecording(ctx) {
@@ -665,6 +726,11 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 		return pod, nil
 	}
 
+	// 2. PATH: Existing Pod found (e.g., adopted from WarmPool or already exists)
+	if pod != nil {
+		return reconcileExistingPod(pod)
+	}
+
 	// Create new Pod
 	log.Info("Creating a new Pod", "Pod.Namespace", sandbox.Namespace, "Pod.Name", sandbox.Name)
 	labels := map[string]string{
@@ -693,9 +759,11 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 
 	mutatedSpec := sandbox.Spec.PodTemplate.Spec.DeepCopy()
 
+	// Build PVC volumes from volumeClaimTemplates
+	var pvcVolumes []corev1.Volume
 	for _, pvcTemplate := range sandbox.Spec.VolumeClaimTemplates {
 		pvcName := pvcTemplate.Name + "-" + sandbox.Name
-		mutatedSpec.Volumes = append(mutatedSpec.Volumes, corev1.Volume{
+		pvcVolumes = append(pvcVolumes, corev1.Volume{
 			Name: pvcTemplate.Name,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -704,6 +772,7 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 			},
 		})
 	}
+	mutatedSpec.Volumes = MergeVolumeClaimVolumes(mutatedSpec.Volumes, pvcVolumes)
 	pod = &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        sandbox.Name,
@@ -718,6 +787,15 @@ func (r *SandboxReconciler) reconcilePod(ctx context.Context, sandbox *sandboxv1
 		return nil, fmt.Errorf("SetControllerReference for Pod failed: %w", err)
 	}
 	if err := r.Create(ctx, pod, client.FieldOwner(sandboxControllerFieldOwner)); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Info("Pod already exists, fetching existing pod",
+				"Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
+			existingPod := &corev1.Pod{}
+			if getErr := r.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, existingPod); getErr != nil {
+				return nil, fmt.Errorf("pod already exists but failed to fetch: %w", getErr)
+			}
+			return reconcileExistingPod(existingPod)
+		}
 		log.Error(err, "Failed to create", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
 		return nil, err
 	}
@@ -976,7 +1054,7 @@ func checkSandboxExpiry(sandbox *sandboxv1alpha1.Sandbox, now time.Time) (bool, 
 	remainingTime := shutdownTime.Sub(now)
 
 	// TODO(barney-s): Do we need a inverse exponential backoff here ?
-	//requeueAfter := max(remainingTime/2, 2*time.Second)
+	// requeueAfter := max(remainingTime/2, 2*time.Second)
 
 	// Requeue at expiry time or in 2 seconds whichever is later
 	requeueAfter := max(remainingTime, 2*time.Second)
