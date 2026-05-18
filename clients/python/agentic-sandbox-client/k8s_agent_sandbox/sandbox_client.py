@@ -191,16 +191,7 @@ class SandboxClient(Generic[T]):
         # Check if the sandbox actually exists in Kubernetes
         try:
             if template_name is not None:
-                claim_object = self.k8s_helper.get_sandbox_claim(claim_name, namespace)
-                if not claim_object:
-                    raise SandboxNotFoundError(
-                        f"SandboxClaim '{claim_name}' not found in namespace '{namespace}'."
-                    )
-                existing_template = (
-                    claim_object.get("spec", {})
-                    .get("sandboxTemplateRef", {})
-                    .get("name")
-                )
+                existing_template = self._get_sandbox_claim_temlpate_name(claim_name, namespace)
                 if existing_template != template_name:
                     raise ValueError(
                         f"SandboxClaim '{claim_name}' in namespace '{namespace}' references "
@@ -391,3 +382,17 @@ class SandboxClient(Generic[T]):
             self.k8s_helper.delete_sandbox_claim(claim_name, namespace)
         except Exception as e:
             logging.error(f"Failed to cleanup SandboxClaim '{claim_name}': {e}")
+
+    def _get_sandbox_claim_temlpate_name(self, claim_name: str, namespace: str) -> str:
+        """Get template name of a sandbox claim."""
+        claim_object = self.k8s_helper.get_sandbox_claim(claim_name, namespace)
+        if not claim_object:
+            raise SandboxNotFoundError(
+                f"SandboxClaim '{claim_name}' not found in namespace '{namespace}'."
+            )
+        template_name = (
+            claim_object.get("spec", {})
+            .get("sandboxTemplateRef", {})
+            .get("name")
+        )
+        return template_name
