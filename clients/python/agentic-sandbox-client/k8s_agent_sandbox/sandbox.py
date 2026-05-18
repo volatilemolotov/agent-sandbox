@@ -210,7 +210,7 @@ class Sandbox:
 
         try:
             self.k8s_helper.delete_sandbox_claim(self.claim_name, self.namespace)
-        except SandboxNotFoundError as e:
+        except SandboxNotFoundError:
             return
         except Exception as e:
             raise e
