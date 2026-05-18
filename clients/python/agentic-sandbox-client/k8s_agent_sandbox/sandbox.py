@@ -24,6 +24,7 @@ from .models import (
     SandboxLocalTunnelConnectionConfig,
     SandboxTracerConfig,
 )
+from .exceptions import SandboxNotFoundError
 from .k8s_helper import K8sHelper
 from .connector import SandboxConnector
 from .constants import POD_NAME_ANNOTATION, SANDBOX_NAME_HASH_LABEL
@@ -192,12 +193,13 @@ class Sandbox:
         logging.info(f"Connection to sandbox claim '{self.claim_name}' has been closed.")
     
     def terminate(self):
-        """Permanent deletion of all server side infrastructure and client side connection.
+        """
+        Permanent deletion of all server side infrastructure and client side connection.
 
-        Idempotent: calling ``terminate()`` repeatedly is a no-op after the
-        first successful delete. ``self.claim_name`` is cleared after the
-        claim is deleted so a subsequent call does not issue a second DELETE
-        that would return 404.
+        This method is idempotent. Calling ``terminate()`` repeatedly after a
+        successful deletion is a safe no-op. If the remote infrastructure has
+        already been removed, subsequent calls will handle the API 404 gracefully
+        rather than raising an error.
         """
         # Close the client side connection and trace manager lifecycle
         self.close_connection()
@@ -206,9 +208,13 @@ class Sandbox:
             # Already deleted (or never successfully created a claim).
             return
 
-        # Delete this Sandbox
-        claim_name = self.claim_name
-        self.k8s_helper.delete_sandbox_claim(claim_name, self.namespace)
+        try:
+            self.k8s_helper.delete_sandbox_claim(self.claim_name, self.namespace)
+        except SandboxNotFoundError as e:
+            return
+        except Exception as e:
+            raise e
+
         # Clear after successful delete so a retry does not 404.
         self.claim_name = None
 

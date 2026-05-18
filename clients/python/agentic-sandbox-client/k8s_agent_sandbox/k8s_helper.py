@@ -181,7 +181,7 @@ class K8sHelper:
         except client.ApiException as e:
             if e.status != 404:
                 logging.error(f"Error terminating sandbox {name}: {e}")
-                raise
+                raise SandboxNotFoundError(f"The sandbox claim {name} does not exist.")
 
     def get_sandbox(self, name: str, namespace: str):
         """Gets a Sandbox custom resource."""
