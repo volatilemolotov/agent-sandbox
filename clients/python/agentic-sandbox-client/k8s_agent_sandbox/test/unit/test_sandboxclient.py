@@ -35,6 +35,7 @@ from k8s_agent_sandbox.constants import POD_NAME_ANNOTATION
 from k8s_agent_sandbox.exceptions import (
     SandboxPortForwardError,
     SandboxRequestError,
+    SandboxNotFoundError,
 )
 from k8s_agent_sandbox.k8s_helper import K8sHelper
 
@@ -389,6 +390,18 @@ class TestSandboxClient(unittest.TestCase):
             self.client.create_sandbox("test-template", shutdown_after_seconds="10")
         self.assertIn("integer", str(ctx.exception))
 
+    def test_get_sandbox_claim_template_name(self):
+        self.mock_k8s_helper.get_sandbox_claim.return_value = {
+            "spec": {"sandboxTemplateRef": {"name": "my-template"}},
+        }
+        template_name = self.client.get_sandbox_claim_temlpate_name("my-claim", "my-namespace")
+        self.assertEqual(template_name, "my-template")
+
+    def test_get_sandbox_claim_template_name_claim_not_found(self):
+        self.mock_k8s_helper.get_sandbox_claim.return_value = None
+        with self.assertRaises(SandboxNotFoundError):
+            self.client.get_sandbox_claim_temlpate_name("my-claim", "my-namespace")
+
 
 class SandboxHandler(BaseHTTPRequestHandler):
     """Minimal api handler with basic routing to exercise error paths."""
@@ -683,58 +696,6 @@ class TestSandboxClientInClusterConfig(unittest.TestCase):
         call_kwargs = self._create_sandbox_with_in_cluster_config()
         self.assertNotIn('pod_ip', call_kwargs)
 
-
-class TestSandboxClientTemplateVerification(unittest.TestCase):
-    """`get_sandbox(template_name=...)` must refuse to reconnect to a claim
-    whose sandboxTemplateRef doesn't match the requested template."""
-
-    def _build_client(self):
-        from k8s_agent_sandbox.sandbox_client import SandboxClient
-        with patch('k8s_agent_sandbox.sandbox_client.K8sHelper') as mock_helper_cls:
-            client = SandboxClient()
-            client.k8s_helper = mock_helper_cls.return_value
-            return client
-
-    def test_mismatched_template_raises_value_error(self):
-        client = self._build_client()
-        client.k8s_helper.get_sandbox_claim.return_value = {
-            "spec": {"sandboxTemplateRef": {"name": "python-secure"}},
-        }
-
-        with self.assertRaisesRegex(ValueError, "references template 'python-secure'"):
-            client.get_sandbox(
-                "claim-1",
-                namespace="demo",
-                template_name="other-template",
-            )
-
-    def test_matching_template_does_not_short_circuit_reconnect(self):
-        client = self._build_client()
-        client.k8s_helper.get_sandbox_claim.return_value = {
-            "spec": {"sandboxTemplateRef": {"name": "python-secure"}},
-        }
-        client.k8s_helper.resolve_sandbox_name.return_value = "sandbox-1"
-        client.k8s_helper.get_sandbox.return_value = {"metadata": {"name": "sandbox-1"}}
-
-        with patch.object(client, 'sandbox_class') as sandbox_cls:
-            client.get_sandbox(
-                "claim-1",
-                namespace="demo",
-                template_name="python-secure",
-            )
-            sandbox_cls.assert_called_once()
-
-    def test_missing_claim_raises_not_found(self):
-        from k8s_agent_sandbox.exceptions import SandboxNotFoundError
-        client = self._build_client()
-        client.k8s_helper.get_sandbox_claim.return_value = None
-
-        with self.assertRaises(SandboxNotFoundError):
-            client.get_sandbox(
-                "claim-1",
-                namespace="demo",
-                template_name="python-secure",
-            )
 
 if __name__ == '__main__':
     unittest.main()

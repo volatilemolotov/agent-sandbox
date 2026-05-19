@@ -158,7 +158,6 @@ class SandboxClient(Generic[T]):
         claim_name: str,
         namespace: str = "default",
         resolve_timeout: int = 30,
-        template_name: str | None = None,
     ) -> T:
         """
         Retrieves an existing sandbox handle given a sandbox claim name.
@@ -169,13 +168,6 @@ class SandboxClient(Generic[T]):
             namespace: Kubernetes namespace the claim lives in.
             resolve_timeout: Seconds to wait while resolving the sandbox
                 name from the claim status.
-            template_name: Optional SandboxTemplate name to validate against
-                the existing claim's ``spec.sandboxTemplateRef.name``.
-                When supplied and the existing claim references a different
-                template, a ``ValueError`` is raised before returning a
-                handle. This prevents surprising silent reconnects when the
-                caller expects a specific template.
-
         Example:
 
             >>> client = SandboxClient()
@@ -190,20 +182,10 @@ class SandboxClient(Generic[T]):
 
         # Check if the sandbox actually exists in Kubernetes
         try:
-            if template_name is not None:
-                existing_template = self._get_sandbox_claim_temlpate_name(claim_name, namespace)
-                if existing_template != template_name:
-                    raise ValueError(
-                        f"SandboxClaim '{claim_name}' in namespace '{namespace}' references "
-                        f"template '{existing_template}', not '{template_name}'. Refusing "
-                        f"to reattach."
-                    )
             sandbox_id = self.k8s_helper.resolve_sandbox_name(claim_name, namespace, timeout=resolve_timeout)
             sandbox_object = self.k8s_helper.get_sandbox(sandbox_id, namespace)
             if not sandbox_object:
                 raise SandboxNotFoundError(f"Underlying Sandbox '{sandbox_id}' not found.")
-        except ValueError:
-            raise
         except Exception as e:
             if existing:
                 existing.terminate()
@@ -383,7 +365,7 @@ class SandboxClient(Generic[T]):
         except Exception as e:
             logging.error(f"Failed to cleanup SandboxClaim '{claim_name}': {e}")
 
-    def _get_sandbox_claim_temlpate_name(self, claim_name: str, namespace: str) -> str:
+    def get_sandbox_claim_temlpate_name(self, claim_name: str, namespace: str) -> str:
         """Get template name of a sandbox claim."""
         claim_object = self.k8s_helper.get_sandbox_claim(claim_name, namespace)
         if not claim_object:
