@@ -173,7 +173,6 @@ class SandboxClient(Generic[T]):
             >>> client = SandboxClient()
             >>> sandbox = client.get_sandbox(
             ...     "sandbox-claim-1234abcd",
-            ...     template_name="python-sandbox-template",
             ... )
             >>> sandbox.commands.run("ls -la")
         """
