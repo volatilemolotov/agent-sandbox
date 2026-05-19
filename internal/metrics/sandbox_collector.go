@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	sandboxv1alpha1 "sigs.k8s.io/agent-sandbox/api/v1alpha1"
+	extensionsv1alpha1 "sigs.k8s.io/agent-sandbox/extensions/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -39,6 +40,7 @@ type AgentSandboxesMetricKey struct {
 	Expired        string
 	LaunchType     string
 	Template       string
+	OwnedBy        string
 }
 
 // NewAgentSandboxesConstMetric creates a new Prometheus ConstMetric for the agent_sandboxes gauge.
@@ -52,6 +54,7 @@ func NewAgentSandboxesConstMetric(count int, key AgentSandboxesMetricKey) promet
 		key.Expired,
 		key.LaunchType,
 		key.Template,
+		key.OwnedBy,
 	)
 }
 
@@ -89,20 +92,16 @@ func (c *SandboxCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect fetches sandboxes, calculates labels, and sends metrics to the channel.
-// Note: Using client.List to fetch all sandboxes in the cluster on every metrics scrape
-// introduces O(N) memory allocation and CPU overhead due to deep-copying thousands of objects.
-// While updating a GaugeVec in the Reconcile loop might be slightly harder to manage,
-// it operates in O(1) memory during scrapes and is generally more performant.
-// This is a known performance trade-off to keep the Reconcile loop simpler.
+// UnsafeDisableDeepCopy avoids O(N) deep-copy overhead on every scrape; safe here because
+// Collect only reads fields for label aggregation and never mutates or retains the objects.
+// A GaugeVec updated in the Reconcile loop would be more performant (O(1) per scrape),
+// but this is a known trade-off to keep the Reconcile loop simpler.
 func (c *SandboxCollector) Collect(ch chan<- prometheus.Metric) {
 	var sandboxList sandboxv1alpha1.SandboxList
 	ctx, cancel := context.WithTimeout(context.Background(), metricsCollectTimeout)
 	defer cancel()
 
-	// TODO(chw120): The current O(N) List call during metrics collection poses a scalability concern.
-	// In large clusters, frequent scrapes could lead to high CPU usage or OOM.
-	// This should be replaced with a more efficient implementation.
-	if err := c.client.List(ctx, &sandboxList); err != nil {
+	if err := c.client.List(ctx, &sandboxList, client.UnsafeDisableDeepCopy); err != nil {
 		c.logger.Error(err, "Failed to list sandboxes for metrics collection")
 		return
 	}
@@ -133,12 +132,26 @@ func (c *SandboxCollector) Collect(ch chan<- prometheus.Metric) {
 			sandboxTemplateStr = template
 		}
 
+		apiVersion := extensionsv1alpha1.GroupVersion.String()
+		ownedByStr := "None"
+		if controllerRef := metav1.GetControllerOf(&sandbox); controllerRef != nil {
+			if controllerRef.APIVersion == apiVersion {
+				switch controllerRef.Kind {
+				case "SandboxClaim":
+					ownedByStr = "SandboxClaim"
+				case "SandboxWarmPool":
+					ownedByStr = "SandboxWarmPool"
+				}
+			}
+		}
+
 		key := AgentSandboxesMetricKey{
 			Namespace:      sandbox.Namespace,
 			ReadyCondition: readyConditionStr,
 			Expired:        expiredStr,
 			LaunchType:     launchTypeStr,
 			Template:       sandboxTemplateStr,
+			OwnedBy:        ownedByStr,
 		}
 		counts[key]++
 	}
