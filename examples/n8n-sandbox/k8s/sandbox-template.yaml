@@ -1,0 +1,46 @@
+# SandboxTemplate — blueprint for every sandbox pod this demo creates.
+#
+# Two settings are intentional for the demo environment:
+#   service: true              → controller creates a headless Service per sandbox,
+#                                enabling in-cluster DNS routing from the bridge pod.
+#   networkPolicyManagement:
+#     Unmanaged                → skip auto-generated NetworkPolicy (KIND does not
+#                                enforce NetworkPolicies by default, and the Unmanaged
+#                                setting also avoids overriding the pod's DNS to
+#                                external resolvers, which lets the sandbox pod reach
+#                                cluster-internal services if needed).
+apiVersion: extensions.agents.x-k8s.io/v1beta1
+kind: SandboxTemplate
+metadata:
+  name: n8n-python-template
+  namespace: n8n-demo
+spec:
+  service: true
+  networkPolicyManagement: Unmanaged
+  podTemplate:
+    spec:
+      containers:
+      - name: python-runtime
+        # Pre-built sandbox runtime: FastAPI server that exposes /execute, /upload,
+        # /download, /list, /exists on port 8888.
+        image: us-central1-docker.pkg.dev/k8s-staging-images/agent-sandbox/python-runtime-sandbox:latest-main
+        ports:
+        - containerPort: 8888
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8888
+          initialDelaySeconds: 0
+          periodSeconds: 1
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8888
+          initialDelaySeconds: 2
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+            ephemeral-storage: "512Mi"
+      restartPolicy: OnFailure
