@@ -9,7 +9,7 @@
 #                                setting also avoids overriding the pod's DNS to
 #                                external resolvers, which lets the sandbox pod reach
 #                                cluster-internal services if needed).
-apiVersion: extensions.agents.x-k8s.io/v1beta1
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxTemplate
 metadata:
   name: n8n-python-template

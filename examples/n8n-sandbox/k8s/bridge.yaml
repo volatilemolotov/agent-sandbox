@@ -54,10 +54,8 @@ spec:
       serviceAccountName: n8n-sandbox-bridge
       containers:
       - name: bridge
-        image: n8n-sandbox-bridge:local
-        # imagePullPolicy: Never is set by run-demo.sh via kustomize patch or
-        # the image is loaded directly into KIND with `kind load docker-image`.
-        imagePullPolicy: Never
+        image: us-central1-docker.pkg.dev/ai-on-gke-qss/n8n-sandbox/n8n-sandbox-bridge:latest
+        imagePullPolicy: Always
         env:
         - name: WARMPOOL_NAME
           value: "n8n-sandbox-warmpool"

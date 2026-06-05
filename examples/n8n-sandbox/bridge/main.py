@@ -37,12 +37,11 @@ app = FastAPI(title="n8n Agent Sandbox Bridge", version="1.0.0")
 
 WARMPOOL_NAME = os.environ.get("WARMPOOL_NAME", "n8n-sandbox-warmpool")
 SANDBOX_NAMESPACE = os.environ.get("SANDBOX_NAMESPACE", "n8n-demo")
+TEMPLATE_NAME = os.environ.get("TEMPLATE_NAME", "n8n-python-template")
 
 
 class ExecuteRequest(BaseModel):
-    # Shell command to run directly, e.g. "echo hello"
     command: str | None = None
-    # Multi-line Python source; written to /app/run.py then executed
     script: str | None = None
 
 
@@ -69,9 +68,6 @@ def execute(req: ExecuteRequest):
             detail="Provide either 'command' (shell string) or 'script' (Python source).",
         )
 
-    # SandboxInClusterConnectionConfig connects directly to each sandbox pod via
-    # cluster-internal DNS: http://{sandbox-id}.{namespace}.svc.cluster.local:8888
-    # No router sidecar needed.
     client = SandboxClient(
         connection_config=SandboxInClusterConnectionConfig()
     )
@@ -79,19 +75,18 @@ def execute(req: ExecuteRequest):
     logger.info(
         "Claiming sandbox from warmpool=%s namespace=%s", WARMPOOL_NAME, SANDBOX_NAMESPACE
     )
-    sandbox = client.create_sandbox(warmpool=WARMPOOL_NAME, namespace=SANDBOX_NAMESPACE)
-    logger.info("Sandbox %s ready", sandbox.id)
+    sandbox = client.create_sandbox(TEMPLATE_NAME, warmpool=WARMPOOL_NAME, namespace=SANDBOX_NAMESPACE)
+    logger.info("Sandbox %s ready", sandbox.sandbox_id)
 
     try:
         if req.script:
-            # Write the Python source into the sandbox filesystem, then run it.
             sandbox.files.write("run.py", req.script.encode())
             result = sandbox.commands.run("python3 /app/run.py")
         else:
             result = sandbox.commands.run(req.command)
 
         logger.info(
-            "Sandbox %s exited with code %d", sandbox.id, result.exit_code
+            "Sandbox %s exited with code %d", sandbox.sandbox_id, result.exit_code
         )
         return ExecuteResponse(
             stdout=result.stdout,
@@ -100,4 +95,4 @@ def execute(req: ExecuteRequest):
         )
     finally:
         sandbox.terminate()
-        logger.info("Sandbox %s released", sandbox.id)
+        logger.info("Sandbox %s released", sandbox.sandbox_id)
