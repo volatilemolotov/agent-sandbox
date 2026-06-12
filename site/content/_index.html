@@ -6,6 +6,68 @@ description = "Agent Sandbox is a cloud native controller for sandboxes"
 
 
 {{< blocks/cover title="Agent Sandbox" subtitle="Build Agents in a Safer Environment" color="black" height="full" >}}
+
+<h2 class="quickstart-heading">Quickstart</h2>
+<p class="quickstart-subtitle">Spin up an isolated sandbox and run code in a few lines with the Python SDK.</p>
+<div class="quickstart-container">
+{{< blocks/tabs name="quickstart" >}}
+  {{< blocks/tab name="Python" codelang="python" options="style=github-dark" >}}
+from k8s_agent_sandbox import SandboxClient
+from k8s_agent_sandbox.models import SandboxLocalTunnelConnectionConfig
+
+# Connect to your cluster (auto-tunnels via kubectl for local dev)
+client = SandboxClient(connection_config=SandboxLocalTunnelConnectionConfig())
+
+# Create a sandbox from a warm pool
+sandbox = client.create_sandbox(warmpool="python-sandbox-warmpool", namespace="default")
+try:
+    result = sandbox.commands.run("echo 'Hello from the sandbox!'")
+    print(result.stdout)
+finally:
+    sandbox.terminate()
+  {{< /blocks/tab >}}
+  {{< blocks/tab name="Go" codelang="go" options="style=github-dark" >}}
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"sigs.k8s.io/agent-sandbox/clients/go/sandbox"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// Connect to your cluster and ensure sandboxes are cleaned up.
+	client, err := sandbox.NewClient(ctx, sandbox.Options{
+		TemplateName: "python-sandbox-template",
+		Namespace:    "default",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.DeleteAll(ctx)
+
+	// Create a sandbox and run a command.
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	if err != nil {
+		log.Fatal(err)
+	}
+	result, err := sb.Run(ctx, "echo 'Hello from the sandbox!'")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result.Stdout)
+}
+  {{< /blocks/tab >}}
+{{< /blocks/tabs >}}
+</div>
+<p class="quickstart-cta">
+  <a href="/docs/use-cases/examples/python-sdk-quickstart/">Read the full Python SDK quickstart →</a>
+</p>
+
 <div class="mx-auto">
 	<div class="container">
 		<a class="link-card" href="https://github.com/kubernetes-sigs/agent-sandbox">
@@ -31,7 +93,7 @@ description = "Agent Sandbox is a cloud native controller for sandboxes"
 
 <a id="description"></a>
 {{% blocks/lead color="black"%}}
-<h1 class="text-center">Agent Sandbox provides a secure, and isolated execution layer to safely deploy autonomous AI agents on Kubernetes that generate and run untrusted code at scale.</h1>
+
 
 <h2 class="use-cases-heading">Use Cases</h2>
 <div class="use-cases-grid">
