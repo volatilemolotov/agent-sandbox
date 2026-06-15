@@ -494,6 +494,7 @@ h1.text-center {
 }
 
 .quickstart-container {
+  
   // Hug the code: width grows with content instead of a fixed box that wraps.
   width: fit-content;
   max-width: 100%;
@@ -509,9 +510,11 @@ h1.text-center {
   .highlight {
     margin: 0;
     padding: 0;
+
     // Grow the box to the width of the code (up to the viewport).
     width: max-content;
     max-width: 100%;
+
     // Square the top corners so the block connects flush to the tab bar above.
     border-radius: 0 0 1rem 1rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -530,6 +533,7 @@ h1.text-center {
     background-color: #0d1117;
     color: #e6edf3;
     max-height: none;
+
     // Size to the code so the box resizes with it; scroll only if wider than the viewport.
     width: max-content;
     max-width: 100%;

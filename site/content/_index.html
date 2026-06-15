@@ -41,7 +41,7 @@ func main() {
 
 	// Connect to your cluster and ensure sandboxes are cleaned up.
 	client, err := sandbox.NewClient(ctx, sandbox.Options{
-		TemplateName: "python-sandbox-template",
+		WarmPoolName: "python-sandbox-template",
 		Namespace:    "default",
 	})
 	if err != nil {
