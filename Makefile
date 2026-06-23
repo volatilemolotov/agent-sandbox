@@ -24,7 +24,7 @@ generate-go-docs: # Generate Go SDK reference documentation
 		./clients/go/sandbox/... | sed 's/^#/##/' > ./docs/go_sdk_reference.md
 	cat ./docs/go_sdk_reference.md | tail -n +2 > ./docs/go_sdk_reference_temp.md && mv ./docs/go_sdk_reference_temp.md ./docs/go_sdk_reference.md
 
- PYDOC_MARKDOWN_VERSION := 4.8.2
+PYDOC_MARKDOWN_VERSION := 4.8.2
 
 .PHONY: generate-python-docs
 generate-python-docs: # Generate Python SDK reference documentation
