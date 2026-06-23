@@ -110,8 +110,8 @@ def get_latest_digest(image_name, tag):
     
     print(f"   Searching {image_path} for tag pattern: {filter_arg}")
     
-    # Wait up to 45 minutes (45 * 60s)
-    for i in range(45): 
+    # Wait up to 90 minutes (90 * 60s)
+    for i in range(90): 
         try:
             out = run_command(
                 [
