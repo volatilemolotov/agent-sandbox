@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	extensionsv1alpha1 "sigs.k8s.io/agent-sandbox/extensions/api/v1alpha1"
+	extensionsv1beta1 "sigs.k8s.io/agent-sandbox/extensions/api/v1beta1"
 	asmetrics "sigs.k8s.io/agent-sandbox/internal/metrics"
 )
 
@@ -53,7 +53,7 @@ func (r *SandboxTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	logger := log.FromContext(ctx)
 
 	// 1. Fetch the SandboxTemplate
-	template := &extensionsv1alpha1.SandboxTemplate{}
+	template := &extensionsv1beta1.SandboxTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, template); err != nil {
 		if k8errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -63,6 +63,10 @@ func (r *SandboxTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	ctx, end := r.Tracer.StartSpan(ctx, template, "ReconcileSandboxTemplate", nil)
 	defer end()
+
+	if err := r.ensureTemplateRefHashLabel(ctx, template); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if !template.DeletionTimestamp.IsZero() {
 		return ctrl.Result{}, nil
@@ -74,11 +78,11 @@ func (r *SandboxTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	management := template.Spec.NetworkPolicyManagement
 	if management == "" {
-		management = extensionsv1alpha1.NetworkPolicyManagementManaged
+		management = extensionsv1beta1.NetworkPolicyManagementManaged
 	}
 
 	// 3. Handle "Unmanaged" Opt-Out
-	if management == extensionsv1alpha1.NetworkPolicyManagementUnmanaged {
+	if management == extensionsv1beta1.NetworkPolicyManagementUnmanaged {
 		existingNP := &networkingv1.NetworkPolicy{
 			ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: npNamespace},
 		}
@@ -153,8 +157,45 @@ func (r *SandboxTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	return ctrl.Result{}, nil
 }
 
+func (r *SandboxTemplateReconciler) ensureTemplateRefHashLabel(ctx context.Context, template *extensionsv1beta1.SandboxTemplate) error {
+	if !template.DeletionTimestamp.IsZero() {
+		return nil
+	}
+
+	expectedHash := SandboxTemplateRefHash(template.Name)
+	if template.Labels[sandboxTemplateRefHash] == expectedHash {
+		return nil
+	}
+
+	original := template.DeepCopy()
+	if template.Labels == nil {
+		template.Labels = make(map[string]string)
+	}
+	template.Labels[sandboxTemplateRefHash] = expectedHash
+
+	if err := r.Patch(ctx, template, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to label sandbox template %q with template ref hash: %w", client.ObjectKeyFromObject(template), err)
+	}
+	return nil
+}
+
 // buildDefaultNetworkPolicySpec generates the "Secure by Default" network policy.
 func buildDefaultNetworkPolicySpec(templateName string) networkingv1.NetworkPolicySpec {
+	peers := []networkingv1.NetworkPolicyPeer{
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"kubernetes.io/metadata.name": "agent-sandbox-system",
+				},
+			},
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "sandbox-router",
+				},
+			},
+		},
+	}
+
 	return networkingv1.NetworkPolicySpec{
 		PodSelector: metav1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -168,15 +209,7 @@ func buildDefaultNetworkPolicySpec(templateName string) networkingv1.NetworkPoli
 		// 1. INGRESS: Allow traffic only from the Sandbox Router
 		Ingress: []networkingv1.NetworkPolicyIngressRule{
 			{
-				From: []networkingv1.NetworkPolicyPeer{
-					{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "sandbox-router",
-							},
-						},
-					},
-				},
+				From: peers,
 			},
 		},
 		// 2. EGRESS: Secure Default Configuration
@@ -202,7 +235,8 @@ func buildDefaultNetworkPolicySpec(templateName string) networkingv1.NetworkPoli
 						IPBlock: &networkingv1.IPBlock{
 							CIDR: "::/0", // IPv6 Catch-all
 							Except: []string{
-								"fc00::/7", // Block IPv6 Unique Local Addresses (Internal)
+								"fc00::/7",  // Block IPv6 Unique Local Addresses (Internal)
+								"fe80::/10", // Block IPv6 Link-Local
 							},
 						},
 					},
@@ -215,7 +249,7 @@ func buildDefaultNetworkPolicySpec(templateName string) networkingv1.NetworkPoli
 // SetupWithManager sets up the controller with the Manager.
 func (r *SandboxTemplateReconciler) SetupWithManager(mgr ctrl.Manager, concurrentWorkers int) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&extensionsv1alpha1.SandboxTemplate{}).
+		For(&extensionsv1beta1.SandboxTemplate{}).
 		Owns(&networkingv1.NetworkPolicy{}).
 		WithOptions(controller.Options{MaxConcurrentReconciles: concurrentWorkers}).
 		Complete(r)

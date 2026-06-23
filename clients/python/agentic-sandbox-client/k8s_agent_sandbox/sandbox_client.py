@@ -1,4 +1,4 @@
-# Copyright 2025 The Kubernetes Authors.
+# Copyright 2026 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -91,16 +91,15 @@ class SandboxClient(Generic[T]):
         if cleanup:
             atexit.register(self.delete_all)
 
-    def create_sandbox(self, template: str, namespace: str = "default", sandbox_ready_timeout: int = 180, labels: dict[str, str] | None = None, warmpool: str | None = None, *, shutdown_after_seconds: int | None = None) -> T:
+    def create_sandbox(self, warmpool: str, namespace: str = "default", sandbox_ready_timeout: int = 180, labels: dict[str, str] | None = None, *, shutdown_after_seconds: int | None = None) -> T:
         """Provisions new Sandbox claim and returns a Sandbox handle which tracks 
            the underlying infrastructure.
 
         Args:
-            template: Name of the SandboxTemplate to use.
+            warmpool: Name of the SandboxWarmPool to use.
             namespace: Kubernetes namespace for the claim.
             sandbox_ready_timeout: Seconds to wait for the sandbox to be ready.
             labels: Optional Kubernetes labels to attach to the claim.
-            warmpool: Optional warm pool policy for sandbox adoption (e.g. "default", "none", or custom).
             shutdown_after_seconds: Optional TTL in seconds. When set, the
                 claim's ``spec.lifecycle`` is populated with a ``shutdownTime``
                 of *now + shutdown_after_seconds* (UTC) and a ``shutdownPolicy``
@@ -110,11 +109,11 @@ class SandboxClient(Generic[T]):
         Example:
         
             >>> client = SandboxClient()
-            >>> sandbox = client.create_sandbox(template="python-sandbox-template")
+            >>> sandbox = client.create_sandbox(warmpool="python-sandbox-pool")
             >>> sandbox.commands.run("echo 'Hello World'")
         """
-        if not template:
-            raise ValueError("Template name cannot be empty.")
+        if not warmpool:
+            raise ValueError("Warmpool name cannot be empty.")
 
         if labels:
             self._validate_labels(labels)
@@ -124,7 +123,7 @@ class SandboxClient(Generic[T]):
         claim_name = f"sandbox-claim-{uuid.uuid4().hex[:8]}"
         
         try:
-            self._create_claim(claim_name, template, namespace, labels=labels, lifecycle=lifecycle, warmpool=warmpool)
+            self._create_claim(claim_name, warmpool, namespace, labels=labels, lifecycle=lifecycle)
             # Resolve the sandbox id from the sandbox claim object.
             # In case of warmpool, sandbox id is not the same as claim name.
             start_time = time.monotonic()
@@ -153,15 +152,27 @@ class SandboxClient(Generic[T]):
         self._active_connection_sandboxes[(namespace, claim_name)] = sandbox
         return sandbox
 
-    def get_sandbox(self, claim_name: str, namespace: str = "default", resolve_timeout: int = 30) -> T:
+    def get_sandbox(
+        self,
+        claim_name: str,
+        namespace: str = "default",
+        resolve_timeout: int = 30,
+    ) -> T:
         """
-        Retrieves an existing sandbox handle given a sandbox claim name. 
+        Retrieves an existing sandbox handle given a sandbox claim name.
         If the handle is closed or missing, it re-attaches to the infrastructure.
-        
+
+        Args:
+            claim_name: Name of the SandboxClaim to attach to.
+            namespace: Kubernetes namespace the claim lives in.
+            resolve_timeout: Seconds to wait while resolving the sandbox
+                name from the claim status.
         Example:
-        
+
             >>> client = SandboxClient()
-            >>> sandbox = client.get_sandbox("sandbox-claim-1234abcd")
+            >>> sandbox = client.get_sandbox(
+            ...     "sandbox-claim-1234abcd",
+            ... )
             >>> sandbox.commands.run("ls -la")
         """
         key = (namespace, claim_name)
@@ -182,7 +193,7 @@ class SandboxClient(Generic[T]):
         # If it's already in the registry and active (and verified on K8s), return the existing object
         if existing and existing.is_active:
             return existing
-            
+
         # If the sandbox is not active, pop it out from the tracking list
         if existing:
             self._active_connection_sandboxes.pop(key, None)
@@ -196,7 +207,7 @@ class SandboxClient(Generic[T]):
             tracer_config=self.tracer_config,
             k8s_helper=self.k8s_helper
         )
-        
+
         self._active_connection_sandboxes[key] = new_handle
         return new_handle
     
@@ -206,7 +217,7 @@ class SandboxClient(Generic[T]):
         Example:
         
             >>> client = SandboxClient()
-            >>> client.create_sandbox("python-sandbox-template")
+            >>> client.create_sandbox("python-sandbox-pool")
             >>> print(client.list_active_sandboxes())
             [('default', 'sandbox-claim-1234abcd')]
         """
@@ -216,18 +227,24 @@ class SandboxClient(Generic[T]):
                 self._active_connection_sandboxes.pop(key, None)
         return list(self._active_connection_sandboxes.keys())
       
-    def list_all_sandboxes(self, namespace: str = "default") -> List[str]:
+    def list_all_sandboxes(self, namespace: str = "default", label_selector: str | None = None) -> List[str]:
         """
-        Lists all SandboxClaim names currently existing in the Kubernetes cluster 
+        Lists all SandboxClaim names currently existing in the Kubernetes cluster
         for the given namespace.
-        
+
+        Args:
+            namespace: Kubernetes namespace to list claims in.
+            label_selector: Optional Kubernetes label selector string
+                (e.g. ``"app=myapp"``). When set, only claims matching
+                the selector are returned.
+
         Example:
-        
+
             >>> client = SandboxClient()
             >>> print(client.list_all_sandboxes(namespace="default"))
             ['sandbox-claim-1234abcd', 'sandbox-claim-5678efgh']
         """
-        return self.k8s_helper.list_sandbox_claims(namespace)
+        return self.k8s_helper.list_sandbox_claims(namespace, label_selector=label_selector)
 
     def delete_sandbox(self, claim_name: str, namespace: str = "default"):
         """Stops the client side connection and deletes the Kubernetes resources.
@@ -235,7 +252,7 @@ class SandboxClient(Generic[T]):
         Example:
         
             >>> client = SandboxClient()
-            >>> sandbox = client.create_sandbox("python-sandbox-template")
+            >>> sandbox = client.create_sandbox("python-sandbox-pool")
             >>> client.delete_sandbox(sandbox.claim_name)
         """
         key = (namespace, claim_name)
@@ -256,8 +273,8 @@ class SandboxClient(Generic[T]):
         Example:
         
             >>> client = SandboxClient()
-            >>> client.create_sandbox("python-sandbox-template")
-            >>> client.create_sandbox("python-sandbox-template")
+            >>> client.create_sandbox("python-sandbox-pool")
+            >>> client.create_sandbox("python-sandbox-pool")
             >>> client.delete_all()
         """
         for (ns, claim_name), _ in list(self._active_connection_sandboxes.items()):
@@ -316,7 +333,7 @@ class SandboxClient(Generic[T]):
                 SandboxClient._validate_label_name(value, f"value '{value}' for key '{key}'")
 
     @trace_span("create_claim")
-    def _create_claim(self, claim_name: str, template_name: str, namespace: str, labels: dict[str, str] | None = None, lifecycle: dict | None = None, warmpool: str | None = None):
+    def _create_claim(self, claim_name: str, warmpool_name: str, namespace: str, labels: dict[str, str] | None = None, lifecycle: dict | None = None):
         """Creates the SandboxClaim custom resource in the Kubernetes cluster."""
         span = trace.get_current_span()
         if span.is_recording():
@@ -331,7 +348,7 @@ class SandboxClient(Generic[T]):
             if trace_context_str:
                 annotations["opentelemetry.io/trace-context"] = trace_context_str
 
-        self.k8s_helper.create_sandbox_claim(claim_name, template_name, namespace, annotations=annotations, labels=labels, lifecycle=lifecycle, warmpool=warmpool)
+        self.k8s_helper.create_sandbox_claim(claim_name, warmpool_name, namespace, annotations=annotations, labels=labels, lifecycle=lifecycle)
 
     @trace_span("wait_for_sandbox_ready")
     def _wait_for_sandbox_ready(self, sandbox_id: str, namespace: str, timeout: int):
@@ -341,7 +358,18 @@ class SandboxClient(Generic[T]):
     @trace_span("delete_claim")
     def _delete_claim(self, claim_name: str, namespace: str):
         """Deletes the SandboxClaim custom resource from the Kubernetes cluster."""
-        try:
-            self.k8s_helper.delete_sandbox_claim(claim_name, namespace)
-        except Exception as e:
-            logging.error(f"Failed to cleanup SandboxClaim '{claim_name}': {e}")
+        self.k8s_helper.delete_sandbox_claim(claim_name, namespace)
+
+    def get_sandbox_claim_warmpool_name(self, claim_name: str, namespace: str) -> str:
+        """Get warmpool name of a sandbox claim."""
+        claim_object = self.k8s_helper.get_sandbox_claim(claim_name, namespace)
+        if not claim_object:
+            raise SandboxNotFoundError(
+                f"SandboxClaim '{claim_name}' not found in namespace '{namespace}'."
+            )
+        warmpool_name = (
+            claim_object.get("spec", {})
+            .get("warmPoolRef", {})
+            .get("name")
+        )
+        return warmpool_name

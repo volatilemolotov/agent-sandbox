@@ -22,12 +22,12 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	sandboxv1alpha1 "sigs.k8s.io/agent-sandbox/api/v1alpha1"
+	sandboxv1beta1 "sigs.k8s.io/agent-sandbox/api/v1beta1"
 	"sigs.k8s.io/agent-sandbox/test/e2e/framework"
 	"sigs.k8s.io/agent-sandbox/test/e2e/framework/predicates"
 )
 
-func TestSandboxReplicas(t *testing.T) {
+func TestSandboxOperatingMode(t *testing.T) {
 	tc := framework.NewTestContext(t)
 
 	// Set up a namespace
@@ -36,23 +36,22 @@ func TestSandboxReplicas(t *testing.T) {
 	require.NoError(t, tc.CreateWithCleanup(t.Context(), ns))
 	// Create a Sandbox Object
 	sandboxObj := simpleSandbox(ns.Name)
-	sandboxObj.Spec.Replicas = new(int32(1))
+	sandboxObj.Spec.OperatingMode = sandboxv1beta1.SandboxOperatingModeRunning
 	require.NoError(t, tc.CreateWithCleanup(t.Context(), sandboxObj))
 
 	nameHash := NameHash(sandboxObj.Name)
 	// Assert Sandbox object status reconciles as expected
 	p := []predicates.ObjectPredicate{
-		predicates.SandboxHasStatus(sandboxv1alpha1.SandboxStatus{
+		predicates.SandboxHasStatus(sandboxv1beta1.SandboxStatus{
 			Service:       "my-sandbox",
 			ServiceFQDN:   fmt.Sprintf("my-sandbox.%s.svc.cluster.local", ns.Name),
-			Replicas:      1,
 			LabelSelector: "agents.x-k8s.io/sandbox-name-hash=" + nameHash,
 			Conditions: []metav1.Condition{
 				{
 					Type:               "Ready",
 					Status:             metav1.ConditionTrue,
 					ObservedGeneration: 1,
-					Reason:             sandboxv1alpha1.SandboxReasonDependenciesReady,
+					Reason:             sandboxv1beta1.SandboxReasonDependenciesReady,
 					Message:            "Pod is Ready; Service Exists",
 				},
 			},
@@ -70,31 +69,30 @@ func TestSandboxReplicas(t *testing.T) {
 	service.Namespace = ns.Name
 	tc.MustExist(service)
 
-	// Set replicas to zero
-	framework.MustUpdateObject(tc.ClusterClient, sandboxObj, func(obj *sandboxv1alpha1.Sandbox) {
-		obj.Spec.Replicas = new(int32(0))
+	// Set operating mode to suspended
+	framework.MustUpdateObject(tc.ClusterClient, sandboxObj, func(obj *sandboxv1beta1.Sandbox) {
+		obj.Spec.OperatingMode = sandboxv1beta1.SandboxOperatingModeSuspended
 	})
 
 	// Wait for sandbox status to reflect new state
 	p = []predicates.ObjectPredicate{
-		predicates.SandboxHasStatus(sandboxv1alpha1.SandboxStatus{
+		predicates.SandboxHasStatus(sandboxv1beta1.SandboxStatus{
 			Service:       "my-sandbox",
 			ServiceFQDN:   fmt.Sprintf("my-sandbox.%s.svc.cluster.local", ns.Name),
-			Replicas:      0,
 			LabelSelector: "agents.x-k8s.io/sandbox-name-hash=" + nameHash,
 			Conditions: []metav1.Condition{
 				{
 					Type:               "Ready",
 					Status:             metav1.ConditionFalse,
 					ObservedGeneration: 2,
-					Reason:             sandboxv1alpha1.SandboxReasonSuspended,
+					Reason:             sandboxv1beta1.SandboxReasonSuspended,
 					Message:            "Sandbox is suspended",
 				},
 				{
-					Type:               string(sandboxv1alpha1.SandboxConditionSuspended),
+					Type:               string(sandboxv1beta1.SandboxConditionSuspended),
 					Status:             metav1.ConditionTrue,
 					ObservedGeneration: 2,
-					Reason:             sandboxv1alpha1.SandboxReasonSuspendedPodTerminated,
+					Reason:             sandboxv1beta1.SandboxReasonSuspendedPodTerminated,
 					Message:            "Pod has been terminated. Sandbox is not operational.",
 				},
 			},

@@ -114,7 +114,8 @@ class Sandbox:
         """Fetches the first pod IP from the Sandbox status.
 
         Always queries the K8s API for the latest IP — the pod IP can change
-        after a pod restart (e.g. when spec.replicas is scaled to 0 and back).
+        after a pod restart (e.g. when spec.operatingMode is set to Suspended and resumed 
+        via setting spec.operatingMode to Running).
         Returns None if the controller does not populate podIPs.
         """
         sandbox_object = self.k8s_helper.get_sandbox(self.sandbox_id, self.namespace) or {}
@@ -187,11 +188,24 @@ class Sandbox:
         logging.info(f"Connection to sandbox claim '{self.claim_name}' has been closed.")
     
     def terminate(self):
-        """Permanent deletion of all server side infrastructure and client side connection."""
+        """
+        Permanent deletion of all server side infrastructure and client side connection.
+
+        This method is idempotent. Calling ``terminate()`` repeatedly after a
+        successful deletion is a safe no-op. If the remote infrastructure has
+        already been removed, subsequent calls will handle the API 404 gracefully
+        rather than raising an error.
+        """
         # Close the client side connection and trace manager lifecycle
         self.close_connection()
-        
-        # Delete this Sandbox
+
+        if not self.claim_name:
+            # Already deleted (or never successfully created a claim).
+            return
+
         self.k8s_helper.delete_sandbox_claim(self.claim_name, self.namespace)
+
+        # Clear after successful delete so a retry does not 404.
+        self.claim_name = None
 
  
