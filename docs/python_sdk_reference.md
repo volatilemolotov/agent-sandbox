@@ -51,11 +51,10 @@ Initializes the SandboxClient.
 ##### create\_sandbox
 
 ```python
-def create_sandbox(template: str,
+def create_sandbox(warmpool: str,
                    namespace: str = "default",
                    sandbox_ready_timeout: int = 180,
                    labels: dict[str, str] | None = None,
-                   warmpool: str | None = None,
                    *,
                    shutdown_after_seconds: int | None = None) -> T
 ```
@@ -65,11 +64,10 @@ the underlying infrastructure.
 
 **Arguments**:
 
-- `template` - Name of the SandboxTemplate to use.
+- `warmpool` - Name of the SandboxWarmPool to use.
 - `namespace` - Kubernetes namespace for the claim.
 - `sandbox_ready_timeout` - Seconds to wait for the sandbox to be ready.
 - `labels` - Optional Kubernetes labels to attach to the claim.
-- `warmpool` - Optional warm pool policy for sandbox adoption (e.g. "default", "none", or custom).
 - `shutdown_after_seconds` - Optional TTL in seconds. When set, the
   claim's ``spec.lifecycle`` is populated with a ``shutdownTime``
   of *now + shutdown_after_seconds* (UTC) and a ``shutdownPolicy``
@@ -81,7 +79,7 @@ the underlying infrastructure.
 
   
   >>> client = SandboxClient()
-  >>> sandbox = client.create_sandbox(template="python-sandbox-template")
+  >>> sandbox = client.create_sandbox(warmpool="python-sandbox-pool")
   >>> sandbox.commands.run("echo 'Hello World'")
 
 <a id="k8s_agent_sandbox.sandbox_client.SandboxClient.get_sandbox"></a>
@@ -97,11 +95,20 @@ def get_sandbox(claim_name: str,
 Retrieves an existing sandbox handle given a sandbox claim name.
 If the handle is closed or missing, it re-attaches to the infrastructure.
 
+**Arguments**:
+
+- `claim_name` - Name of the SandboxClaim to attach to.
+- `namespace` - Kubernetes namespace the claim lives in.
+- `resolve_timeout` - Seconds to wait while resolving the sandbox
+  name from the claim status.
+
 **Example**:
 
   
   >>> client = SandboxClient()
-  >>> sandbox = client.get_sandbox("sandbox-claim-1234abcd")
+  >>> sandbox = client.get_sandbox(
+  ...     "sandbox-claim-1234abcd",
+  ... )
   >>> sandbox.commands.run("ls -la")
 
 <a id="k8s_agent_sandbox.sandbox_client.SandboxClient.list_active_sandboxes"></a>
@@ -118,7 +125,7 @@ Returns a list of tuples containing (namespace, claim_name) currently managed by
 
   
   >>> client = SandboxClient()
-  >>> client.create_sandbox("python-sandbox-template")
+  >>> client.create_sandbox("python-sandbox-pool")
   >>> print(client.list_active_sandboxes())
   [('default', 'sandbox-claim-1234abcd')]
 
@@ -127,11 +134,20 @@ Returns a list of tuples containing (namespace, claim_name) currently managed by
 ##### list\_all\_sandboxes
 
 ```python
-def list_all_sandboxes(namespace: str = "default") -> List[str]
+def list_all_sandboxes(namespace: str = "default",
+                       label_selector: str | None = None) -> List[str]
 ```
 
 Lists all SandboxClaim names currently existing in the Kubernetes cluster
 for the given namespace.
+
+**Arguments**:
+
+- `namespace` - Kubernetes namespace to list claims in.
+- `label_selector` - Optional Kubernetes label selector string
+  (e.g. ``"app=myapp"``). When set, only claims matching
+  the selector are returned.
+  
 
 **Example**:
 
@@ -154,7 +170,7 @@ Stops the client side connection and deletes the Kubernetes resources.
 
   
   >>> client = SandboxClient()
-  >>> sandbox = client.create_sandbox("python-sandbox-template")
+  >>> sandbox = client.create_sandbox("python-sandbox-pool")
   >>> client.delete_sandbox(sandbox.claim_name)
 
 <a id="k8s_agent_sandbox.sandbox_client.SandboxClient.delete_all"></a>
@@ -171,9 +187,19 @@ Cleanup all tracked sandboxes managed by this client.
 
   
   >>> client = SandboxClient()
-  >>> client.create_sandbox("python-sandbox-template")
-  >>> client.create_sandbox("python-sandbox-template")
+  >>> client.create_sandbox("python-sandbox-pool")
+  >>> client.create_sandbox("python-sandbox-pool")
   >>> client.delete_all()
+
+<a id="k8s_agent_sandbox.sandbox_client.SandboxClient.get_sandbox_claim_warmpool_name"></a>
+
+##### get\_sandbox\_claim\_warmpool\_name
+
+```python
+def get_sandbox_claim_warmpool_name(claim_name: str, namespace: str) -> str
+```
+
+Get warmpool name of a sandbox claim.
 
 <a id="k8s_agent_sandbox.models"></a>
 
@@ -318,6 +344,12 @@ Timeout in seconds to wait for port-forward to be ready.
 ##### server\_port
 
 Port the sandbox container listens on.
+
+<a id="k8s_agent_sandbox.models.SandboxLocalTunnelConnectionConfig.router_namespace"></a>
+
+##### router\_namespace
+
+Namespace where the Router service resides.
 
 <a id="k8s_agent_sandbox.models.SandboxInClusterConnectionConfig"></a>
 
