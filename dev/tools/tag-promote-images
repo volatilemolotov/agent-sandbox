@@ -188,7 +188,7 @@ def main():
     # --- Step 2: Wait for Staging Images ---
     # CI job: https://prow.k8s.io/job-history/gs/kubernetes-ci-logs/logs/post-agent-sandbox-push-images
     print(f"--- Step 2: Waiting for Staging Images ---")
-    print("⏳ Polling registry (timeout: 45 mins)...")
+    print("⏳ Polling registry (timeout: 90 mins)...")
     
     collected_digests = {}
 
