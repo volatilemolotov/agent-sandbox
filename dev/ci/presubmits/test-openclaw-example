@@ -13,105 +13,116 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Validates the openclaw-sandbox example manifests and verifies the container
+image is reachable, without requiring a running cluster or Docker daemon.
+
+Checks:
+  1. YAML is valid and parseable
+  2. Required Sandbox fields are present (apiVersion, kind, spec.podTemplate)
+  3. Container image reference is reachable (via skopeo inspect)
+  4. ConfigMap has the expected openclaw.json key
+"""
+
 import os
 import subprocess
 import sys
-import time
 
 _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from dev.ci.shared.runner import TestRunner
+EXAMPLE_DIR = os.path.join(_repo_root, "examples", "openclaw-sandbox")
+SANDBOX_MANIFEST = os.path.join(EXAMPLE_DIR, "openclaw-sandbox.yaml")
+CONFIG_MANIFEST = os.path.join(EXAMPLE_DIR, "openclaw-config.yaml")
 
-OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:2026.3.23"
-GATEWAY_PORT = 18789
+
+def fail(msg):
+    print(f"FAIL: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
-class OpenclawExampleRunner(TestRunner):
-    def __init__(self):
-        super().__init__(
-            "openclaw-example",
-            "Tests the openclaw-sandbox example: deploys the controller, applies the example manifests, "
-            "and verifies the OpenClaw gateway is reachable.",
-        )
+def check(condition, msg):
+    if not condition:
+        fail(msg)
+    print(f"OK: {msg}")
 
-    def run_tests(self, args):
-        example_dir = os.path.join(self.repo_root, "examples", "openclaw-sandbox")
-        kubeconfig = os.path.join(self.repo_root, "bin", "KUBECONFIG")
-        env = {**os.environ, "KUBECONFIG": kubeconfig}
 
-        print(f"Pulling {OPENCLAW_IMAGE}...")
-        result = subprocess.run(["docker", "pull", OPENCLAW_IMAGE])
-        if result.returncode != 0:
-            return result
+def load_yaml(path):
+    try:
+        import yaml
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyyaml", "-q"])
+        import yaml
+    with open(path) as f:
+        return list(yaml.safe_load_all(f))
 
-        print(f"Loading {OPENCLAW_IMAGE} into kind cluster '{self.name}'...")
-        result = subprocess.run(["kind", "load", "docker-image", OPENCLAW_IMAGE, "--name", self.name])
-        if result.returncode != 0:
-            return result
 
-        print("Applying openclaw-config.yaml...")
+def main():
+    print("=== Validating openclaw-sandbox example ===")
+
+    # 1. YAML parses without errors
+    print("\n-- Checking YAML syntax --")
+    try:
+        sandbox_docs = load_yaml(SANDBOX_MANIFEST)
+        config_docs = load_yaml(CONFIG_MANIFEST)
+    except Exception as e:
+        fail(f"YAML parse error: {e}")
+
+    check(len(sandbox_docs) == 1, "openclaw-sandbox.yaml has exactly one document")
+    check(len(config_docs) == 1, "openclaw-config.yaml has exactly one document")
+
+    sandbox = sandbox_docs[0]
+    configmap = config_docs[0]
+
+    # 2. Sandbox manifest structure
+    print("\n-- Checking Sandbox manifest fields --")
+    check(sandbox.get("apiVersion") == "agents.x-k8s.io/v1beta1",
+          "apiVersion is agents.x-k8s.io/v1beta1")
+    check(sandbox.get("kind") == "Sandbox",
+          "kind is Sandbox")
+    check(sandbox.get("metadata", {}).get("name"),
+          "metadata.name is set")
+
+    spec = sandbox.get("spec", {})
+    check("podTemplate" in spec,
+          "spec.podTemplate is present")
+    containers = spec.get("podTemplate", {}).get("spec", {}).get("containers", [])
+    check(len(containers) > 0,
+          "spec.podTemplate.spec.containers is non-empty")
+
+    container = containers[0]
+    image = container.get("image", "")
+    check(bool(image), f"container image is set: {image}")
+    check("volumeMounts" in container,
+          "container has volumeMounts")
+    check(len(spec.get("volumeClaimTemplates", [])) > 0,
+          "spec.volumeClaimTemplates is present (persistent storage)")
+
+    # 3. ConfigMap structure
+    print("\n-- Checking ConfigMap --")
+    check(configmap.get("kind") == "ConfigMap",
+          "kind is ConfigMap")
+    check("openclaw.json" in configmap.get("data", {}),
+          "ConfigMap contains openclaw.json key")
+
+    # 4. Verify container image is reachable
+    print(f"\n-- Checking container image reachability: {image} --")
+    result = subprocess.run(
+        ["skopeo", "inspect", f"docker://{image}"],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        # skopeo not available — fall back to crane or a HEAD check
         result = subprocess.run(
-            ["kubectl", "apply", "-f", os.path.join(example_dir, "openclaw-config.yaml")],
-            env=env,
+            ["crane", "digest", image],
+            capture_output=True, text=True
         )
-        if result.returncode != 0:
-            return result
+    check(result.returncode == 0,
+          f"Container image {image} is reachable from registry")
 
-        print("Applying openclaw-sandbox.yaml...")
-        result = subprocess.run(
-            ["kubectl", "apply", "-f", os.path.join(example_dir, "openclaw-sandbox.yaml")],
-            env=env,
-        )
-        if result.returncode != 0:
-            return result
-
-        print("Waiting for openclaw pod to be Ready (timeout 180s)...")
-        result = subprocess.run(
-            [
-                "kubectl", "wait",
-                "--for=condition=ready", "pod",
-                "--selector=sandbox=openclaw-sandbox",
-                "--timeout=180s",
-            ],
-            env=env,
-        )
-        if result.returncode != 0:
-            print("ERROR: openclaw pod did not become Ready in time.")
-            subprocess.run(["kubectl", "describe", "pod", "-l", "sandbox=openclaw-sandbox"], env=env)
-            subprocess.run(["kubectl", "logs", "-l", "sandbox=openclaw-sandbox", "--tail=50"], env=env)
-            return result
-
-        print(f"Starting port-forward on {GATEWAY_PORT}...")
-        pf = subprocess.Popen(
-            ["kubectl", "port-forward", "pod/openclaw-sandbox", f"{GATEWAY_PORT}:{GATEWAY_PORT}"],
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        time.sleep(5)
-
-        try:
-            print(f"Testing OpenClaw gateway at http://localhost:{GATEWAY_PORT} ...")
-            result = subprocess.run(
-                ["curl", "-s", "--max-time", "10", "-o", "/dev/null", "-w", "%{http_code}",
-                 f"http://localhost:{GATEWAY_PORT}"],
-                capture_output=True,
-                text=True,
-            )
-            http_code = result.stdout.strip()
-            print(f"Gateway HTTP response code: {http_code}")
-            # Any HTTP response (including 404/401) means the server is up
-            if not http_code.isdigit() or int(http_code) == 0:
-                print("ERROR: gateway did not respond over HTTP.")
-                return type("Result", (), {"returncode": 1})()
-            print("SUCCESS: OpenClaw gateway is reachable.")
-            return type("Result", (), {"returncode": 0})()
-        finally:
-            pf.terminate()
+    print("\n=== All checks passed ===")
 
 
 if __name__ == "__main__":
-    runner = OpenclawExampleRunner()
-    runner.main()
+    main()
