@@ -108,20 +108,33 @@ def main():
 
     # 4. Verify container image is reachable
     print(f"\n-- Checking container image reachability: {image} --")
-    # Try crane (available in kubekins-e2e), then skopeo, then curl against the registry API
+    # Try crane, then skopeo, then curl against the ghcr.io registry API
+    result = None
     for cmd in (
         ["crane", "digest", image],
         ["skopeo", "inspect", f"docker://{image}"],
     ):
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0 or "No such file" not in (result.stderr or ""):
-            break
-    else:
-        # curl fallback: hit the ghcr.io manifest endpoint anonymously
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode == 0:
+                break
+        except FileNotFoundError:
+            continue
+
+    if result is None or result.returncode != 0:
+        # curl fallback: anonymous token request then manifest HEAD
         registry, tag = image.rsplit(":", 1)
         _, repo = registry.split("/", 1)
+        token_result = subprocess.run(
+            ["curl", "-sf", f"https://ghcr.io/token?scope=repository:{repo}:pull"],
+            capture_output=True, text=True,
+        )
+        import json
+        token = json.loads(token_result.stdout).get("token", "")
         result = subprocess.run(
             ["curl", "-sf", "--head",
+             "-H", f"Authorization: Bearer {token}",
+             "-H", "Accept: application/vnd.oci.image.manifest.v1+json",
              f"https://ghcr.io/v2/{repo}/manifests/{tag}"],
             capture_output=True, text=True,
         )
