@@ -1,7 +1,4 @@
 from k8s_agent_sandbox.sandbox_env import SandboxEnv, SparseTaskReward, StepPenaltyReward
-# from .agent import Agent
-
-# agent = Agent(system_prompt="You are a senior engineer that can code anything.")
 
 env = SandboxEnv(
     reward_fn=StepPenaltyReward(
@@ -40,5 +37,4 @@ info={info}
 """)
         trajectory.append((obs, action, reward, info))
 
-# agent.learn(trajectory)
 env.close()

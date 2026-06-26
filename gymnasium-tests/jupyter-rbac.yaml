@@ -1,0 +1,44 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jupyter-sandbox-sa
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jupyter-sandbox-role
+  namespace: default
+rules:
+  # Rule for the sandbox claims
+  - apiGroups: ["extensions.agents.x-k8s.io"]
+    resources: ["sandboxclaims", "sandboxes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Rule for the actual sandboxes
+  - apiGroups: ["agents.x-k8s.io"]
+    resources: ["sandboxes", "sandboxclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # NEW: Rule for the Gateway API so the SDK can resolve the routing endpoint
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gateways"]
+    # The SDK only needs to read/watch the gateway to find the endpoint, not modify it
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jupyter-sandbox-rolebinding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: jupyter-sandbox-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: jupyter-sandbox-role
+  apiGroup: rbac.authorization.k8s.io
