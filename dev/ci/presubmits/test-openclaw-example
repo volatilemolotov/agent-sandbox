@@ -108,15 +108,22 @@ def main():
 
     # 4. Verify container image is reachable
     print(f"\n-- Checking container image reachability: {image} --")
-    result = subprocess.run(
+    # Try crane (available in kubekins-e2e), then skopeo, then curl against the registry API
+    for cmd in (
+        ["crane", "digest", image],
         ["skopeo", "inspect", f"docker://{image}"],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        # skopeo not available — fall back to crane or a HEAD check
+    ):
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0 or "No such file" not in (result.stderr or ""):
+            break
+    else:
+        # curl fallback: hit the ghcr.io manifest endpoint anonymously
+        registry, tag = image.rsplit(":", 1)
+        _, repo = registry.split("/", 1)
         result = subprocess.run(
-            ["crane", "digest", image],
-            capture_output=True, text=True
+            ["curl", "-sf", "--head",
+             f"https://ghcr.io/v2/{repo}/manifests/{tag}"],
+            capture_output=True, text=True,
         )
     check(result.returncode == 0,
           f"Container image {image} is reachable from registry")
