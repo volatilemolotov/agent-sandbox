@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+import subprocess
+import sys
+import time
+
+_repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from dev.ci.shared.runner import TestRunner
+
+OPENCLAW_IMAGE = "ghcr.io/openclaw/openclaw:2026.3.23"
+GATEWAY_PORT = 18789
+
+
+class OpenclawExampleRunner(TestRunner):
+    def __init__(self):
+        super().__init__(
+            "openclaw-example",
+            "Tests the openclaw-sandbox example: deploys the controller, applies the example manifests, "
+            "and verifies the OpenClaw gateway is reachable.",
+        )
+
+    def run_tests(self, args):
+        example_dir = os.path.join(self.repo_root, "examples", "openclaw-sandbox")
+        kubeconfig = os.path.join(self.repo_root, "bin", "KUBECONFIG")
+        env = {**os.environ, "KUBECONFIG": kubeconfig}
+
+        print(f"Pulling {OPENCLAW_IMAGE}...")
+        result = subprocess.run(["docker", "pull", OPENCLAW_IMAGE])
+        if result.returncode != 0:
+            return result
+
+        print(f"Loading {OPENCLAW_IMAGE} into kind cluster '{self.name}'...")
+        result = subprocess.run(["kind", "load", "docker-image", OPENCLAW_IMAGE, "--name", self.name])
+        if result.returncode != 0:
+            return result
+
+        print("Applying openclaw-config.yaml...")
+        result = subprocess.run(
+            ["kubectl", "apply", "-f", os.path.join(example_dir, "openclaw-config.yaml")],
+            env=env,
+        )
+        if result.returncode != 0:
+            return result
+
+        print("Applying openclaw-sandbox.yaml...")
+        result = subprocess.run(
+            ["kubectl", "apply", "-f", os.path.join(example_dir, "openclaw-sandbox.yaml")],
+            env=env,
+        )
+        if result.returncode != 0:
+            return result
+
+        print("Waiting for openclaw pod to be Ready (timeout 180s)...")
+        result = subprocess.run(
+            [
+                "kubectl", "wait",
+                "--for=condition=ready", "pod",
+                "--selector=sandbox=openclaw-sandbox",
+                "--timeout=180s",
+            ],
+            env=env,
+        )
+        if result.returncode != 0:
+            print("ERROR: openclaw pod did not become Ready in time.")
+            subprocess.run(["kubectl", "describe", "pod", "-l", "sandbox=openclaw-sandbox"], env=env)
+            subprocess.run(["kubectl", "logs", "-l", "sandbox=openclaw-sandbox", "--tail=50"], env=env)
+            return result
+
+        print(f"Starting port-forward on {GATEWAY_PORT}...")
+        pf = subprocess.Popen(
+            ["kubectl", "port-forward", "pod/openclaw-sandbox", f"{GATEWAY_PORT}:{GATEWAY_PORT}"],
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(5)
+
+        try:
+            print(f"Testing OpenClaw gateway at http://localhost:{GATEWAY_PORT} ...")
+            result = subprocess.run(
+                ["curl", "-s", "--max-time", "10", "-o", "/dev/null", "-w", "%{http_code}",
+                 f"http://localhost:{GATEWAY_PORT}"],
+                capture_output=True,
+                text=True,
+            )
+            http_code = result.stdout.strip()
+            print(f"Gateway HTTP response code: {http_code}")
+            # Any HTTP response (including 404/401) means the server is up
+            if not http_code.isdigit() or int(http_code) == 0:
+                print("ERROR: gateway did not respond over HTTP.")
+                return type("Result", (), {"returncode": 1})()
+            print("SUCCESS: OpenClaw gateway is reachable.")
+            return type("Result", (), {"returncode": 0})()
+        finally:
+            pf.terminate()
+
+
+if __name__ == "__main__":
+    runner = OpenclawExampleRunner()
+    runner.main()
