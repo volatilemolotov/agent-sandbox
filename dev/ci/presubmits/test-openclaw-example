@@ -14,134 +14,109 @@
 # limitations under the License.
 
 """
-Validates the openclaw-sandbox example manifests and verifies the container
-image is reachable, without requiring a running cluster or Docker daemon.
+End-to-end test for the openclaw-sandbox example.
 
-Checks:
-  1. YAML is valid and parseable
-  2. Required Sandbox fields are present (apiVersion, kind, spec.podTemplate)
-  3. Container image reference is reachable (via skopeo inspect)
-  4. ConfigMap has the expected openclaw.json key
+Deploys the openclaw-sandbox example directly to the Prow GKE cluster
+in a dedicated namespace, verifies the OpenClaw gateway is reachable,
+then cleans up.
+
+Requirements (one-time cluster setup):
+  - agent-sandbox CRDs and controller installed (namespace: agent-sandbox-system)
+  - namespace 'openclaw-test' exists with RBAC for test-pods/default service account
 """
 
 import os
 import subprocess
 import sys
+import time
 
 _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if _repo_root not in sys.path:
-    sys.path.insert(0, _repo_root)
 
 EXAMPLE_DIR = os.path.join(_repo_root, "examples", "openclaw-sandbox")
-SANDBOX_MANIFEST = os.path.join(EXAMPLE_DIR, "openclaw-sandbox.yaml")
-CONFIG_MANIFEST = os.path.join(EXAMPLE_DIR, "openclaw-config.yaml")
+NAMESPACE = "openclaw-test"
+GATEWAY_PORT = 18789
+POD_READY_TIMEOUT = "300s"
 
 
-def fail(msg):
-    print(f"FAIL: {msg}", file=sys.stderr)
-    sys.exit(1)
+def run(cmd, check=True, **kwargs):
+    print(f"+ {' '.join(cmd)}")
+    return subprocess.run(cmd, check=check, **kwargs)
 
 
-def check(condition, msg):
-    if not condition:
-        fail(msg)
-    print(f"OK: {msg}")
+def kubectl(*args, check=True, **kwargs):
+    return run(["kubectl", "-n", NAMESPACE, *args], check=check, **kwargs)
 
 
-def load_yaml(path):
-    try:
-        import yaml
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyyaml", "-q"])
-        import yaml
-    with open(path) as f:
-        return list(yaml.safe_load_all(f))
+def cleanup():
+    print("\n-- Cleaning up --")
+    kubectl("delete", "sandbox", "openclaw-sandbox", "--ignore-not-found", check=False)
+    kubectl("delete", "configmap", "openclaw-config", "--ignore-not-found", check=False)
+    kubectl("delete", "pvc", "--all", check=False)
 
 
 def main():
-    print("=== Validating openclaw-sandbox example ===")
+    print("=== openclaw-sandbox e2e test ===")
+    print(f"Namespace: {NAMESPACE}")
 
-    # 1. YAML parses without errors
-    print("\n-- Checking YAML syntax --")
+    # Clean up any leftover resources from a previous run
+    cleanup()
+
     try:
-        sandbox_docs = load_yaml(SANDBOX_MANIFEST)
-        config_docs = load_yaml(CONFIG_MANIFEST)
-    except Exception as e:
-        fail(f"YAML parse error: {e}")
+        # Apply ConfigMap
+        print("\n-- Applying openclaw-config.yaml --")
+        kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-config.yaml"))
 
-    check(len(sandbox_docs) == 1, "openclaw-sandbox.yaml has exactly one document")
-    check(len(config_docs) == 1, "openclaw-config.yaml has exactly one document")
+        # Apply Sandbox
+        print("\n-- Applying openclaw-sandbox.yaml --")
+        kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-sandbox.yaml"))
 
-    sandbox = sandbox_docs[0]
-    configmap = config_docs[0]
+        # Wait for pod to be Ready
+        print(f"\n-- Waiting for pod to be Ready (timeout {POD_READY_TIMEOUT}) --")
+        kubectl(
+            "wait", "--for=condition=ready", "pod",
+            "--selector=sandbox=openclaw-sandbox",
+            f"--timeout={POD_READY_TIMEOUT}",
+        )
 
-    # 2. Sandbox manifest structure
-    print("\n-- Checking Sandbox manifest fields --")
-    check(sandbox.get("apiVersion") == "agents.x-k8s.io/v1beta1",
-          "apiVersion is agents.x-k8s.io/v1beta1")
-    check(sandbox.get("kind") == "Sandbox",
-          "kind is Sandbox")
-    check(sandbox.get("metadata", {}).get("name"),
-          "metadata.name is set")
+        # Port-forward and hit the gateway
+        print(f"\n-- Testing gateway on port {GATEWAY_PORT} --")
+        pf = subprocess.Popen(
+            ["kubectl", "-n", NAMESPACE, "port-forward",
+             "pod/openclaw-sandbox", f"{GATEWAY_PORT}:{GATEWAY_PORT}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(5)
 
-    spec = sandbox.get("spec", {})
-    check("podTemplate" in spec,
-          "spec.podTemplate is present")
-    containers = spec.get("podTemplate", {}).get("spec", {}).get("containers", [])
-    check(len(containers) > 0,
-          "spec.podTemplate.spec.containers is non-empty")
-
-    container = containers[0]
-    image = container.get("image", "")
-    check(bool(image), f"container image is set: {image}")
-    check("volumeMounts" in container,
-          "container has volumeMounts")
-    check(len(spec.get("volumeClaimTemplates", [])) > 0,
-          "spec.volumeClaimTemplates is present (persistent storage)")
-
-    # 3. ConfigMap structure
-    print("\n-- Checking ConfigMap --")
-    check(configmap.get("kind") == "ConfigMap",
-          "kind is ConfigMap")
-    check("openclaw.json" in configmap.get("data", {}),
-          "ConfigMap contains openclaw.json key")
-
-    # 4. Verify container image is reachable
-    print(f"\n-- Checking container image reachability: {image} --")
-    # Try crane, then skopeo, then curl against the ghcr.io registry API
-    result = None
-    for cmd in (
-        ["crane", "digest", image],
-        ["skopeo", "inspect", f"docker://{image}"],
-    ):
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode == 0:
-                break
-        except FileNotFoundError:
-            continue
+            result = subprocess.run(
+                ["curl", "-sf", "--max-time", "10",
+                 "-o", "/dev/null", "-w", "%{http_code}",
+                 f"http://localhost:{GATEWAY_PORT}"],
+                capture_output=True, text=True,
+            )
+            http_code = result.stdout.strip()
+            print(f"Gateway HTTP response code: {http_code}")
+            # Any HTTP response (incl. 401/404) means the server is up
+            if not http_code.isdigit() or int(http_code) == 0:
+                print("ERROR: gateway did not respond.", file=sys.stderr)
+                sys.exit(1)
+            print("SUCCESS: OpenClaw gateway is reachable.")
+        finally:
+            pf.terminate()
 
-    if result is None or result.returncode != 0:
-        # curl fallback: anonymous token request then manifest HEAD
-        registry, tag = image.rsplit(":", 1)
-        _, repo = registry.split("/", 1)
-        token_result = subprocess.run(
-            ["curl", "-sf", f"https://ghcr.io/token?scope=repository:{repo}:pull"],
-            capture_output=True, text=True,
-        )
-        import json
-        token = json.loads(token_result.stdout).get("token", "")
-        result = subprocess.run(
-            ["curl", "-sf", "--head",
-             "-H", f"Authorization: Bearer {token}",
-             "-H", "Accept: application/vnd.oci.image.manifest.v1+json",
-             f"https://ghcr.io/v2/{repo}/manifests/{tag}"],
-            capture_output=True, text=True,
-        )
-    check(result.returncode == 0,
-          f"Container image {image} is reachable from registry")
+    except subprocess.CalledProcessError as e:
+        print(f"\nERROR: command failed: {e}", file=sys.stderr)
+        # Print pod logs to help diagnose failures
+        kubectl("logs", "-l", "sandbox=openclaw-sandbox",
+                "--tail=50", check=False)
+        kubectl("describe", "pod", "-l", "sandbox=openclaw-sandbox",
+                check=False)
+        cleanup()
+        sys.exit(1)
 
-    print("\n=== All checks passed ===")
+    cleanup()
+    print("\n=== Test passed ===")
 
 
 if __name__ == "__main__":
