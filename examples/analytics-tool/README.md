@@ -99,7 +99,7 @@ print(f"<IMG>{img_str}</IMG>")
 
 In the end the code prints an encoded image. Inside the tool definition the regex expression is used to extract this string, decode, and plot it.
 
-![](https://raw.githubusercontent.com/kubernetes-sigs/agent-sandbox/main/examples/analytics-tool/imgs/analytics-output.png)
+![Analytics output showing a bar chart of purchase amounts by location](https://raw.githubusercontent.com/kubernetes-sigs/agent-sandbox/main/examples/analytics-tool/imgs/analytics-output.png)
 
 ## Cleanup
 
