@@ -41,7 +41,7 @@ func main() {
 
 	// Connect to your cluster and ensure sandboxes are cleaned up.
 	client, err := sandbox.NewClient(ctx, sandbox.Options{
-		WarmPoolName: "python-sandbox-template",
+		WarmPoolName: "python-sandbox-pool",
 		Namespace:    "default",
 	})
 	if err != nil {
@@ -50,7 +50,7 @@ func main() {
 	defer client.DeleteAll(ctx)
 
 	// Create a sandbox and run a command.
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func main() {
 {{< /blocks/tabs >}}
 </div>
 <p class="quickstart-cta">
-  <a href="/docs/use-cases/examples/python-sdk-quickstart/">Read the full Python SDK quickstart →</a>
+  <a href="/docs/getting_started/python-sdk-quickstart/">Read the full Python SDK quickstart →</a>
 </p>
 
 <div class="mx-auto">
@@ -92,7 +92,7 @@ func main() {
 
 <a id="description"></a>
 {{% blocks/lead color="black"%}}
-
+<h1 class="text-center">Agent Sandbox provides a secure and isolated execution layer to safely deploy autonomous AI agents on Kubernetes that generate and run untrusted code at scale.</h1>
 
 <h2 class="use-cases-heading">Use Cases</h2>
 <div class="use-cases-grid">
