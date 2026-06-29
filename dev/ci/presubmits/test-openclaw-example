@@ -43,8 +43,11 @@ def run(cmd, check=True, **kwargs):
     return subprocess.run(cmd, check=check, **kwargs)
 
 
-def kubectl(*args, check=True, **kwargs):
-    return run(["kubectl", "-n", NAMESPACE, *args], check=check, **kwargs)
+def kubectl(*args, check=True, silent=False, **kwargs):
+    cmd = ["kubectl", "-n", NAMESPACE, *args]
+    if not silent:
+        print(f"+ {' '.join(cmd)}")
+    return subprocess.run(cmd, check=check, **kwargs)
 
 
 def cleanup():
@@ -78,16 +81,26 @@ def main():
             f"--timeout={POD_READY_TIMEOUT}",
         )
 
-        # Curl the service ClusterIP directly (same cluster, no port-forward needed)
-        svc_url = f"http://openclaw-sandbox.{NAMESPACE}.svc.cluster.local:{GATEWAY_PORT}"
-        print(f"\n-- Testing gateway at {svc_url} --")
-        # Retry for up to 30s in case the service endpoint isn't ready yet
-        result = None
+        # Get the pod IP directly (the controller doesn't create a Service)
+        result = kubectl("get", "pod", "openclaw-sandbox",
+                         "-o", "jsonpath={.status.podIP}",
+                         capture_output=True, text=True, silent=True)
+        pod_ip = result.stdout.strip()
+        print(f"\n-- Testing gateway at http://{pod_ip}:{GATEWAY_PORT} --")
+
+        # The gateway speaks WebSocket; curl sends an HTTP upgrade request.
+        # Any HTTP response (101/400/4xx) confirms the server is listening.
+        http_code = "000"
         for attempt in range(6):
             result = subprocess.run(
                 ["curl", "-sf", "--max-time", "10",
+                 "--include",           # show headers so we can see the upgrade
+                 "-H", "Connection: Upgrade",
+                 "-H", "Upgrade: websocket",
+                 "-H", "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+                 "-H", "Sec-WebSocket-Version: 13",
                  "-o", "/dev/null", "-w", "%{http_code}",
-                 svc_url],
+                 f"http://{pod_ip}:{GATEWAY_PORT}"],
                 capture_output=True, text=True,
             )
             http_code = result.stdout.strip()
@@ -96,9 +109,8 @@ def main():
             print(f"  attempt {attempt+1}: got '{http_code}', retrying...")
             time.sleep(5)
 
-        http_code = result.stdout.strip()
         print(f"Gateway HTTP response code: {http_code}")
-        # Any HTTP response (incl. 401/404) means the server is up
+        # 101 = WebSocket upgrade, 4xx = server up but rejecting — both mean listening
         if not http_code.isdigit() or int(http_code) == 0:
             print("ERROR: gateway did not respond.", file=sys.stderr)
             sys.exit(1)
