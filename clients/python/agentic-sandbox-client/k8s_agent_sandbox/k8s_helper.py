@@ -17,6 +17,7 @@ import time
 from typing import List
 from kubernetes import client, config, watch
 from .exceptions import SandboxMetadataError, SandboxNotFoundError, SandboxTemplateNotFoundError, SandboxWarmPoolNotFoundError
+from .utils import is_valid_ip, is_valid_gateway_hostname
 from .constants import (
     CLAIM_API_GROUP,
     CLAIM_API_VERSION,
@@ -302,9 +303,20 @@ class K8sHelper:
                     gateway_object = event['object']
                     status = gateway_object.get('status') or {}
                     addresses = status.get('addresses', [])
-                    if addresses:
-                        ip_address = addresses[0].get('value')
-                        if ip_address:
-                            logging.info(f"Gateway ready. IP: {ip_address}")
-                            w.stop()
-                            return ip_address
+                    for address in addresses:
+                        if not isinstance(address, dict):
+                            continue
+                        ip_address = address.get('value')
+                        if not ip_address:
+                            continue
+                        
+                        if not is_valid_ip(ip_address) and not is_valid_gateway_hostname(ip_address):
+                            logging.warning(
+                                "Gateway address rejected because %r is neither a valid IP address nor a valid gateway hostname.",
+                                ip_address,
+                            )
+                            continue
+                        
+                        logging.info(f"Gateway ready. IP: {ip_address}")
+                        w.stop()
+                        return ip_address
