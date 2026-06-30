@@ -66,6 +66,7 @@ class AsyncK8sHelper:
         annotations: dict | None = None,
         labels: dict | None = None,
         lifecycle: dict | None = None,
+        volume_claim_templates: list[dict] | None = None,
         pod_metadata: dict | None = None,
     ):
         """Creates a SandboxClaim custom resource.
@@ -92,6 +93,8 @@ class AsyncK8sHelper:
         }
         if lifecycle:
             spec["lifecycle"] = lifecycle
+        if volume_claim_templates:
+            spec["volumeClaimTemplates"] = volume_claim_templates
         if pod_metadata:
             spec["additionalPodMetadata"] = pod_metadata
 

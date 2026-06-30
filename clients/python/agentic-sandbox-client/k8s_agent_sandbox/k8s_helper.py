@@ -41,9 +41,20 @@ class K8sHelper:
         self.custom_objects_api = client.CustomObjectsApi()
         self.core_v1_api = client.CoreV1Api()
 
-    def create_sandbox_claim(self, name: str, warmpool: str, namespace: str, annotations: dict | None = None, labels: dict | None = None, lifecycle: dict | None = None, pod_metadata: dict | None = None):
-        """Creates a SandboxClaim custom resource.
-
+    def create_sandbox_claim(
+        self,
+        name: str,
+        warmpool: str,
+        namespace: str,
+        annotations: dict | None = None,
+        labels: dict | None = None,
+        lifecycle: dict | None = None,
+        volume_claim_templates: list[dict] | None = None,
+        pod_metadata: dict | None = None
+    ):
+        """
+        Creates a SandboxClaim custom resource.
+        
         Args:
             pod_metadata: Optional ``{"labels": {...}, "annotations": {...}}``
                 dict emitted as ``spec.additionalPodMetadata`` so the labels and
@@ -64,6 +75,8 @@ class K8sHelper:
         }
         if lifecycle:
             spec["lifecycle"] = lifecycle
+        if volume_claim_templates:
+            spec["volumeClaimTemplates"] = volume_claim_templates
         if pod_metadata:
             spec["additionalPodMetadata"] = pod_metadata
 
