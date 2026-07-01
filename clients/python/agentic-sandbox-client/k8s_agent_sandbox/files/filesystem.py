@@ -12,26 +12,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import logging
-import os
 import posixpath
 import urllib.parse
 from typing import List
 from k8s_agent_sandbox.connector import SandboxConnector
 from k8s_agent_sandbox.models import FileEntry
 from k8s_agent_sandbox.trace_manager import trace_span, trace
+from k8s_agent_sandbox.sandbox.operations_tracker import (
+    OperationsTracker,
+    track_op
+)
+
 
 class Filesystem:
     """
     Handles file operations within the sandbox.
     """
-    def __init__(self, connector: SandboxConnector, tracer, trace_service_name: str):
+    def __init__(
+        self,
+        connector: SandboxConnector,
+        tracer,
+        trace_service_name: str,
+        op_tracker: OperationsTracker,
+    ):
         self.connector = connector
         self.tracer = tracer
         self.trace_service_name = trace_service_name
+        self.op_tracker = op_tracker
 
     @trace_span("write")
+    @track_op
     def write(
         self,
         path: str, content: bytes | str,
@@ -92,6 +103,7 @@ class Filesystem:
         return normalized
 
     @trace_span("read")
+    @track_op
     def read(
         self,
         path: str,
@@ -117,6 +129,7 @@ class Filesystem:
         return content
 
     @trace_span("list")
+    @track_op
     def list(self, path: str, timeout: int = 60) -> List[FileEntry]:
         span = trace.get_current_span()
         if span.is_recording():
@@ -142,6 +155,7 @@ class Filesystem:
         return file_entries
 
     @trace_span("exists")
+    @track_op
     def exists(self, path: str, timeout: int = 60) -> bool:
         span = trace.get_current_span()
         if span.is_recording():
