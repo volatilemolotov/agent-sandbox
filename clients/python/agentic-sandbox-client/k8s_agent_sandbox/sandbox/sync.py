@@ -25,6 +25,10 @@ from ..k8s_helper import K8sHelper
 from ..connector import SandboxConnector
 from ..constants import POD_NAME_ANNOTATION, SANDBOX_NAME_HASH_LABEL
 from ..utils import select_pod_ip
+from .operations_tracker import (
+    OperationsTracker,
+    track_op,
+)
 
 class Sandbox:
     """
@@ -44,6 +48,7 @@ class Sandbox:
         connection_config: SandboxConnectionConfig | None = None,
         tracer_config: SandboxTracerConfig | None = None,
         k8s_helper: K8sHelper | None = None,
+        operations_tracker: OperationsTracker | None = None,
     ):
         # Sandbox Related Configuration
         self.claim_name = claim_name
@@ -66,15 +71,23 @@ class Sandbox:
         self.tracer_config = tracer_config or SandboxTracerConfig()
         self.trace_service_name = self.tracer_config.trace_service_name
         self.tracing_manager, self.tracer = create_tracer_manager(self.tracer_config)
+        
+        # Initialize operations tracker (required for sandbox draining).
+        self.op_tracker = operations_tracker or OperationsTracker()
 
         # Initialisation of namespaced engines
-        self._commands = CommandExecutor(self.connector, self.tracer, self.trace_service_name)
-        self._files = Filesystem(self.connector, self.tracer, self.trace_service_name)
+        self._commands = CommandExecutor(
+            self.connector, self.tracer, self.trace_service_name, self.op_tracker,
+        )
+        self._files = Filesystem(
+            self.connector, self.tracer, self.trace_service_name, self.op_tracker,
+        )
         
         # Internal state tracking
         self._is_closed = False
         self._pod_name = None
         self._sandbox_name_hash = None
+
         
     def get_pod_name(self) -> str:
         """Fetches the Sandbox object from Kubernetes and retrieves its current pod name."""
@@ -200,6 +213,8 @@ class Sandbox:
         if not self.claim_name:
             # Already deleted (or never successfully created a claim).
             return
+
+        self.op_tracker.wait_for_drain()
 
         self.k8s_helper.delete_sandbox_claim(self.claim_name, self.namespace)
 

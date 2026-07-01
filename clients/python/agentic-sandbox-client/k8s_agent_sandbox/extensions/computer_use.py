@@ -16,9 +16,11 @@ from ..sandbox_client import SandboxClient
 from ..sandbox import Sandbox
 from ..models import ExecutionResult
 from ..trace_manager import trace_span
+from ..sandbox.operations_tracker import track_op
 
 class SandboxWithComputerUseSupport(Sandbox):
     @trace_span("agent_query")
+    @track_op
     def agent(self, query: str, timeout: int = 60) -> ExecutionResult:
         """Executes a query using the agent."""
         if not self.is_active:

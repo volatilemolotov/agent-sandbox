@@ -22,6 +22,10 @@ from ..files.async_filesystem import AsyncFilesystem
 from ..models import SandboxConnectionConfig, SandboxTracerConfig
 from ..trace_manager import create_tracer_manager
 from ..utils import select_pod_ip
+from .operations_tracker import (
+    AsyncOperationsTracker,
+    track_op,
+)
 
 
 class AsyncSandbox:
@@ -46,6 +50,7 @@ class AsyncSandbox:
         connection_config: SandboxConnectionConfig | None = None,
         tracer_config: SandboxTracerConfig | None = None,
         k8s_helper: AsyncK8sHelper | None = None,
+        operations_tracker: AsyncOperationsTracker | None = None,
     ):
         if connection_config is None:
             raise ValueError(
@@ -73,11 +78,14 @@ class AsyncSandbox:
         self.trace_service_name = self.tracer_config.trace_service_name
         self.tracing_manager, self.tracer = create_tracer_manager(self.tracer_config)
 
+        # Initialize operations tracker (required for sandbox draining).
+        self.op_tracker = operations_tracker or AsyncOperationsTracker()
+
         self._commands = AsyncCommandExecutor(
-            self.connector, self.tracer, self.trace_service_name
+            self.connector, self.tracer, self.trace_service_name, self.op_tracker,
         )
         self._files = AsyncFilesystem(
-            self.connector, self.tracer, self.trace_service_name
+            self.connector, self.tracer, self.trace_service_name, self.op_tracker,
         )
 
         self._is_closed = False

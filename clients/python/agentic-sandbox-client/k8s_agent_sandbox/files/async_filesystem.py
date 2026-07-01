@@ -19,6 +19,10 @@ from k8s_agent_sandbox.async_connector import AsyncSandboxConnector
 from k8s_agent_sandbox.files.filesystem import Filesystem
 from k8s_agent_sandbox.models import FileEntry
 from k8s_agent_sandbox.trace_manager import async_trace_span, trace
+from k8s_agent_sandbox.sandbox.operations_tracker import (
+    AsyncOperationsTracker,
+    track_op,
+)
 
 
 class AsyncFilesystem:
@@ -26,12 +30,20 @@ class AsyncFilesystem:
     Handles async file operations within the sandbox.
     """
 
-    def __init__(self, connector: AsyncSandboxConnector, tracer, trace_service_name: str):
+    def __init__(
+        self,
+        connector: AsyncSandboxConnector,
+        tracer,
+        trace_service_name: str,
+        op_tracker: AsyncOperationsTracker,
+    ):
         self.connector = connector
         self.tracer = tracer
-        self.trace_service_name = trace_service_name
+        self.trace_service_name = trace_service_name,
+        self.op_tracker = op_tracker
 
     @async_trace_span("write")
+    @track_op
     async def write(
         self,
         path: str, content: bytes | str,
@@ -61,6 +73,7 @@ class AsyncFilesystem:
         logging.info(f"File '{path}' uploaded successfully.")
 
     @async_trace_span("read")
+    @track_op
     async def read(
         self,
         path: str,
@@ -85,6 +98,7 @@ class AsyncFilesystem:
         return content
 
     @async_trace_span("list")
+    @track_op
     async def list(self, path: str, timeout: int = 60) -> list[FileEntry]:
         span = trace.get_current_span()
         if span.is_recording():
@@ -116,6 +130,7 @@ class AsyncFilesystem:
         return file_entries
 
     @async_trace_span("exists")
+    @track_op
     async def exists(self, path: str, timeout: int = 60) -> bool:
         span = trace.get_current_span()
         if span.is_recording():

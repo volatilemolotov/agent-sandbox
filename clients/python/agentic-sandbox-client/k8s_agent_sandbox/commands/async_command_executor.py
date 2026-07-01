@@ -15,6 +15,10 @@
 from k8s_agent_sandbox.async_connector import AsyncSandboxConnector
 from k8s_agent_sandbox.models import ExecutionResult
 from k8s_agent_sandbox.trace_manager import async_trace_span, trace
+from k8s_agent_sandbox.sandbox.operations_tracker import (
+    AsyncOperationsTracker,
+    track_op,
+)
 
 
 def _extract_executable(command: str) -> str:
@@ -34,12 +38,20 @@ class AsyncCommandExecutor:
     Handles async execution of commands within the sandbox.
     """
 
-    def __init__(self, connector: AsyncSandboxConnector, tracer, trace_service_name: str):
+    def __init__(
+        self,
+        connector: AsyncSandboxConnector,
+        tracer,
+        trace_service_name: str,
+        op_tracker: AsyncOperationsTracker,
+    ):
         self.connector = connector
         self.tracer = tracer
         self.trace_service_name = trace_service_name
+        self.op_tracker = op_tracker
 
     @async_trace_span("run")
+    @track_op
     async def run(self, command: str, timeout: int = 60) -> ExecutionResult:
         span = trace.get_current_span()
         if span.is_recording():
