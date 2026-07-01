@@ -12,22 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import atexit
 import logging
-import requests
-from .trace_manager import create_tracer_manager, trace_span, trace
-from .commands.command_executor import CommandExecutor
-from .files.filesystem import Filesystem
-from .models import (
+from ..trace_manager import create_tracer_manager
+from ..commands.command_executor import CommandExecutor
+from ..files.filesystem import Filesystem
+from ..models import (
     SandboxConnectionConfig,
-    SandboxInClusterConnectionConfig,
     SandboxLocalTunnelConnectionConfig,
     SandboxTracerConfig,
 )
-from .k8s_helper import K8sHelper
-from .connector import SandboxConnector
-from .constants import POD_NAME_ANNOTATION, SANDBOX_NAME_HASH_LABEL
-from .utils import select_pod_ip
+from ..k8s_helper import K8sHelper
+from ..connector import SandboxConnector
+from ..constants import POD_NAME_ANNOTATION, SANDBOX_NAME_HASH_LABEL
+from ..utils import select_pod_ip
 
 class Sandbox:
     """
