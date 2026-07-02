@@ -18,7 +18,7 @@ description: >
 Use `sandbox.files.write()` with the contents of a local file to upload it to the sandbox.
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="upload-a-local-file" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -172,7 +172,7 @@ func main() {
 
 Use `sandbox.files.read()` to download a file and write it locally.
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="download-a-file-from-the-sandbox" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -320,7 +320,7 @@ func main() {
 Upload all files from a local directory by iterating over its contents:
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="upload-a-directory" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import os
 from k8s_agent_sandbox import SandboxClient
@@ -501,7 +501,7 @@ func main() {
 Download all files from a sandbox directory:
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="download-multiple-files" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import os
 from k8s_agent_sandbox import SandboxClient
@@ -668,7 +668,7 @@ func main() {
 A common pattern is uploading data, processing it inside the sandbox, and downloading the results:
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="end-to-end-upload-process-download" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 

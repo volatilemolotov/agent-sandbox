@@ -33,7 +33,7 @@ The following example demonstrates creating a sandbox, modifying its filesystem,
 > Note: this example uses `simple-sandbox-template`, which you should create in your GKE cluster first. The associated resources can be found [here](https://github.com/volatilemolotov/agent-sandbox/tree/main/site/content/docs/sandbox/snapshots/source).
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="basic-workflow-example" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import time
 from k8s_agent_sandbox.gke_extensions.snapshots import PodSnapshotSandboxClient
