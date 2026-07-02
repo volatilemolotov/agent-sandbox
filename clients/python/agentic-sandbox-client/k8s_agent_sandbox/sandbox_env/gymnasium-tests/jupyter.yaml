@@ -32,6 +32,14 @@ spec:
             cpu: "4"
             memory: "16Gi"
             ephemeral-storage: "20Gi"
+        volumeMounts:
+        - name: notebook-volume
+          mountPath: /tf/rl_training.ipynb
+          subPath: rl_training.ipynb
+      volumes:
+      - name: notebook-volume
+        configMap:
+          name: rl-notebook-config
 ---
 apiVersion: v1
 kind: Service
