@@ -22,7 +22,7 @@ By extending the sandbox's FastAPI runtime, you can accept a dynamic `env` dicti
 
 This code runs **inside** the sandbox pod. The `ExecuteRequest` model is extended to accept an optional dictionary of environment variables. When a command is triggered, it safely clones the system's current environment variables, merges the incoming ones, and injects them into the `subprocess.run` call.
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="custom-sandbox-runtime-server-side" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import os
 import shlex
@@ -268,7 +268,7 @@ Unlike standard command executions, this client script sends a raw JSON payload 
 The following example demonstrates creating a sandbox, sending a command that requires a custom environment variable (`TEST=True`), and printing the modified output.
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="client-execution-workflow" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 

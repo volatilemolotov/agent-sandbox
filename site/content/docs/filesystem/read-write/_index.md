@@ -18,7 +18,7 @@ description: >
 Use `sandbox.files.write()` to create or overwrite a file inside the sandbox. The method accepts a path and content as either a string or bytes.
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="write-a-file" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -160,7 +160,7 @@ func main() {
 Use `sandbox.files.read()` to download a file's contents from the sandbox. The method returns raw `bytes`.
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="read-a-file" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -308,7 +308,7 @@ func main() {
 A common pattern is writing a script to the sandbox and then executing it:
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="write-and-execute-code" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -483,7 +483,7 @@ print(json.dumps(data))
 All file operations are available as async methods via `AsyncSandboxClient`:
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="async-usage" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import asyncio
 from k8s_agent_sandbox import AsyncSandboxClient

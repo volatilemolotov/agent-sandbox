@@ -36,7 +36,7 @@ The following example demonstrates creating a sandbox, modifying its filesystem,
 > A sandbox can only be restored from its own previous snapshots (via the `suspend()` and `resume()` lifecycle).
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="basic-workflow-example" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 import time
 from k8s_agent_sandbox.gke_extensions.snapshots import PodSnapshotSandboxClient

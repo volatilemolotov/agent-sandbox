@@ -17,7 +17,7 @@ description: >
 
 Use `sandbox.files.list()` to get the contents of a directory inside the sandbox. It returns a list of `FileEntry` objects.
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="list-directory-contents" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -161,7 +161,7 @@ func main() {
 Use `sandbox.files.exists()` to check whether a file or directory exists at a given path.
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="check-if-a-path-exists" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
@@ -304,7 +304,7 @@ func main() {
 ## Example: Browse a Workspace
 
 
-{{< blocks/tabs name="hello-world" >}}
+{{< blocks/tabs name="browse-a-workspace" >}}
   {{< blocks/tab name="Python" codelang="python" >}}
 from k8s_agent_sandbox import SandboxClient
 
