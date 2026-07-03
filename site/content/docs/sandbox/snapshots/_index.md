@@ -114,8 +114,8 @@ func NewPodSnapshotSandboxClient() *PodSnapshotSandboxClient {
 	return &PodSnapshotSandboxClient{http: &http.Client{}, baseURL: sandboxAPIBase}
 }
 
-func (c *PodSnapshotSandboxClient) CreateSandbox(template string) (*Sandbox, error) {
-	body, _ := json.Marshal(map[string]string{"template": template})
+func (c *PodSnapshotSandboxClient) CreateSandbox(warmPool string) (*Sandbox, error) {
+	body, _ := json.Marshal(map[string]string{"warmpool": warmPool})
 	resp, err := c.http.Post(c.baseURL+"/sandboxes", "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create sandbox: %w", err)
@@ -143,33 +143,61 @@ func (s *Sandbox) String() string { return fmt.Sprintf("Sandbox{ID: %s}", s.ID) 
 func (s *Sandbox) Commands() *CommandService   { return &CommandService{sandbox: s} }
 func (s *Sandbox) Snapshots() *SnapshotService { return &SnapshotService{sandbox: s} }
 
-func (s *Sandbox) IsRestoredFromSnapshot(snapshotUID string) (bool, error) {
-	url := fmt.Sprintf("%s/sandboxes/%s/snapshot-status?uid=%s", s.client.baseURL, s.ID, snapshotUID)
-	resp, err := s.client.http.Get(url)
+// SuspendResult mirrors the Python SDK's suspend() return value.
+type SuspendResult struct {
+	Success bool `json:"success"`
+}
+
+// Suspend freezes the sandbox's gVisor container state and sets its
+// operatingMode to Suspended. When snapshotBeforeSuspend is true, a fresh
+// snapshot is taken immediately before suspending.
+func (s *Sandbox) Suspend(snapshotBeforeSuspend bool) (*SuspendResult, error) {
+	body, _ := json.Marshal(map[string]bool{"snapshot_before_suspend": snapshotBeforeSuspend})
+	url := fmt.Sprintf("%s/sandboxes/%s/suspend", s.client.baseURL, s.ID)
+	resp, err := s.client.http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
-		return false, fmt.Errorf("snapshot status: %w", err)
+		return nil, fmt.Errorf("suspend: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var result struct {
-		Restored bool `json:"restored"`
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("suspend: server returned status %d: %s", resp.StatusCode, respBody)
 	}
+
+	var result SuspendResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return false, fmt.Errorf("decode response: %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	return result.Restored, nil
+	return &result, nil
 }
 
-func (s *Sandbox) Terminate() error {
-	url := fmt.Sprintf("%s/sandboxes/%s", s.client.baseURL, s.ID)
-	req, _ := http.NewRequest(http.MethodDelete, url, nil)
-	resp, err := s.client.http.Do(req)
+// ResumeResult mirrors the Python SDK's resume() return value.
+type ResumeResult struct {
+	Success              bool `json:"success"`
+	RestoredFromSnapshot bool `json:"restored_from_snapshot"`
+}
+
+// Resume sets the sandbox's operatingMode back to Running and automatically
+// restores the latest snapshot state.
+func (s *Sandbox) Resume() (*ResumeResult, error) {
+	url := fmt.Sprintf("%s/sandboxes/%s/resume", s.client.baseURL, s.ID)
+	resp, err := s.client.http.Post(url, "application/json", nil)
 	if err != nil {
-		return fmt.Errorf("terminate: %w", err)
+		return nil, fmt.Errorf("resume: %w", err)
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
-	return nil
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("resume: server returned status %d: %s", resp.StatusCode, respBody)
+	}
+
+	var result ResumeResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	return &result, nil
 }
 
 // --- CommandService ---
@@ -237,7 +265,7 @@ func main() {
 	client := NewPodSnapshotSandboxClient()
 
 	// 2. Create the sandbox
-	sandbox, err := client.CreateSandbox("simple-sandbox-template")
+	sandbox, err := client.CreateSandbox("simple-sandbox-pool")
 	if err != nil {
 		panic(err)
 	}
@@ -262,28 +290,30 @@ func main() {
 	}
 	fmt.Printf("Snapshot saved with ID: %s\n", snapshotResponse.SnapshotUID)
 
-	// 5. Clean up the original sandbox
-	if err := sandbox.Terminate(); err != nil {
+	// 5. Suspend the sandbox (takes one more snapshot immediately before suspending)
+	suspendResult, err := sandbox.Suspend(true)
+	if err != nil {
 		panic(err)
+	}
+	if !suspendResult.Success {
+		panic("suspend did not succeed")
 	}
 	sleep()
 
-	// 6. Restore the sandbox from the snapshot
-	restoredSandbox, err := client.CreateSandbox("simple-sandbox-template")
+	// 6. Resume the same sandbox — this restores the latest snapshot state
+	resumeResult, err := sandbox.Resume()
 	if err != nil {
 		panic(err)
 	}
-	isRestored, err := restoredSandbox.IsRestoredFromSnapshot(snapshotResponse.SnapshotUID)
-	if err != nil {
-		panic(err)
+	if !resumeResult.Success {
+		panic("resume did not succeed")
 	}
-	if !isRestored {
-		panic(fmt.Sprintf("snapshot %s was not restored", snapshotResponse.SnapshotUID))
+	if !resumeResult.RestoredFromSnapshot {
+		panic("resume did not restore from a snapshot")
 	}
-	fmt.Printf("Is restored?\nAnswer: %v\n", isRestored)
 
 	// 7. Verify the filesystem state was preserved
-	result, err := restoredSandbox.Commands().Run("cat /tmp/data/status.txt")
+	result, err := sandbox.Commands().Run("cat /tmp/data/status.txt")
 	if err != nil {
 		panic(err)
 	}

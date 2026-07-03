@@ -91,7 +91,7 @@ func executePython(_ tool.Context, args executePythonArgs) (executePythonResult,
 		return executePythonResult{Error: err.Error()}, nil
 	}
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		return executePythonResult{Error: err.Error()}, nil
 	}

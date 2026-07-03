@@ -52,7 +52,7 @@ func main() {
 	}
 	defer client.DeleteAll(ctx)
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func main() {
 	}
 	defer client.DeleteAll(ctx)
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -207,7 +207,7 @@ func main() {
 	}
 	defer client.DeleteAll(ctx)
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func main() {
 	}
 	defer client.DeleteAll(ctx)
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-template", "default")
+	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
 		log.Fatal(err)
 	}

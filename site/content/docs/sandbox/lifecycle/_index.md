@@ -128,7 +128,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/agent-sandbox/clients/go/sandbox"
-	extensionsv1alpha1 "sigs.k8s.io/agent-sandbox/extensions/api/v1alpha1"
+	extensionsv1beta1 "sigs.k8s.io/agent-sandbox/extensions/api/v1beta1"
 )
 
 // The SDK's CreateSandbox has no shutdown-TTL parameter yet, so build our
@@ -156,7 +156,7 @@ func main() {
 	defer client.DeleteAll(ctx)
 
 	fmt.Printf("Creating sandbox with a %s TTL...\n", ttl)
-	sb, err := client.CreateSandbox(ctx, "simple-sandbox-template", namespace)
+	sb, err := client.CreateSandbox(ctx, "simple-sandbox-pool", namespace)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -167,8 +167,8 @@ func main() {
 		log.Fatal(err)
 	}
 	shutdownAt := metav1.NewTime(time.Now().Add(ttl))
-	claim.Spec.Lifecycle = &extensionsv1alpha1.Lifecycle{
-		ShutdownPolicy: extensionsv1alpha1.ShutdownPolicyDelete,
+	claim.Spec.Lifecycle = &extensionsv1beta1.Lifecycle{
+		ShutdownPolicy: extensionsv1beta1.ShutdownPolicyDelete,
 		ShutdownTime:   &shutdownAt,
 	}
 	if _, err := helper.ExtensionsClient.SandboxClaims(namespace).Update(ctx, claim, metav1.UpdateOptions{}); err != nil {

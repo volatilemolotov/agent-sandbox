@@ -417,7 +417,7 @@ func main() {
 	client := NewSandboxClient()
 
 	// 2. Create the sandbox
-	sandbox, err := client.CreateSandbox("simple-sandbox-template")
+	sandbox, err := client.CreateSandbox("simple-sandbox-pool")
 	if err != nil {
 		panic(err)
 	}
