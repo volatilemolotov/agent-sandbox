@@ -16,13 +16,8 @@
 """
 End-to-end test for the openclaw-sandbox example.
 
-Deploys the openclaw-sandbox example directly to the Prow GKE cluster
-in a dedicated namespace, verifies the OpenClaw gateway is reachable,
-then cleans up.
-
-Requirements (one-time cluster setup):
-  - agent-sandbox CRDs and controller installed (namespace: agent-sandbox-system)
-  - namespace 'openclaw-test' exists with RBAC for test-pods/default service account
+Creates a kind cluster, deploys the agent-sandbox controller, applies the
+openclaw-sandbox example manifests, and verifies the OpenClaw gateway responds.
 """
 
 import os
@@ -31,104 +26,103 @@ import sys
 import time
 
 _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from dev.ci.shared.runner import TestRunner
 
 EXAMPLE_DIR = os.path.join(_repo_root, "examples", "openclaw-sandbox")
-NAMESPACE = "openclaw-test"
 GATEWAY_PORT = 18789
 POD_READY_TIMEOUT = "300s"
 
 
-def run(cmd, check=True, **kwargs):
-    print(f"+ {' '.join(cmd)}")
-    return subprocess.run(cmd, check=check, **kwargs)
+class OpenclawTestRunner(TestRunner):
+    def __init__(self):
+        super().__init__("openclaw-test", "e2e test for the openclaw-sandbox example")
 
+    def run_tests(self, args):
+        env = os.environ.copy()
+        env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
 
-def kubectl(*args, check=True, silent=False, **kwargs):
-    cmd = ["kubectl", "-n", NAMESPACE, *args]
-    if not silent:
-        print(f"+ {' '.join(cmd)}")
-    return subprocess.run(cmd, check=check, **kwargs)
+        def kubectl(*kubectl_args, check=True, **kwargs):
+            cmd = ["kubectl", *kubectl_args]
+            print(f"+ {' '.join(cmd)}")
+            return subprocess.run(cmd, env=env, check=check, **kwargs)
 
+        def cleanup():
+            print("\n-- Cleaning up --")
+            kubectl("delete", "sandbox", "openclaw-sandbox", "--ignore-not-found", check=False)
+            kubectl("delete", "configmap", "openclaw-config", "--ignore-not-found", check=False)
+            kubectl("delete", "pvc", "--all", check=False)
 
-def cleanup():
-    print("\n-- Cleaning up --")
-    kubectl("delete", "sandbox", "openclaw-sandbox", "--ignore-not-found", check=False)
-    kubectl("delete", "configmap", "openclaw-config", "--ignore-not-found", check=False)
-    kubectl("delete", "pvc", "--all", check=False)
-
-
-def main():
-    print("=== openclaw-sandbox e2e test ===")
-    print(f"Namespace: {NAMESPACE}")
-
-    # Clean up any leftover resources from a previous run
-    cleanup()
-
-    try:
-        # Apply ConfigMap
-        print("\n-- Applying openclaw-config.yaml --")
-        kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-config.yaml"))
-
-        # Apply Sandbox
-        print("\n-- Applying openclaw-sandbox.yaml --")
-        kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-sandbox.yaml"))
-
-        # Wait for pod to be Ready
-        print(f"\n-- Waiting for pod to be Ready (timeout {POD_READY_TIMEOUT}) --")
-        kubectl(
-            "wait", "--for=condition=ready", "pod",
-            "--selector=sandbox=openclaw-sandbox",
-            f"--timeout={POD_READY_TIMEOUT}",
-        )
-
-        # Get the pod IP directly (the controller doesn't create a Service)
-        result = kubectl("get", "pod", "openclaw-sandbox",
-                         "-o", "jsonpath={.status.podIP}",
-                         capture_output=True, text=True, silent=True)
-        pod_ip = result.stdout.strip()
-        print(f"\n-- Testing gateway at http://{pod_ip}:{GATEWAY_PORT} --")
-
-        # The gateway speaks WebSocket; curl sends an HTTP upgrade request.
-        # Any HTTP response (101/400/4xx) confirms the server is listening.
-        http_code = "000"
-        for attempt in range(6):
-            result = subprocess.run(
-                ["curl", "-sf", "--max-time", "10",
-                 "--include",           # show headers so we can see the upgrade
-                 "-H", "Connection: Upgrade",
-                 "-H", "Upgrade: websocket",
-                 "-H", "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
-                 "-H", "Sec-WebSocket-Version: 13",
-                 "-o", "/dev/null", "-w", "%{http_code}",
-                 f"http://{pod_ip}:{GATEWAY_PORT}"],
-                capture_output=True, text=True,
-            )
-            http_code = result.stdout.strip()
-            if http_code.isdigit() and int(http_code) > 0:
-                break
-            print(f"  attempt {attempt+1}: got '{http_code}', retrying...")
-            time.sleep(5)
-
-        print(f"Gateway HTTP response code: {http_code}")
-        # 101 = WebSocket upgrade, 4xx = server up but rejecting — both mean listening
-        if not http_code.isdigit() or int(http_code) == 0:
-            print("ERROR: gateway did not respond.", file=sys.stderr)
-            sys.exit(1)
-        print("SUCCESS: OpenClaw gateway is reachable.")
-
-    except subprocess.CalledProcessError as e:
-        print(f"\nERROR: command failed: {e}", file=sys.stderr)
-        # Print pod logs to help diagnose failures
-        kubectl("logs", "-l", "sandbox=openclaw-sandbox",
-                "--tail=50", check=False)
-        kubectl("describe", "pod", "-l", "sandbox=openclaw-sandbox",
-                check=False)
+        print("=== openclaw-sandbox e2e test ===")
         cleanup()
-        sys.exit(1)
 
-    cleanup()
-    print("\n=== Test passed ===")
+        try:
+            print("\n-- Applying openclaw-config.yaml --")
+            kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-config.yaml"))
+
+            print("\n-- Applying openclaw-sandbox.yaml --")
+            kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "openclaw-sandbox.yaml"))
+
+            print(f"\n-- Waiting for pod to be Ready (timeout {POD_READY_TIMEOUT}) --")
+            kubectl(
+                "wait", "--for=condition=ready", "pod",
+                "--selector=sandbox=openclaw-sandbox",
+                f"--timeout={POD_READY_TIMEOUT}",
+            )
+
+            print(f"\n-- Port-forwarding gateway on 127.0.0.1:{GATEWAY_PORT} --")
+            pf = subprocess.Popen(
+                ["kubectl", "port-forward", "pod/openclaw-sandbox",
+                 f"{GATEWAY_PORT}:{GATEWAY_PORT}"],
+                env=env,
+            )
+            try:
+                time.sleep(5)
+                http_code = "000"
+                for attempt in range(6):
+                    result = subprocess.run(
+                        ["curl", "-sf", "--max-time", "10",
+                         "-H", "Connection: Upgrade",
+                         "-H", "Upgrade: websocket",
+                         "-H", "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+                         "-H", "Sec-WebSocket-Version: 13",
+                         "-o", "/dev/null", "-w", "%{http_code}",
+                         f"http://127.0.0.1:{GATEWAY_PORT}"],
+                        capture_output=True, text=True,
+                    )
+                    http_code = result.stdout.strip()
+                    if http_code.isdigit() and int(http_code) > 0:
+                        break
+                    print(f"  attempt {attempt+1}: got '{http_code}', retrying...")
+                    time.sleep(5)
+            finally:
+                pf.terminate()
+                pf.wait()
+
+            print(f"Gateway HTTP response code: {http_code}")
+            if not http_code.isdigit() or int(http_code) == 0:
+                print("ERROR: gateway did not respond.", file=sys.stderr)
+                kubectl("logs", "-l", "sandbox=openclaw-sandbox", "--tail=50", check=False)
+                kubectl("describe", "pod", "-l", "sandbox=openclaw-sandbox", check=False)
+                cleanup()
+                return subprocess.CompletedProcess([], 1)
+
+            print("SUCCESS: OpenClaw gateway is reachable.")
+
+        except subprocess.CalledProcessError as e:
+            print(f"\nERROR: command failed: {e}", file=sys.stderr)
+            kubectl("logs", "-l", "sandbox=openclaw-sandbox", "--tail=50", check=False)
+            kubectl("describe", "pod", "-l", "sandbox=openclaw-sandbox", check=False)
+            cleanup()
+            return subprocess.CompletedProcess([], 1)
+
+        cleanup()
+        print("\n=== Test passed ===")
+        return subprocess.CompletedProcess([], 0)
 
 
 if __name__ == "__main__":
-    main()
+    runner = OpenclawTestRunner()
+    runner.main()
