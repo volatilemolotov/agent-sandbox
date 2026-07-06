@@ -68,8 +68,7 @@ Load /my-data/shopping_behavior_updated.csv. This data has 'Purchase Amount (USD
 
 The agent will be able to generate code that will be executed in the agent-sandbox pod. For example, the code might look like this:
 
-{{< blocks/tabs name="hello-world" >}}
-  {{< blocks/tab name="Python" codelang="python" >}}
+```python
 import pandas as pd
 import matplotlib.pyplot as plt
 import io
@@ -96,8 +95,9 @@ plt.savefig(buf, format='png')
 buf.seek(0)
 img_str = base64.b64encode(buf.read()).decode('utf-8')
 print(f"<IMG>{img_str}</IMG>")
-  {{< /blocks/tab >}}
-  {{< blocks/tab name="Go" codelang="go" >}}
+```
+
+```go
 package main
 
 import (
@@ -214,8 +214,7 @@ func main() {
 	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
 	fmt.Printf("<IMG>%s</IMG>\n", encoded)
 }
-  {{< /blocks/tab >}}
-{{< /blocks/tabs >}}
+```
 
 
 In the end the code prints an encoded image. Inside the tool definition the regex expression is used to extract this string, decode, and plot it.

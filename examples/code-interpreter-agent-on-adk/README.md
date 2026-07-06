@@ -28,8 +28,7 @@ The guide walks you through the process of creating a simple [ADK](https://googl
 6. Replace the content of the `coding_agent/agent.py` file with the following:
 
 
-{{< blocks/tabs name="hello-world" >}}
-  {{< blocks/tab name="Python" codelang="python" >}}
+   ```python
    from google.adk.agents.llm_agent import Agent
    from k8s_agent_sandbox import SandboxClient
    
@@ -52,105 +51,105 @@ The guide walks you through the process of creating a simple [ADK](https://googl
        instruction="You are a helpful assistant that can write Python code and execute it in the sandbox. Use the 'execute_python' tool for this purpose.",
        tools=[execute_python],
    )
-  {{< /blocks/tab >}}
-  {{< blocks/tab name="Go" codelang="go" >}}
-package main
+   ```
 
-import (
-	"context"
-	"fmt"
-	"log"
-	"os"
+   ```go
+   package main
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/model/gemini"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
-	"google.golang.org/genai"
+   import (
+   	"context"
+   	"fmt"
+   	"log"
+   	"os"
 
-	"sigs.k8s.io/agent-sandbox/clients/go/sandbox"
-)
+   	"google.golang.org/adk/agent"
+   	"google.golang.org/adk/agent/llmagent"
+   	"google.golang.org/adk/cmd/launcher"
+   	"google.golang.org/adk/cmd/launcher/full"
+   	"google.golang.org/adk/model/gemini"
+   	"google.golang.org/adk/tool"
+   	"google.golang.org/adk/tool/functiontool"
+   	"google.golang.org/genai"
 
-type executePythonArgs struct {
-	Code string `json:"code" jsonschema:"The Python code to execute in the sandbox."`
-}
+   	"sigs.k8s.io/agent-sandbox/clients/go/sandbox"
+   )
 
-type executePythonResult struct {
-	Stdout string `json:"stdout"`
-	Error  string `json:"error,omitempty"`
-}
+   type executePythonArgs struct {
+   	Code string `json:"code" jsonschema:"The Python code to execute in the sandbox."`
+   }
 
-func executePython(_ tool.Context, args executePythonArgs) (executePythonResult, error) {
-	ctx := context.Background()
+   type executePythonResult struct {
+   	Stdout string `json:"stdout"`
+   	Error  string `json:"error,omitempty"`
+   }
 
-	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: "default"})
-	if err != nil {
-		return executePythonResult{Error: err.Error()}, nil
-	}
+   func executePython(_ tool.Context, args executePythonArgs) (executePythonResult, error) {
+   	ctx := context.Background()
 
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
-	if err != nil {
-		return executePythonResult{Error: err.Error()}, nil
-	}
-	defer sb.Close(ctx)
+   	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: "default"})
+   	if err != nil {
+   		return executePythonResult{Error: err.Error()}, nil
+   	}
 
-	if err := sb.Files().Write(ctx, "run.py", []byte(args.Code)); err != nil {
-		return executePythonResult{Error: err.Error()}, nil
-	}
+   	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
+   	if err != nil {
+   		return executePythonResult{Error: err.Error()}, nil
+   	}
+   	defer sb.Close(ctx)
 
-	result, err := sb.Commands().Run(ctx, "python3 run.py")
-	if err != nil {
-		return executePythonResult{Error: err.Error()}, nil
-	}
-	if result.ExitCode != 0 {
-		return executePythonResult{Error: fmt.Sprintf("run.py exited with code %d: %s", result.ExitCode, result.Stderr)}, nil
-	}
-	return executePythonResult{Stdout: result.Stdout}, nil
-}
+   	if err := sb.Files().Write(ctx, "run.py", []byte(args.Code)); err != nil {
+   		return executePythonResult{Error: err.Error()}, nil
+   	}
 
-func main() {
-	ctx := context.Background()
+   	result, err := sb.Commands().Run(ctx, "python3 run.py")
+   	if err != nil {
+   		return executePythonResult{Error: err.Error()}, nil
+   	}
+   	if result.ExitCode != 0 {
+   		return executePythonResult{Error: fmt.Sprintf("run.py exited with code %d: %s", result.ExitCode, result.Stderr)}, nil
+   	}
+   	return executePythonResult{Stdout: result.Stdout}, nil
+   }
 
-	model, err := gemini.NewModel(ctx, "gemini-2.5-flash", &genai.ClientConfig{
-		APIKey: os.Getenv("GOOGLE_API_KEY"),
-	})
-	if err != nil {
-		log.Fatalf("create model: %v", err)
-	}
+   func main() {
+   	ctx := context.Background()
 
-	pythonTool, err := functiontool.New(functiontool.Config{
-		Name:        "execute_python",
-		Description: "Writes the provided Python code to a file and executes it in an isolated sandbox, returning stdout.",
-	}, executePython)
-	if err != nil {
-		log.Fatalf("create tool: %v", err)
-	}
+   	model, err := gemini.NewModel(ctx, "gemini-2.5-flash", &genai.ClientConfig{
+   		APIKey: os.Getenv("GOOGLE_API_KEY"),
+   	})
+   	if err != nil {
+   		log.Fatalf("create model: %v", err)
+   	}
 
-	rootAgent, err := llmagent.New(llmagent.Config{
-		Name:        "coding_agent",
-		Model:       model,
-		Description: "Writes Python code and executes it in a sandbox.",
-		Instruction: "You are a helpful assistant that can write Python code and execute it in the sandbox. Use the 'execute_python' tool for this purpose.",
-		Tools:       []tool.Tool{pythonTool},
-	})
-	if err != nil {
-		log.Fatalf("create agent: %v", err)
-	}
+   	pythonTool, err := functiontool.New(functiontool.Config{
+   		Name:        "execute_python",
+   		Description: "Writes the provided Python code to a file and executes it in an isolated sandbox, returning stdout.",
+   	}, executePython)
+   	if err != nil {
+   		log.Fatalf("create tool: %v", err)
+   	}
 
-	config := &launcher.Config{
-		AgentLoader: agent.NewSingleLoader(rootAgent),
-	}
+   	rootAgent, err := llmagent.New(llmagent.Config{
+   		Name:        "coding_agent",
+   		Model:       model,
+   		Description: "Writes Python code and executes it in a sandbox.",
+   		Instruction: "You are a helpful assistant that can write Python code and execute it in the sandbox. Use the 'execute_python' tool for this purpose.",
+   		Tools:       []tool.Tool{pythonTool},
+   	})
+   	if err != nil {
+   		log.Fatalf("create agent: %v", err)
+   	}
 
-	l := full.NewLauncher()
-	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("run failed: %v\n\n%s", err, l.CommandLineSyntax())
-	}
-}
-  {{< /blocks/tab >}}
-{{< /blocks/tabs >}}
+   	config := &launcher.Config{
+   		AgentLoader: agent.NewSingleLoader(rootAgent),
+   	}
+
+   	l := full.NewLauncher()
+   	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
+   		log.Fatalf("run failed: %v\n\n%s", err, l.CommandLineSyntax())
+   	}
+   }
+   ```
 
    As you can see, the Agent Sandbox is called by a wrapper function `execute_python` which, in turn, is used by the `Agent` class as a tool.
 
