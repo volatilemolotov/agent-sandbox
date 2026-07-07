@@ -56,7 +56,10 @@ def create_sandbox(warmpool: str,
                    sandbox_ready_timeout: int = 180,
                    labels: dict[str, str] | None = None,
                    *,
-                   shutdown_after_seconds: int | None = None) -> T
+                   shutdown_after_seconds: int | None = None,
+                   volume_claim_templates: list[dict] | None = None,
+                   pod_labels: dict[str, str] | None = None,
+                   pod_annotations: dict[str, str] | None = None) -> T
 ```
 
 Provisions new Sandbox claim and returns a Sandbox handle which tracks
@@ -67,12 +70,21 @@ the underlying infrastructure.
 - `warmpool` - Name of the SandboxWarmPool to use.
 - `namespace` - Kubernetes namespace for the claim.
 - `sandbox_ready_timeout` - Seconds to wait for the sandbox to be ready.
-- `labels` - Optional Kubernetes labels to attach to the claim.
+- `labels` - Optional Kubernetes labels to attach to the claim object
+  (``SandboxClaim.metadata.labels``).
 - `shutdown_after_seconds` - Optional TTL in seconds. When set, the
   claim's ``spec.lifecycle`` is populated with a ``shutdownTime``
   of *now + shutdown_after_seconds* (UTC) and a ``shutdownPolicy``
   of ``"Delete"``, so the controller auto-deletes the claim on
   expiry. Must be a positive integer.
+- `volume_claim_templates` - Optional list of volume claim templates
+  to override/merge with the sandbox template.
+- `pod_labels` - Optional labels stamped onto the running Sandbox **Pod**
+  via ``spec.additionalPodMetadata.labels``. Unlike ``labels``
+  (which land on the claim object), these are readable from inside
+  the sandbox through the Downward API.
+- `pod_annotations` - Optional annotations stamped onto the running
+  Sandbox **Pod** via ``spec.additionalPodMetadata.annotations``.
   
 
 **Example**:
