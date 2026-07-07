@@ -286,6 +286,69 @@ async def main():
 asyncio.run(main())
 ```
 
+### 7. Labels and Pod Metadata
+
+`create_sandbox` lets you attach metadata at two different levels:
+
+- `labels`: Kubernetes labels on the **SandboxClaim object** itself
+  (`SandboxClaim.metadata.labels`). Useful for selecting/listing claims.
+- `pod_labels` / `pod_annotations`: labels and annotations stamped onto the
+  running Sandbox **Pod** via `spec.additionalPodMetadata`. Because they live on
+  the Pod, the workload can read them from inside the sandbox through the
+  [Downward API](https://kubernetes.io/docs/concepts/workloads/pods/downward-api/)
+  (for example, to stamp a tenant or client identifier and reject requests that
+  don't belong to it).
+
+```python
+sandbox = client.create_sandbox(
+    warmpool="python-sandbox-warmpool",
+    namespace="default",
+    labels={"team": "platform"},            # on the SandboxClaim object
+    pod_labels={"client-id": "tenant-a"},   # on the running Pod
+    pod_annotations={"owner": "tenant-a"},  # on the running Pod
+)
+```
+
+`pod_labels` are validated with the same Kubernetes label rules as `labels`. The
+same parameters are available on `AsyncSandboxClient.create_sandbox`.
+
+Behavioral notes:
+
+- A `pod_label` / `pod_annotation` whose key already exists on the warmpool
+  template with a different value is rejected by the controller's "No
+  Overrides" rule, and the reconcile errors.
+- Client-side validation only checks RFC-1123 label syntax. The controller's
+  domain allow-list and system-label restrictions are enforced server-side and
+  are not replicated client-side.
+
+### 8. Custom Volume Claim Templates
+
+You can dynamically request persistent volumes to be attached to your Sandbox Pod by specifying `volume_claim_templates`. This allows the sandbox to mount custom PersistentVolumeClaims (PVCs).
+
+```python
+sandbox = client.create_sandbox(
+    warmpool="python-sandbox-warmpool",
+    namespace="default",
+    volume_claim_templates=[
+        {
+            "metadata": {
+                "name": "my-volume",
+            },
+            "spec": {
+                "accessModes": ["ReadWriteOnce"],
+                "resources": {
+                    "requests": {
+                        "storage": "1Gi",
+                    },
+                },
+            },
+        }
+    ],
+)
+```
+
+The volume claim templates are validated against the warmpool template's policy and rules (e.g., whether custom volume claims are allowed or if overrides are permitted).
+
 ## Testing
 
 A test script is included to verify the full lifecycle (Creation -> Execution -> File I/O -> Cleanup).
