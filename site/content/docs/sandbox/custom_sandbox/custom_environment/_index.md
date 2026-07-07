@@ -252,8 +252,8 @@ func main() {
 	mux.HandleFunc("GET /", healthCheck)
 	mux.HandleFunc("POST /execute", executeCommand)
 
-	log.Println("Sandbox Runtime listening on :8000")
-	if err := http.ListenAndServe(":8000", mux); err != nil {
+	log.Println("Sandbox Runtime listening on :8888")
+	if err := http.ListenAndServe(":8888", mux); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -300,69 +300,18 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+
+	"sigs.k8s.io/agent-sandbox/clients/go/sandbox"
 )
 
-const sandboxAPIBase = "http://sandbox-service.default.svc.cluster.local"
-
-// --- SandboxClient ---
-
-type SandboxClient struct {
-	http    *http.Client
-	baseURL string
-}
-
-func NewSandboxClient() *SandboxClient {
-	return &SandboxClient{http: &http.Client{}, baseURL: sandboxAPIBase}
-}
-
-func (c *SandboxClient) CreateSandbox(template string) (*Sandbox, error) {
-	body, _ := json.Marshal(map[string]string{"template": template})
-	resp, err := c.http.Post(c.baseURL+"/sandboxes", "application/json", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create sandbox: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var result struct {
-		ID string `json:"id"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-	return &Sandbox{ID: result.ID, client: c}, nil
-}
-
-// --- Sandbox ---
-
-type Sandbox struct {
-	ID     string
-	client *SandboxClient
-}
-
-func (s *Sandbox) Commands() *CommandService { return &CommandService{sandbox: s} }
-
-func (s *Sandbox) Terminate() error {
-	url := fmt.Sprintf("%s/sandboxes/%s", s.client.baseURL, s.ID)
-	req, _ := http.NewRequest(http.MethodDelete, url, nil)
-	resp, err := s.client.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("terminate: %w", err)
-	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
-	return nil
-}
-
-// --- CommandService ---
-
-type CommandService struct{ sandbox *Sandbox }
-
-// CommandPayload mirrors the ExecuteRequest model from the FastAPI runtime server.
-// Command.Content maps to {"command": {"content": "..."}}.
+// CommandPayload mirrors the ExecuteRequest model from the custom runtime
+// server above: Command.Content maps to {"command": {"content": "..."}}, and
 // Env injects environment variables: {"env": {"KEY": "VALUE"}}.
 type CommandPayload struct {
 	Command struct {
@@ -377,64 +326,74 @@ type CommandResult struct {
 	ExitCode int    `json:"exitCode"`
 }
 
-func (r CommandResult) String() string {
-	return fmt.Sprintf("CommandResult{ExitCode: %d, Stdout: %q}", r.ExitCode, r.Stdout)
-}
-
-// Run accepts a CommandPayload, matching the Python SDK's dict-based payload.
-//
-// This custom runtime's /execute endpoint takes a structured payload (command
-// + env), which differs from the published Go SDK's Commands().Run(ctx, cmd
-// string) — that method only supports a plain shell string, with no field for
-// injecting per-call environment variables. Talk to the custom endpoint
-// directly until the SDK grows support for structured payloads.
-func (c *CommandService) Run(payload CommandPayload) (CommandResult, error) {
-	// The outer wrapper {"command": payload} matches the server's ExecuteRequest shape.
-	body, _ := json.Marshal(map[string]any{"command": payload})
-	url := fmt.Sprintf("%s/sandboxes/%s/commands", c.sandbox.client.baseURL, c.sandbox.ID)
-	resp, err := c.sandbox.client.http.Post(url, "application/json", bytes.NewReader(body))
+// runWithEnv calls the custom runtime's /execute endpoint directly. The
+// published SDK's Commands().Run(ctx, cmd string) only accepts a plain shell
+// string, with no field for injecting per-call environment variables, so this
+// goes through the Sandbox Router (see Prerequisites) the same way the SDK's
+// own tunnel/gateway strategies do: the router proxies any request carrying
+// X-Sandbox-ID/X-Sandbox-Namespace headers straight to that sandbox's pod.
+func runWithEnv(ctx context.Context, sb *sandbox.Sandbox, namespace string, payload CommandPayload) (*CommandResult, error) {
+	body, err := json.Marshal(map[string]any{"command": payload})
 	if err != nil {
-		return CommandResult{}, fmt.Errorf("run command: %w", err)
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		"http://sandbox-router-svc.default.svc.cluster.local:8080/execute", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Sandbox-ID", sb.SandboxName())
+	req.Header.Set("X-Sandbox-Namespace", namespace)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("run command: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return CommandResult{}, fmt.Errorf("run command: server returned status %d: %s", resp.StatusCode, body)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("run command: server returned status %d: %s", resp.StatusCode, respBody)
 	}
 
 	var result CommandResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return CommandResult{}, fmt.Errorf("decode response: %w", err)
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
-	return result, nil
+	return &result, nil
 }
 
-// --- main ---
-
 func main() {
-	// 1. Initialize the client
-	client := NewSandboxClient()
+	ctx := context.Background()
+	namespace := "default"
 
-	// 2. Create the sandbox
-	sandbox, err := client.CreateSandbox("simple-sandbox-pool")
+	// 1. Initialize the client
+	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: namespace})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	defer sandbox.Terminate()
+	defer client.DeleteAll(ctx)
+
+	// 2. Create the sandbox using your custom runtime warm pool
+	sb, err := client.CreateSandbox(ctx, "simple-sandbox-pool", namespace)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// 3. Run a command and inject environment variables via the payload
 	var payload CommandPayload
 	payload.Command.Content = "echo $TEST"
 	payload.Env = map[string]string{"TEST": "True"}
 
-	response, err := sandbox.Commands().Run(payload)
+	result, err := runWithEnv(ctx, sb, namespace, payload)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// 4. Verify the output — prints: True
-	fmt.Println(response.Stdout)
+	fmt.Println(result.Stdout)
 }
   {{< /blocks/tab >}}
 {{< /blocks/tabs >}}
