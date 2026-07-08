@@ -369,8 +369,10 @@ func main() {
 	ctx := context.Background()
 	namespace := "default"
 
-	// 1. Initialize the client
-	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: namespace})
+	// 1. Initialize the client. WarmPoolName must be set here too to satisfy
+	// Options.validate(); CreateSandbox's own argument below is what
+	// actually gets used.
+	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: namespace, WarmPoolName: "simple-sandbox-pool"})
 	if err != nil {
 		log.Fatal(err)
 	}

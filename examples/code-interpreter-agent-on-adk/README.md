@@ -86,7 +86,9 @@ The guide walks you through the process of creating a simple [ADK](https://googl
    func executePython(_ tool.Context, args executePythonArgs) (executePythonResult, error) {
    	ctx := context.Background()
 
-   	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: "default"})
+   	// WarmPoolName must be set here too to satisfy Options.validate();
+   	// CreateSandbox's own argument below is what actually gets used.
+   	client, err := sandbox.NewClient(ctx, sandbox.Options{Namespace: "default", WarmPoolName: "python-sandbox-pool"})
    	if err != nil {
    		return executePythonResult{Error: err.Error()}, nil
    	}
