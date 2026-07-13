@@ -24,7 +24,7 @@ spec:
         env:
         # Define the repository URL you want to automatically download here
         - name: REPO_URL
-          value: "https://github.com/aider-ai/aider"
+          value: "REPO_URL"
         command:
         - /bin/sh
         - -c
@@ -43,7 +43,7 @@ spec:
 
       containers:
       - name: aider
-        image: aider-sandbox:v3
+        image: aider-sandbox:v1
         imagePullPolicy: Never
         workingDir: /workspace
         ports:
