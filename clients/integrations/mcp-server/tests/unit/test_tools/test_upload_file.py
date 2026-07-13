@@ -92,7 +92,7 @@ async def test_call_upload_file_tool_with_binary(
 
     content = b"some content"
 
-    b64_content = base64.b64encode(content)
+    b64_content = base64.b64encode(content).decode("ascii")
     result = await mcp_client.call_tool(
         "upload_file", 
         {

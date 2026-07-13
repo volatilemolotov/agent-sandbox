@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["k8s_agent_sandbox_mpc_server"]
+include = ["k8s_agent_sandbox_mcp_server"]
 exclude = [
     "tests*",
 ]

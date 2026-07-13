@@ -104,7 +104,7 @@ async def test_call_download_file_tool_with_binary(
 
     assert result.structured_content == {
         "content": base64.b64encode(content).decode("ascii"),
-        "bytes_read": 16
+        "bytes_read": 12
     }
     assert result.is_error is False
 
