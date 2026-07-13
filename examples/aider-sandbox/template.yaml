@@ -14,6 +14,9 @@ spec:
           storage: 10Gi
   podTemplate:
     spec:
+      # Ensures the volume files are group-owned by GID 1000
+      securityContext:
+        fsGroup: 1000
       initContainers:
       - name: git-clone
         image: alpine/git
@@ -21,7 +24,7 @@ spec:
         env:
         # Define the repository URL you want to automatically download here
         - name: REPO_URL
-          value: "REPO_URL"
+          value: "https://github.com/aider-ai/aider"
         command:
         - /bin/sh
         - -c
@@ -33,13 +36,14 @@ spec:
           else
             echo "/workspace is already populated. Skipping clone."
           fi
+          chown -R 1000:1000 /workspace
         volumeMounts:
         - name: workspace-volume
           mountPath: /workspace
 
       containers:
       - name: aider
-        image: aider-sandbox:v1
+        image: aider-sandbox:v3
         imagePullPolicy: Never
         workingDir: /workspace
         ports:

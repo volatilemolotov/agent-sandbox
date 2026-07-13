@@ -4,13 +4,24 @@ This guide explains how to deploy [Aider](https://aider.chat/), an AI pair progr
 
 ## Set up
 
+Clone the repository and switch to this example directory:
+
+```bash
+git clone https://github.com/kubernetes-sigs/agent-sandbox.git
+cd agent-sandbox/examples/aider-sandbox
+```
+
 Create a local Kubernetes environment to host the Agent Sandbox controller and our resources.
 
 ```bash
 kind create cluster --name agent-sandbox
 ```
 
-Then install [agent-sandbox CRDs](https://github.com/kubernetes-sigs/agent-sandbox#installation).
+Install the Agent Sandbox controller (core + extensions) by following the [installation guide](https://github.com/kubernetes-sigs/agent-sandbox#installation), then verify it is running:
+
+```bash
+kubectl wait --for=condition=Ready pod -l app=agent-sandbox-controller -n agent-sandbox-system --timeout=120s
+```
 
 ## Deploy Aider
 
@@ -48,7 +59,8 @@ To access the Aider browser interface, we need to route traffic from your local 
 
 ```bash
 sandbox_name=$(kubectl get sandboxclaim user-session-aider -o jsonpath='{.status.sandbox.name}')
-kubectl port-forward pod/${sandbox_name} 8501:8501
+pod_name=$(kubectl get sandbox "${sandbox_name}" -o jsonpath='{.metadata.annotations.agents\.x-k8s\.io/pod-name}')
+kubectl port-forward "pod/${pod_name}" 8501:8501
 ```
 
 Because the sandbox automatically cloned the target GitHub repository into the `/workspace` directory, Aider is fully context-aware from the moment you connect. You can immediately ask it to analyze the codebase, write new features, or run local shell commands. Here is an example of what that looks like:

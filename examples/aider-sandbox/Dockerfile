@@ -10,6 +10,12 @@ ENV STREAMLIT_SERVER_ADDRESS="0.0.0.0"
 ENV STREAMLIT_SERVER_PORT="8501"
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS="false"
 
+# Create a non-root user (UID 1000) for secure execution
+RUN useradd -m -u 1000 python
+
 WORKDIR /workspace
+
+# Switch to the non-root user before running the application
+USER 1000
 
 CMD ["aider", "--browser"]
