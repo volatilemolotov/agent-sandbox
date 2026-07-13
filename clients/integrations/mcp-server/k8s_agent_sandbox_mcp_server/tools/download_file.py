@@ -51,7 +51,7 @@ async def download_file(
     try:
         content = await sandbox.files.read(path, timeout=timeout)
     except Exception as e:
-        raise RuntimeError(f"Failed to read file from sandbox: {e}")
+        raise RuntimeError(f"Failed to read file from sandbox: {e}") from e
 
     try:
         if binary:
@@ -59,7 +59,7 @@ async def download_file(
         else:
             final_content = content.decode("utf-8")
     except Exception as e:
-        raise ValueError(f"Failed to decode file content: {e}")
+        raise ValueError(f"Failed to decode file content: {e}") from e
 
     return DownloadFileOutputSchema(
         content=final_content,

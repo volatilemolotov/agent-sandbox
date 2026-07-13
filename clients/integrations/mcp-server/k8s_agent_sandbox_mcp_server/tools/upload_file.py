@@ -54,12 +54,12 @@ async def upload_file(
         else:
             content_bytes = content.encode("utf-8")
     except Exception as e:
-        raise ValueError(f"Failed to decode or encode content: {e}")
+        raise ValueError(f"Failed to decode or encode content: {e}") from e
 
     try:
         await sandbox.files.write(path, content_bytes, timeout=timeout)
     except Exception as e:
-        raise RuntimeError(f"Failed to write file to sandbox: {e}")
+        raise RuntimeError(f"Failed to write file to sandbox: {e}") from e
 
     return UploadFileOutputSchema(
         bytes_written=len(content_bytes)

@@ -50,7 +50,7 @@ async def execute_command(
     try:
         execution_result = await sandbox.commands.run(command, timeout=timeout)
     except Exception as e:
-        raise RuntimeError(f"Failed to execute command in sandbox: {e}")
+        raise RuntimeError(f"Failed to execute command in sandbox: {e}") from e
 
     return ExecuteCommandOutputSchema(
         exit_code=execution_result.exit_code,
