@@ -18,7 +18,7 @@ import pytest
 
 @pytest.mark.anyio
 @pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
-async def test_call_create_sandbox_tool_with_default_args(
+async def test_read_get_sandboxes_resource_with_default_args(
     mcp_client,
     mock_sandbox_client,
 ):
