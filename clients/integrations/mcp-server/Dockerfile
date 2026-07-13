@@ -10,10 +10,10 @@ WORKDIR /app
 # Copy the project configuration first to leverage Docker layer caching
 COPY pyproject.toml README.md /app/
 
-RUN pip install --no-cache-dir .
-
 # Copy the application code
 COPY k8s_agent_sandbox_mcp_server /app/k8s_agent_sandbox_mcp_server
+
+RUN pip install --no-cache-dir .
 
 # Expose the port uvicorn will run on
 EXPOSE 8000
