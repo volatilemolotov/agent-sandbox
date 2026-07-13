@@ -63,6 +63,6 @@ async def download_file(
 
     return DownloadFileOutputSchema(
         content=final_content,
-        bytes_read=len(final_content),
+        bytes_read=len(content),
     )
 
