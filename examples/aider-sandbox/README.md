@@ -16,6 +16,8 @@ Then install [agent-sandbox CRDs](https://github.com/kubernetes-sigs/agent-sandb
 
 Build the custom Docker image containing Aider and its browser dependencies. Since we are using a local kind cluster, we need to load the image directly into the cluster's nodes so Kubernetes doesn't try to pull it from a remote registry.
 
+> **Note for live clusters:** Push the `aider-sandbox:v1` image to your registry and update `imagePullPolicy: IfNotPresent` in `template.yaml`.
+
 ```bash
 docker build -t aider-sandbox:v1 .
 kind load docker-image aider-sandbox:v1 --name agent-sandbox
@@ -32,6 +34,8 @@ kubectl create secret generic llm-secrets --from-literal=openai-api-key=${OPENAI
 
 With the prerequisites in place, apply the Agent Sandbox Custom Resource manifests. This will deploy the Sandbox template, initialize the warm pool for instant access, and bind a user claim to provision the workspace and clone your target repository.
 
+> **Note:** Before applying, edit template.yaml and change `REPO_URL` to point to your repository.
+
 ```bash
 kubectl apply -f template.yaml
 kubectl apply -f warmpool.yaml
@@ -44,7 +48,7 @@ To access the Aider browser interface, we need to route traffic from your local 
 
 ```bash
 sandbox_name=$(kubectl get sandboxclaim user-session-aider -o jsonpath='{.status.sandbox.name}')
-kubectl port-forward ${sandbox_name} 8501:8501
+kubectl port-forward pod/${sandbox_name} 8501:8501
 ```
 
 Because the sandbox automatically cloned the target GitHub repository into the `/workspace` directory, Aider is fully context-aware from the moment you connect. You can immediately ask it to analyze the codebase, write new features, or run local shell commands. Here is an example of what that looks like:

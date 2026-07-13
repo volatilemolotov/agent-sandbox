@@ -4,6 +4,6 @@ metadata:
   name: aider-warmpool
   namespace: default
 spec:
-  replicas: 2
+  replicas: 1
   sandboxTemplateRef:
     name: aider-browser-template

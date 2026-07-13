@@ -21,7 +21,7 @@ spec:
         env:
         # Define the repository URL you want to automatically download here
         - name: REPO_URL
-          value: "https://github.com/kubernetes-sigs/agent-sandbox"
+          value: "REPO_URL"
         command:
         - /bin/sh
         - -c
