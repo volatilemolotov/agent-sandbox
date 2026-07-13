@@ -35,7 +35,7 @@ class DirectConnectionConfig(SandboxDirectConnectionConfig):
 
 
 class InClusterConnectionConfig(SandboxInClusterConnectionConfig):
-    type: Literal["in-cluster"]
+    type: Literal["in-cluster"] = Field(default="in-cluster")
 
 
 ConnectionType = Union[GatewayConnectionConfig, DirectConnectionConfig, InClusterConnectionConfig]
