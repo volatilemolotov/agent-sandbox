@@ -11,13 +11,15 @@ install-gen-tools:
 
 GOPATH ?= $(shell go env GOPATH)
 
+PYTHON ?= python3
+
 CRD_REF_DOCS_VERSION := v0.3.0
 .PHONY: generate-api-docs
 REF_CRD_PATH="./docs/api.md"
 generate-api-docs: # Generate API reference documentation
 	@echo "Generating API Docs..."
 	go install github.com/elastic/crd-ref-docs@$(CRD_REF_DOCS_VERSION)
-	$(shell go env GOPATH)/bin/crd-ref-docs --source-path=./ --config=./docs/crd-ref-docs.yaml --renderer=markdown --output-path=$(REF_CRD_PATH) --max-depth=10
+	$(GOPATH)/bin/crd-ref-docs --source-path=./ --config=./docs/crd-ref-docs.yaml --renderer=markdown --output-path=$(REF_CRD_PATH) --max-depth=10
 
 GOMARKDOC_VERSION := v1.1.0
 .PHONY: generate-go-docs
@@ -25,7 +27,7 @@ REF_GO_PATH := "./docs/go_sdk_reference.md"
 generate-go-docs: # Generate Go SDK reference documentation
 	@echo "Generating Go SDK Documentation..."
 	go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@$(GOMARKDOC_VERSION)
-	$(shell go env GOPATH)/bin/gomarkdoc \
+	$(GOPATH)/bin/gomarkdoc \
 		--repository.url "https://github.com/kubernetes-sigs/agent-sandbox" \
 		--repository.default-branch "main" \
 		--repository.path "/" \
@@ -39,9 +41,9 @@ PYDOC_MARKDOWN_VERSION := 4.8.2
 REF_PYTHON_PATH := "./docs/python_sdk_reference.md"
 generate-python-docs: # Generate Python SDK reference documentation
 	@echo "Generating Python SDK Documentation..."
-	python -m pip install --upgrade pip
-	python -m pip install pydoc-markdown==$(PYDOC_MARKDOWN_VERSION)
-	python -m pip install -e ./clients/python/agentic-sandbox-client/
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install pydoc-markdown==$(PYDOC_MARKDOWN_VERSION)
+	$(PYTHON) -m pip install -e ./clients/python/agentic-sandbox-client/
 	pydoc-markdown -I ./clients/python/agentic-sandbox-client/ -m k8s_agent_sandbox.sandbox_client -m k8s_agent_sandbox.models > $(REF_PYTHON_PATH).tmp1
 	sed 's/^#/##/' < $(REF_PYTHON_PATH).tmp1 > $(REF_PYTHON_PATH)
 	rm $(REF_PYTHON_PATH).tmp1
