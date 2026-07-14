@@ -4,6 +4,10 @@ metadata:
   name: aider-browser-template
   namespace: default
 spec:
+  networkPolicyManagement: Managed
+  networkPolicy:
+    egress:
+    - ports: [{protocol: UDP, port: 53}, {protocol: TCP, port: 53}]
   volumeClaimTemplates:
   - metadata:
       name: workspace-volume
@@ -30,7 +34,7 @@ spec:
         - -c
         - |
           # Only clone if the directory is empty to avoid crashing on restarts
-          if [ -z "$(ls -A /workspace)" ]; then
+          if [ ! -d /workspace/.git ]; then
             echo "Cloning $REPO_URL..."
             git clone "$REPO_URL" .
           else
