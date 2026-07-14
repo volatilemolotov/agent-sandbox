@@ -16,8 +16,9 @@
 """
 End-to-end test for the gemini-cu-sandbox example.
 
-Creates a kind cluster, deploys the agent-sandbox controller with extensions,
-builds the sandbox-gemini-runtime and sandbox-router images, applies the
+Runs the sandbox runtime's unit tests, then creates a kind cluster, deploys
+the agent-sandbox controller with extensions, builds the
+sandbox-gemini-runtime and sandbox-router images, applies the
 SandboxTemplate, and runs the computer-use Python unittest.
 
 Requires GEMINI_API_KEY to be set in the environment.
@@ -73,6 +74,17 @@ class GeminiCUSandboxTestRunner(TestRunner):
         cleanup()
 
         try:
+            print("\n-- Installing sandbox-gemini-runtime unit test dependencies --")
+            run(["pip", "install", "--break-system-packages", "fastapi", "pytest", "httpx"])
+
+            print("\n-- Running sandbox-gemini-runtime unit tests --")
+            result = run(["python3", "-m", "pytest", "test_main.py", "-v"],
+                         cwd=EXAMPLE_DIR, check=False)
+            if result.returncode != 0:
+                print("ERROR: unit tests reported failures.", file=sys.stderr)
+                cleanup()
+                return subprocess.CompletedProcess([], 1)
+
             print("\n-- Building sandbox-gemini-runtime image --")
             run(["docker", "build", "-t", GEMINI_IMAGE, "--load", EXAMPLE_DIR])
 
