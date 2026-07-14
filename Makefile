@@ -41,10 +41,10 @@ PYDOC_MARKDOWN_VERSION := 4.8.2
 REF_PYTHON_PATH := "./docs/python_sdk_reference.md"
 generate-python-docs: # Generate Python SDK reference documentation
 	@echo "Generating Python SDK Documentation..."
-	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install pydoc-markdown==$(PYDOC_MARKDOWN_VERSION)
-	$(PYTHON) -m pip install -e ./clients/python/agentic-sandbox-client/
-	pydoc-markdown -I ./clients/python/agentic-sandbox-client/ -m k8s_agent_sandbox.sandbox_client -m k8s_agent_sandbox.models > $(REF_PYTHON_PATH).tmp1
+	$(PYTHON) -m venv .venv
+	.venv/bin/python -m pip install --upgrade pip
+	.venv/bin/python -m pip install pydoc-markdown==$(PYDOC_MARKDOWN_VERSION)
+	.venv/bin/pydoc-markdown -I ./clients/python/agentic-sandbox-client/ -m k8s_agent_sandbox.sandbox_client -m k8s_agent_sandbox.models > $(REF_PYTHON_PATH).tmp1
 	sed 's/^#/##/' < $(REF_PYTHON_PATH).tmp1 > $(REF_PYTHON_PATH)
 	rm $(REF_PYTHON_PATH).tmp1
 
