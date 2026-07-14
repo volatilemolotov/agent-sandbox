@@ -349,7 +349,7 @@ const (
 ```
 
 <a name="Files"></a>
-### type [Files](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L72-L82>)
+### type [Files](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L84-L94>)
 
 Files provides file operations on a sandbox.
 
@@ -360,7 +360,7 @@ type Files struct {
 ```
 
 <a name="Files.Exists"></a>
-#### func \(\*Files\) [Exists](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L238>)
+#### func \(\*Files\) [Exists](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L250>)
 
 ```go
 func (f *Files) Exists(ctx context.Context, path string, opts ...CallOption) (bool, error)
@@ -369,7 +369,7 @@ func (f *Files) Exists(ctx context.Context, path string, opts ...CallOption) (bo
 Exists checks if a file or directory exists at the given path in the sandbox.
 
 <a name="Files.List"></a>
-#### func \(\*Files\) [List](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L189>)
+#### func \(\*Files\) [List](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L201>)
 
 ```go
 func (f *Files) List(ctx context.Context, path string, opts ...CallOption) ([]FileEntry, error)
@@ -378,7 +378,7 @@ func (f *Files) List(ctx context.Context, path string, opts ...CallOption) ([]Fi
 List returns the contents of a directory in the sandbox.
 
 <a name="Files.Read"></a>
-#### func \(\*Files\) [Read](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L145>)
+#### func \(\*Files\) [Read](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L157>)
 
 ```go
 func (f *Files) Read(ctx context.Context, path string, opts ...CallOption) ([]byte, error)
@@ -387,7 +387,7 @@ func (f *Files) Read(ctx context.Context, path string, opts ...CallOption) ([]by
 Read downloads a file from the sandbox.
 
 <a name="Files.Write"></a>
-#### func \(\*Files\) [Write](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L90>)
+#### func \(\*Files\) [Write](<https://github.com/kubernetes-sigs/agent-sandbox/blob/main/clients/go/sandbox/files.go#L102>)
 
 ```go
 func (f *Files) Write(ctx context.Context, path string, content []byte, opts ...CallOption) error
