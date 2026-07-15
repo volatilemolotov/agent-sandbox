@@ -130,7 +130,12 @@ type Config struct {
 	// Phases is the ordered list of phase names to run (see package comment).
 	Phases []string `json:"phases"`
 
+	// FillCount is the resolved fill phase size (FillPerNode * worker-node
+	// count), recorded here so it lands in summary.json.
 	FillCount int `json:"fillCount"`
+	// FillPerNode sizes the fill phase relative to the cluster: fill creates
+	// FillPerNode * worker-node-count sandboxes.
+	FillPerNode int `json:"fillPerNode"`
 
 	ProbeCount       int           `json:"probeCount"`
 	ProbeConcurrency int           `json:"probeConcurrency"`
@@ -168,7 +173,7 @@ func run(ctx context.Context) error {
 	flag.DurationVar(&cfg.PerSandboxTimeout, "per-sandbox-timeout", 5*time.Minute, "Timeout for a single sandbox to become ready / be deleted")
 	flag.IntVar(&cfg.CreateConcurrency, "create-concurrency", 20, "Number of concurrent workers creating Sandboxes (fill and throughput phases)")
 	phasesFlag := flag.String("phases", "probe,throughput-mif50", "Comma-separated phase names to run in order (fill, probe, throughput-mifN). Structured forms like throughput{maxInFlight:N} may be added later")
-	flag.IntVar(&cfg.FillCount, "fill-count", 0, "Number of long-running background Sandboxes for the fill phase")
+	flag.IntVar(&cfg.FillPerNode, "fill-per-node", 10, "Number of long-running background Sandboxes per worker node for the fill phase")
 	flag.IntVar(&cfg.ProbeCount, "probe-count", 20, "Number of latency probe Sandboxes for the probe phase")
 	flag.IntVar(&cfg.ProbeConcurrency, "probe-concurrency", 1, "Number of concurrent latency probes; keep low for clean latency numbers")
 	flag.DurationVar(&cfg.ProbeInterval, "probe-interval", 0, "Delay between latency probes")
@@ -191,8 +196,8 @@ func run(ctx context.Context) error {
 	if cfg.Timeout <= 0 || cfg.PerSandboxTimeout <= 0 {
 		return fmt.Errorf("timeouts must be > 0: timeout=%v per-sandbox-timeout=%v", cfg.Timeout, cfg.PerSandboxTimeout)
 	}
-	if cfg.FillCount < 0 || cfg.ProbeCount < 0 || cfg.ThroughputCount < 0 {
-		return fmt.Errorf("counts must be >= 0: fill=%d probe=%d throughput=%d", cfg.FillCount, cfg.ProbeCount, cfg.ThroughputCount)
+	if cfg.FillPerNode < 0 || cfg.ProbeCount < 0 || cfg.ThroughputCount < 0 {
+		return fmt.Errorf("counts must be >= 0: fill-per-node=%d probe=%d throughput=%d", cfg.FillPerNode, cfg.ProbeCount, cfg.ThroughputCount)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, cfg.Timeout)
@@ -207,8 +212,8 @@ func run(ctx context.Context) error {
 	if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create run directory %s: %w", cfg.OutputDir, err)
 	}
-	log.Printf("Starting stress test run %s: phases=%v fill=%d probe=%d throughput=%d, writing results to %s",
-		runID, cfg.Phases, cfg.FillCount, cfg.ProbeCount, cfg.ThroughputCount, cfg.OutputDir)
+	log.Printf("Starting stress test run %s: phases=%v fill-per-node=%d probe=%d throughput=%d, writing results to %s",
+		runID, cfg.Phases, cfg.FillPerNode, cfg.ProbeCount, cfg.ThroughputCount, cfg.OutputDir)
 
 	// Initialize kubernetes client config
 	restConfig, err := getRestConfig()
@@ -228,7 +233,13 @@ func run(ctx context.Context) error {
 	}
 	log.Printf("Cluster: kubernetes %s, %d worker nodes, pod capacity %d, %d pre-existing worker pods",
 		clusterInfo.KubernetesVersion, clusterInfo.Nodes, clusterInfo.PodCapacity, clusterInfo.PreexistingPods)
-	checkClusterCapacity(cfg, clusterInfo)
+	if slices.Contains(cfg.Phases, string(PhaseFill)) {
+		cfg.FillCount = cfg.FillPerNode * clusterInfo.Nodes
+		log.Printf("Fill phase: %d sandboxes (%d per worker node * %d nodes)", cfg.FillCount, cfg.FillPerNode, clusterInfo.Nodes)
+	}
+	if err := checkClusterCapacity(cfg, clusterInfo); err != nil {
+		return err
+	}
 
 	// Create namespace
 	nsClient := dynamicClient.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"})
@@ -433,7 +444,7 @@ func buildPhaseRuns(test *stressTest) ([]phaseRun, error) {
 		switch {
 		case raw == string(PhaseFill):
 			if test.cfg.FillCount <= 0 {
-				return nil, fmt.Errorf("phase %q requires --fill-count > 0", raw)
+				return nil, fmt.Errorf("phase %q requires --fill-per-node > 0", raw)
 			}
 			if test.cfg.CreateConcurrency <= 0 {
 				return nil, fmt.Errorf("--create-concurrency must be > 0 for phase %q", raw)
@@ -491,13 +502,14 @@ func throughputMaxInFlight(name string) (int, bool) {
 	return n, true
 }
 
-// checkClusterCapacity warns when the test configuration will exceed spare cluster
-// pod capacity: in that case latency and throughput results measure queueing
-// for capacity rather than the sandbox launch pipeline.
+// checkClusterCapacity returns an error when the test configuration would
+// exceed spare cluster pod capacity: in that case latency and throughput
+// results would measure queueing for capacity rather than the sandbox launch
+// pipeline, so the run would not test what it claims to test.
 //
 // Phases run sequentially, so peak concurrent test pods is fill plus the
 // larger of the probe/throughput in-flight caps (fill sandboxes stay up).
-func checkClusterCapacity(cfg Config, info *ClusterInfo) {
+func checkClusterCapacity(cfg Config, info *ClusterInfo) error {
 	extra := 0
 	if slices.Contains(cfg.Phases, string(PhaseProbe)) && cfg.ProbeConcurrency > extra {
 		extra = cfg.ProbeConcurrency
@@ -514,14 +526,15 @@ func checkClusterCapacity(cfg Config, info *ClusterInfo) {
 	needed += extra
 	spare := info.PodCapacity - info.PreexistingPods
 	if needed == 0 {
-		return
+		return nil
 	}
 	switch {
 	case needed > spare:
-		log.Printf("WARNING: test needs up to %d concurrent pods but the cluster only has %d spare pod slots; results will measure capacity queueing, not launch performance. Reduce --fill-count / throughput-mifN or add nodes.", needed, spare)
+		return fmt.Errorf("test needs up to %d concurrent pods but the cluster only has %d spare pod slots; results would measure capacity queueing, not launch performance. Reduce --fill-per-node / throughput-mifN or add nodes", needed, spare)
 	case spare > 0 && needed > spare*9/10:
 		log.Printf("WARNING: test needs up to %d concurrent pods, over 90%% of the %d spare pod slots; scheduling may interfere with measurements.", needed, spare)
 	}
+	return nil
 }
 
 // inspectCluster records the apiserver version and counts worker-node pod
