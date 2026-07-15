@@ -2,9 +2,6 @@ import logging
 import posixpath
 import textwrap
 import shlex
-from typing import (
-    Self,
-)
 
 from deepagents.backends.protocol import (
     ExecuteResponse,
@@ -65,7 +62,7 @@ class K8sAgentSandbox(BaseSandbox):
         sandbox_settings: K8sAgentSandboxSettings,
         scope: dict[str, str],
         scope_labels_prefix: str = "scope.langchain-deepagents",
-    ) -> Self:
+    ):
         """
         Create DeepAgents backend that re-uses sandbox with matching "scope" labels
         or creates a new one with these labels, so it can be reused later.
@@ -94,7 +91,7 @@ class K8sAgentSandbox(BaseSandbox):
     def from_existing_sandbox(
         cls,
         sandbox: Sandbox,
-    ) -> Self:
+    ):
         """
         Create Sandbox backend from existing sandbox instance.
         """
@@ -112,7 +109,7 @@ class K8sAgentSandbox(BaseSandbox):
         client: SandboxClient,
         claim_name: str,
         namespace: str,
-    ) -> Self:
+    ):
         """
         Create Sandbox backend from existing sandbox by finding it by its calim name.
         """
