@@ -22,7 +22,7 @@ from ..settings import Settings
 
 
 class CreateSandboxOutputSchema(BaseModel):
-    sandbox_claim_name: str = Field(description="Name of a created sandbox claim.")
+    sandbox_claim_name: str = Field(description="Name of the created sandbox claim.")
 
 async def create_sandbox(
     ctx: Context,
@@ -38,7 +38,7 @@ async def create_sandbox(
 
     Args:
         warmpool: The name of the warmpool to use.
-        namespace: The Kubernetes namespace to create the sandbox in.
+        namespace: The Kubernetes namespace in which to create the sandbox.
         sandbox_ready_timeout: Timeout in seconds to wait for the sandbox to be ready.
         labels: Additional labels for the sandbox.
         shutdown_after_seconds: Time in seconds after which the sandbox automatically shuts down.
