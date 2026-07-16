@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from collections.abc import Callable
 import logging
 
@@ -25,7 +25,7 @@ from .settings import K8sAgentSandboxSettings
 logger = logging.getLogger(__name__)
 
 
-class K8sAgentSandboxLifecycleManager:
+class K8sAgentSandboxLifecycleManager(ABC):
     """A helper class that takes care of managing the sandbox instance."""
     def __init__(self) -> None:
         self._sandbox = None
