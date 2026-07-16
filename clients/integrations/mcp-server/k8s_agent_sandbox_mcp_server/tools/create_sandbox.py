@@ -34,6 +34,17 @@ async def create_sandbox(
     pod_labels: dict[str, str] | None = None,
     pod_annotations: dict[str, str] | None = None,
 ) -> CreateSandboxOutputSchema:
+    """Create a new sandbox.
+
+    Args:
+        warmpool: The name of the warmpool to use.
+        namespace: The Kubernetes namespace to create the sandbox in.
+        sandbox_ready_timeout: Timeout in seconds to wait for the sandbox to be ready.
+        labels: Additional labels for the sandbox.
+        shutdown_after_seconds: Time in seconds after which the sandbox automatically shuts down.
+        pod_labels: Additional labels for the pod.
+        pod_annotations: Additional annotations for the pod.
+    """
 
     client = ctx.lifespan_context["client"]
     settings: Settings = ctx.lifespan_context["settings"]
