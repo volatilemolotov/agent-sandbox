@@ -55,6 +55,7 @@ def mock_sandbox_client(mock_sandbox):
     client = AsyncMock()
     client.create_sandbox.return_value = mock_sandbox
     client.get_sandbox.return_value = mock_sandbox
+    client.list_all_sandboxes.return_value = [mock_sandbox.claim_name]
     return client
     
 @pytest.fixture

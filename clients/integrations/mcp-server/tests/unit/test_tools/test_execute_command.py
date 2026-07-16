@@ -14,6 +14,7 @@
 
 import pytest
 from k8s_agent_sandbox.models import ExecutionResult
+from fastmcp.exceptions import ToolError
 
 
 @pytest.fixture
@@ -98,3 +99,23 @@ async def test_call_execute_command_tool_with_non_default_args(
         "some command",
         timeout=20,
     )
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
+async def test_session_id_not_found(
+    mcp_client,
+    mock_sandbox_client,
+):
+    mock_sandbox_client.list_all_sandboxes.return_value = []
+
+    with pytest.raises(ToolError, match="claim 'my-claim' is not found"):
+        await mcp_client.call_tool(
+            "execute_command",
+            {
+                "sandbox_claim_name": "my-claim",
+                "namespace": "my-namespace",
+                "command": "some command",
+            },
+        )
+

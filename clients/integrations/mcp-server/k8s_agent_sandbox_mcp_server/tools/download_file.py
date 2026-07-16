@@ -20,6 +20,8 @@ from pydantic import (
 )
 from fastmcp import Context
 
+from ..utils import get_sandbox
+
 
 class DownloadFileOutputSchema(BaseModel):
     content: str = Field(description="The content of a file.")
@@ -46,7 +48,7 @@ async def download_file(
     """
     client = ctx.lifespan_context["client"]
 
-    sandbox = await client.get_sandbox(sandbox_claim_name, namespace=namespace)
+    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
 
     try:
         content = await sandbox.files.read(path, timeout=timeout)

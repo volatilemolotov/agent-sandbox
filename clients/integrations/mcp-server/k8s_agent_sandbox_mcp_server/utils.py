@@ -12,14 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from fastmcp import Context
 from k8s_agent_sandbox.async_sandbox_client import AsyncSandboxClient
+
+from .settings import Settings
 
 
 async def get_sandbox(
+    ctx: Context,
     client: AsyncSandboxClient,
     sandbox_claim_name: str,
     namespace: str,
 ):
+
+    client = ctx.lifespan_context["client"]
+    settings: Settings = ctx.lifespan_context["settings"]
+
+    label_selector = f"{settings.session_id_label_key}={ctx.session_id}"
+
+    found = set(await client.list_all_sandboxes(
+        namespace=namespace,
+        label_selector=label_selector,
+    ))
+
+    if sandbox_claim_name not in found:
+        raise RuntimeError(f"Sandbox claim '{sandbox_claim_name}' is not found in namespace 'namespace'.")
+
     sandbox = await client.get_sandbox(sandbox_claim_name, namespace=namespace)
 
     return sandbox

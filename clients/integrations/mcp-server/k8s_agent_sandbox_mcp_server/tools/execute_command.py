@@ -45,7 +45,7 @@ async def execute_command(
     """
     client = ctx.lifespan_context["client"]
 
-    sandbox = await get_sandbox(client, sandbox_claim_name, namespace)
+    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
 
     try:
         execution_result = await sandbox.commands.run(command, timeout=timeout)

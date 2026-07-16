@@ -20,6 +20,8 @@ from pydantic import (
 )
 from fastmcp import Context
 
+from ..utils import get_sandbox
+
 
 class UploadFileOutputSchema(BaseModel):
     bytes_written: int = Field(description="Bytes written to a file.")
@@ -47,7 +49,7 @@ async def upload_file(
     """
     client = ctx.lifespan_context["client"]
 
-    sandbox = await client.get_sandbox(sandbox_claim_name, namespace=namespace)
+    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
     try:
         if binary:
             content_bytes = base64.b64decode(content)

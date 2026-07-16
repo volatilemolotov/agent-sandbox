@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import pytest
+from fastmcp.exceptions import ToolError
+
 
 @pytest.mark.anyio
 @pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
@@ -31,9 +33,27 @@ async def test_call_delete_sandbox_tool_with_default_args(
 
     assert result.structured_content == None
     assert result.is_error is False
+
     mock_sandbox_client.delete_sandbox.assert_called_once_with(
         "my-claim",
         namespace='my-namespace',
     )
 
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
+async def test_session_id_not_found(
+    mcp_client,
+    mock_sandbox_client,
+):
+    mock_sandbox_client.list_all_sandboxes.return_value = []
+
+    with pytest.raises(ToolError, match="claim 'my-claim' is not found"):
+        await mcp_client.call_tool(
+            "delete_sandbox",
+            {
+                "sandbox_claim_name": "my-claim",
+                "namespace": "my-namespace",
+            },
+        )
 

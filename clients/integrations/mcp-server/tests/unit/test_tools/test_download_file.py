@@ -15,6 +15,7 @@
 import base64
 
 import pytest
+from fastmcp.exceptions import ToolError
 
 
 @pytest.mark.anyio
@@ -107,4 +108,23 @@ async def test_call_download_file_tool_with_binary(
         "bytes_read": 12
     }
     assert result.is_error is False
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
+async def test_session_id_not_found(
+    mcp_client,
+    mock_sandbox_client,
+):
+    mock_sandbox_client.list_all_sandboxes.return_value = []
+
+    with pytest.raises(ToolError, match="claim 'my-claim' is not found"):
+        await mcp_client.call_tool(
+            "download_file",
+            {
+                "sandbox_claim_name": "my-claim",
+                "namespace": "my-namespace",
+                "path": "some/path",
+            },
+        )
 

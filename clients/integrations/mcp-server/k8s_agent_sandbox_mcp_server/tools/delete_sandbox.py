@@ -14,6 +14,8 @@
 
 from fastmcp import Context
 
+from ..utils import get_sandbox
+
 
 async def delete_sandbox(
     ctx: Context,
@@ -28,5 +30,8 @@ async def delete_sandbox(
         namespace: Kubernetes namespace for the target sandbox claim.
     """
     client = ctx.lifespan_context["client"]
+
+    # Making sure that sandbox belongs to this session, otherwise raise error.
+    await get_sandbox(ctx, client, sandbox_claim_name, namespace)
 
     await client.delete_sandbox(sandbox_claim_name, namespace=namespace)
