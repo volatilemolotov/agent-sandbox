@@ -42,10 +42,10 @@ async def upload_file(
     Args:
         sandbox_claim_name: Name of a target sandbox claim.
         namespace: Kubernetes namespace with a target sandbox.
-        path: The target upload path.
+        path: The upload path.
         content: Content of the file.
         binary: When True, the 'content' argument is expected to be a base64-encoded binary blob.
-        timeout: Time is seconds to upload the file until the timeout.
+        timeout: Time in seconds to upload the file until the timeout.
     """
     client = ctx.lifespan_context["client"]
 

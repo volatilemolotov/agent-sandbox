@@ -42,9 +42,9 @@ async def download_file(
     Args:
         sandbox_claim_name: Name of a target sandbox claim.
         namespace: Kubernetes namespace with a target sandbox.
-        path: The target upload path.
+        path: The download path.
         binary: When True, the content of a file is returned as a base64-encoded binary blob.
-        timeout: Time is seconds to download the file until the timeout.
+        timeout: Time in seconds to download the file until the timeout.
     """
     client = ctx.lifespan_context["client"]
 

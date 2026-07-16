@@ -51,7 +51,9 @@ async def create_sandbox(
 
     labels = labels or {}
 
-    labels[settings.session_id_label_key] = ctx.session_id
+    session_id = getattr(ctx, "session_id", None) or "00000000-0000-0000-0000-000000000000"
+
+    labels[settings.session_id_label_key] = session_id
 
     sandbox = await client.create_sandbox(
         warmpool,
