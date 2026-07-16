@@ -12,7 +12,7 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-version = "0.1.0"
+ynamic = ["version"]
 requires-python = ">=3.10"
 dependencies = [
     "deepagents>=0.6.0,<0.7.0",
@@ -34,6 +34,14 @@ dev = [
 [tool.setuptools.packages.find]
 include = ["deepagents_k8s_agent_sandbox*"]
 exclude = ["tests*"]
+
+[tool.setuptools.exclude-package-data]
+# setuptools_scm automatically bundles tracked files as package data.
+# We need to explicitly exclude test directories and files from being bundled.
+"*" = ["test/*", "tests/*", "*/test/*", "*/tests/*", "test_*.py", "*_test.py"]
+
+[tool.setuptools_scm]
+root = "../../.."
 
 [project.optional-dependencies]
 test = [

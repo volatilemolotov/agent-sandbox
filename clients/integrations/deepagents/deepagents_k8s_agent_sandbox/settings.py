@@ -29,5 +29,6 @@ class K8sAgentSandboxSettings:
     sandbox_ready_timeout: int = 180
     labels: dict[str, str] | None = None
     shutdown_after_seconds: int | None = None
+    volume_claim_templates: list[dict] | None = None
     pod_labels: dict[str, str] | None = None
     pod_annotations: dict[str, str] | None = None
