@@ -39,7 +39,9 @@ class TestExistingSandbox:
 
         assert sandbox == mock_sandbox
 
-        mock_sandbox_client.get_sandbox.assert_called_once_with("my-claim", namespace="my-namespace")
+        mock_sandbox_client.get_sandbox.assert_called_once_with(
+            "my-claim", namespace="my-namespace"
+        )
         assert mock_sandbox_client.create_sandbox.call_count == 0
 
 

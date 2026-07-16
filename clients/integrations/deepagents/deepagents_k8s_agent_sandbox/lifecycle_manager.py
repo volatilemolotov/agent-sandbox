@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class K8sAgentSandboxLifecycleManager:
-    """A helper class that takes care if managing the sandbox instance."""
+    """A helper class that takes care of managing the sandbox instance."""
     def __init__(self) -> None:
         self._sandbox = None
 
@@ -61,7 +61,7 @@ class ExistingSandboxClaimLifecycleManager(K8sAgentSandboxLifecycleManager):
     ) -> None:
         super().__init__()
         self._client = client
-        self._claim_name =claim_name
+        self._claim_name = claim_name
         self._namespace = namespace
 
     def _get_sandbox(self) -> Sandbox:
@@ -72,7 +72,7 @@ class ExistingSandboxClaimLifecycleManager(K8sAgentSandboxLifecycleManager):
 
 
 class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
-    """Fully manager the lifecycle of a sandbox based on the provided scope."""
+    """Fully manage the lifecycle of a sandbox based on the provided scope."""
     def __init__(
         self, 
         client: SandboxClient,
@@ -85,11 +85,11 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
         self._sandbox_settings = sandbox_settings
 
         self._labels = {
-            f"{scope_labels_prefix}/{k}":v for k,v in scope.items()
+            f"{scope_labels_prefix}/{k}": v for k, v in scope.items()
         }
         
-        self._label_selector=",".join(
-            [ f"{k}={v}" for k,v in self._labels.items()]
+        self._label_selector = ",".join(
+            [f"{k}={v}" for k, v in self._labels.items()]
         )
 
     def _get_sandbox(self) -> Sandbox:

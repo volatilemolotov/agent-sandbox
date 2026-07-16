@@ -53,7 +53,7 @@ class K8sAgentSandbox(BaseSandbox):
 
     Args:
         lifecycle_manager: the instance of the `K8sAgentSandboxLifecycleManager`
-            which is responsible for managing the sandbox instanse.
+            which is responsible for managing the sandbox instance.
         root_dir: Sandbox's working directory.
         default_timeout_seconds: Default timeout for various operations.
     """
@@ -84,10 +84,10 @@ class K8sAgentSandbox(BaseSandbox):
         Args:
             client: SandboxClient instance.
             sandbox_settings: Instance with sandbox settings.
-            scope: Dictionaly that respresents labels that are applied to a sandbox claim.
+            scope: Dictionary that represents labels that are applied to a sandbox claim.
                 This can be used in a graph factory to specify user, thread or 
                 assistant specific labels to isolate sandboxes from different runs.
-            scope_labels_prefix: Perfix for scope label keys.  
+            scope_labels_prefix: Prefix for scope label keys.
         """
 
         lifecycle_manager = LabelScopedLifecycleManager(
@@ -125,7 +125,7 @@ class K8sAgentSandbox(BaseSandbox):
         namespace: str,
     ):
         """
-        Create Sandbox backend from existing sandbox by finding it by its calim name.
+        Create Sandbox backend from existing sandbox by finding it by its claim name.
         """
 
 
@@ -204,7 +204,12 @@ class K8sAgentSandbox(BaseSandbox):
 
     def _upload_file(self, path: str, content: bytes):
         try:
-            self._upload_file_and_handle_error(path, content)
+            self._ensure_parent_dir(path)
+            try:
+                self._assert_file_valid_state(path)
+            except FileNotFoundError:
+                pass
+            self._sandbox.files.write(path, content)
             error = None
         except Exception as e:
             error = _map_file_error(e)
@@ -213,31 +218,14 @@ class K8sAgentSandbox(BaseSandbox):
 
     def _download_file(self, path: str):
         try:
-            content = self._download_file_and_handle_error(path)
+            self._assert_file_valid_state(path)
+            content = self._sandbox.files.read(path)
             error = None
         except Exception as e:
             content = None
             error = _map_file_error(e)
  
-        return FileDownloadResponse(path,content=content, error=error)
-
-
-    def _upload_file_and_handle_error(self, path: str, content: bytes):
-        """Temporary workaround for missing SDK structured errors."""
-
-        self._ensure_parent_dir(path)
-        try:
-            self._assert_file_valid_state(path)
-        except FileNotFoundError:
-            pass
-        self._sandbox.files.write(path, content)
-
-    def _download_file_and_handle_error(self, path: str) -> bytes:
-        """Temporary workaround for missing SDK structured errors."""
-
-        self._assert_file_valid_state(path)
-        return self._sandbox.files.read(path)
-
+        return FileDownloadResponse(path, content=content, error=error)
 
     def _ensure_parent_dir(self, path: str) -> None:
         parent = posixpath.dirname(path)
