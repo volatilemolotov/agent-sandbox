@@ -88,6 +88,7 @@ var errAdoptionTriggeredRetry = errors.New("triggered adoption completion, retry
 const adoptionCacheLagRequeueDelay = 50 * time.Millisecond
 
 var restrictedDomains = []string{"kubernetes.io", "k8s.io", "agents.x-k8s.io"}
+var exemptedMetadataKeys = []string{autoscalerSafeToEvictAnnotation}
 
 var ErrCrossNamespaceAdoption = errors.New("cross-namespace adoption forbidden")
 
@@ -1010,8 +1011,8 @@ func (r *SandboxClaimReconciler) completeAdoption(ctx context.Context, claim *ex
 	// Remove the warm pool's default eviction annotation so the adopted sandbox
 	// is protected from autoscaler scale-downs now that it hosts active state.
 	// Custom template-specified overrides (e.g. "false") are explicitly kept.
-	if adopted.Spec.PodTemplate.ObjectMeta.Annotations != nil && adopted.Spec.PodTemplate.ObjectMeta.Annotations[warmPoolEvictionAnnotation] == "true" {
-		delete(adopted.Spec.PodTemplate.ObjectMeta.Annotations, warmPoolEvictionAnnotation)
+	if adopted.Spec.PodTemplate.ObjectMeta.Annotations != nil && adopted.Spec.PodTemplate.ObjectMeta.Annotations[autoscalerSafeToEvictAnnotation] == "true" {
+		delete(adopted.Spec.PodTemplate.ObjectMeta.Annotations, autoscalerSafeToEvictAnnotation)
 	}
 
 	// Transfer ownership from SandboxWarmPool to SandboxClaim
@@ -1162,7 +1163,9 @@ func (r *SandboxClaimReconciler) validateAdditionalPodMetadata(claimMeta *v1beta
 		} else {
 			// For annotations, we use the blocklist
 			if isRestrictedDomain(domain) {
-				return fmt.Errorf("restricted system domain: %q is not allowed in AdditionalPodMetadata", key)
+				if !slices.Contains(exemptedMetadataKeys, key) {
+					return fmt.Errorf("restricted system domain: %q is not allowed in AdditionalPodMetadata", key)
+				}
 			}
 		}
 
