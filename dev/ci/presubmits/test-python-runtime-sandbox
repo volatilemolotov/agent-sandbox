@@ -82,7 +82,7 @@ class PythonRuntimeSandboxTestRunner(TestRunner):
                 return subprocess.CompletedProcess([], 1)
 
             print("\n-- Building sandbox-runtime image --")
-            run(["docker", "build", "-t", RUNTIME_IMAGE, EXAMPLE_DIR])
+            run(["docker", "build", "-t", RUNTIME_IMAGE, "--load", EXAMPLE_DIR])
 
             print("\n-- Loading image into kind cluster --")
             run(["kind", "load", "docker-image", RUNTIME_IMAGE, "--name", self.name])
