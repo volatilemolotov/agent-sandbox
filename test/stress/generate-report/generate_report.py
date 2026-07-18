@@ -24,6 +24,115 @@ from pathlib import Path
 import duckdb
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+# Every cumulative-counter query shares one shape, and all of it is easy to
+# get subtly wrong: deltas must be lag()-diffed per metric stream (source +
+# instance + every label -- mixing streams corrupts deltas), counter resets
+# must be dropped, and samples attributed to phases with half-open windows.
+# These helpers own that shape; queries supply only metric names, labels,
+# and grouping.
+
+def _counter_deltas_cte(metrics_path, metrics, labels, where):
+    """Shared CTE prefix computing per-stream deltas of cumulative counters."""
+    label_selects = "".join(
+        f",\n                COALESCE(CAST(labels->>'{prom}' AS VARCHAR), '') as {col}"
+        for col, prom in labels.items()
+    )
+    metric_list = ", ".join(f"'{m}'" for m in metrics)
+    partition = ", ".join(["source", "instance", *labels, "metric"])
+    where_clause = f"\n            WHERE {where}" if where else ""
+    return f"""
+        WITH raw AS (
+            SELECT
+                CAST(ts AS TIMESTAMP) as ts,
+                source,
+                CAST(instance AS VARCHAR) as instance,
+                metric,
+                value{label_selects}
+            FROM read_json_auto('{metrics_path}')
+            WHERE metric IN ({metric_list})
+        ),
+        diffs AS (
+            SELECT
+                *,
+                value - lag(value) OVER w as delta,
+                -- Midpoint of the delta window (previous sample -> this
+                -- sample): used to attribute the window to the phase it
+                -- mostly overlaps, so increments accumulated late in phase
+                -- A are not booked to phase B just because the scrape
+                -- landed after the boundary.
+                lag(ts) OVER w + (ts - lag(ts) OVER w) / 2 as window_mid
+            FROM raw{where_clause}
+            WINDOW w AS (PARTITION BY {partition} ORDER BY ts)
+        )"""
+
+
+def metrics_by_phase(conn, metrics_path, metrics, labels=None, group_by=None, where=None):
+    """Sums per-scrape counter deltas per phase.
+
+    metrics: cumulative counter names; the result has one summed column per
+        entry, in the given order.
+    labels: {sql_column: prometheus_label} to extract; every extracted label
+        partitions the delta computation.
+    group_by: columns to group by (defaults to all extracted labels; may
+        also name the built-in source / instance columns).
+    where: optional SQL filter over the extracted columns.
+
+    Returns rows of (phase_name, *group_by, *summed_metrics).
+    """
+    labels = labels or {}
+    group_by = list(labels) if group_by is None else group_by
+    sums = ",\n            ".join(
+        f"SUM(CASE WHEN metric = '{m}' THEN delta ELSE 0 END)"
+        for m in metrics
+    )
+    group_cols = ", ".join(["phase_name", *group_by])
+    sql = _counter_deltas_cte(metrics_path, metrics, labels, where) + f""",
+        with_phase AS (
+            SELECT p.name as phase_name, d.*
+            FROM diffs d
+            JOIN phases p ON d.window_mid >= p.start_time AND d.window_mid < p.end_time
+            WHERE d.delta >= 0
+        )
+        SELECT
+            {group_cols},
+            {sums}
+        FROM with_phase
+        GROUP BY {group_cols}
+        ORDER BY {group_cols}
+    """
+    return conn.execute(sql).fetchall()
+
+
+def metrics_timeseries(conn, metrics_path, metrics, labels=None, group_by=None, where=None, interval="15 seconds"):
+    """Sums per-scrape counter deltas into time buckets.
+
+    Same contract as metrics_by_phase, but bucketed by time instead of
+    phase. Returns rows of (ts_string, *group_by, *summed_metrics).
+    """
+    labels = labels or {}
+    group_by = list(labels) if group_by is None else group_by
+    select_groups = "".join(f",\n                {c}" for c in group_by)
+    sums = ",\n                ".join(
+        f"SUM(CASE WHEN metric = '{m}' THEN delta ELSE 0 END)"
+        for m in metrics
+    )
+    order_cols = ", ".join(["bucket_time", *group_by])
+    sql = _counter_deltas_cte(metrics_path, metrics, labels, where) + f""",
+        binned AS (
+            SELECT
+                time_bucket(INTERVAL '{interval}', ts) as bucket_time{select_groups},
+                {sums}
+            FROM diffs
+            WHERE delta >= 0
+            GROUP BY {order_cols}
+        )
+        SELECT strftime(bucket_time, '%Y-%m-%dT%H:%M:%SZ') as ts, * EXCLUDE (bucket_time)
+        FROM binned
+        ORDER BY {order_cols}
+    """
+    return conn.execute(sql).fetchall()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate stress test bottleneck report.")
     parser.add_argument("--input-dir", required=True, help="Directory containing stress test outputs (summary.json, metrics.jsonl)")
@@ -109,46 +218,13 @@ def main():
 
     # 3. Execute queries
     print("Querying CRI operations by phase...")
-    cri_ops_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                CAST(labels->>'operation_type' AS VARCHAR) as operation_type,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('kubelet_runtime_operations_duration_seconds_count', 'kubelet_runtime_operations_duration_seconds_sum')
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                operation_type,
-                metric,
-                value,
-                value - lag(value) OVER (PARTITION BY instance, operation_type, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT 
-                p.name as phase_name,
-                d.operation_type,
-                d.metric,
-                d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT 
-            phase_name,
-            operation_type,
-            SUM(CASE WHEN metric = 'kubelet_runtime_operations_duration_seconds_count' THEN delta ELSE 0 END) as count_delta,
-            SUM(CASE WHEN metric = 'kubelet_runtime_operations_duration_seconds_sum' THEN delta ELSE 0 END) as sum_delta
-        FROM diffs_with_phase
-        GROUP BY phase_name, operation_type
-        HAVING count_delta > 0
-        ORDER BY phase_name, count_delta DESC
-    """).fetchall()
+    cri_ops_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["kubelet_runtime_operations_duration_seconds_count",
+                 "kubelet_runtime_operations_duration_seconds_sum"],
+        labels={"operation_type": "operation_type"})
+    cri_ops_raw = [r for r in cri_ops_raw if r[2] > 0]
+    cri_ops_raw.sort(key=lambda r: (r[0], -r[2]))
 
     cri_ops = []
     for row in cri_ops_raw:
@@ -162,92 +238,29 @@ def main():
         })
 
     print("Querying CRI timeseries...")
-    cri_ts_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT 
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('kubelet_runtime_operations_duration_seconds_count', 'kubelet_runtime_operations_duration_seconds_sum')
-              AND CAST(labels->>'operation_type' AS VARCHAR) = 'run_podsandbox'
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                instance,
-                metric,
-                value - lag(value) OVER (PARTITION BY instance, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        binned AS (
-            SELECT
-                time_bucket(INTERVAL '15 seconds', ts) as bucket_time,
-                instance,
-                SUM(CASE WHEN metric = 'kubelet_runtime_operations_duration_seconds_count' THEN delta ELSE 0 END) as count_delta,
-                SUM(CASE WHEN metric = 'kubelet_runtime_operations_duration_seconds_sum' THEN delta ELSE 0 END) as sum_delta
-            FROM diffs
-            WHERE delta >= 0
-            GROUP BY bucket_time, instance
-        )
-        SELECT 
-            strftime(bucket_time, '%Y-%m-%dT%H:%M:%SZ') as ts,
-            instance,
-            count_delta,
-            CASE WHEN count_delta > 0 THEN sum_delta / count_delta ELSE 0.0 END as avg_latency_s
-        FROM binned
-        ORDER BY ts, instance
-    """).fetchall()
+    cri_ts_raw = metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["kubelet_runtime_operations_duration_seconds_count",
+                 "kubelet_runtime_operations_duration_seconds_sum"],
+        labels={"operation_type": "operation_type"},
+        group_by=["instance"],
+        where="operation_type = 'run_podsandbox'")
 
     cri_chart_data = [
-        {"ts": row[0], "instance": row[1], "count": int(row[2]), "avg_latency_s": row[3]}
+        {"ts": row[0], "instance": row[1], "count": int(row[2]),
+         "avg_latency_s": row[3] / row[2] if row[2] > 0 else 0.0}
         for row in cri_ts_raw
     ]
 
     print("Querying controller performance by phase...")
-    controller_ops_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                CAST(labels->>'controller' AS VARCHAR) as controller,
-                metric,
-                COALESCE(CAST(labels->>'result' AS VARCHAR), '') as result,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('controller_runtime_reconcile_total', 'controller_runtime_reconcile_errors_total', 'controller_runtime_reconcile_time_seconds_sum', 'controller_runtime_reconcile_time_seconds_count')
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                controller,
-                metric,
-                result,
-                value - lag(value) OVER (PARTITION BY instance, controller, metric, result ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT 
-                p.name as phase_name,
-                d.controller,
-                d.metric,
-                d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT 
-            phase_name,
-            controller,
-            SUM(CASE WHEN metric = 'controller_runtime_reconcile_total' THEN delta ELSE 0 END) as total_reconciles,
-            SUM(CASE WHEN metric = 'controller_runtime_reconcile_errors_total' THEN delta ELSE 0 END) as total_errors,
-            SUM(CASE WHEN metric = 'controller_runtime_reconcile_time_seconds_sum' THEN delta ELSE 0 END) as sum_time,
-            SUM(CASE WHEN metric = 'controller_runtime_reconcile_time_seconds_count' THEN delta ELSE 0 END) as count_time
-        FROM diffs_with_phase
-        GROUP BY phase_name, controller
-        ORDER BY phase_name, controller
-    """).fetchall()
+    controller_ops_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["controller_runtime_reconcile_total",
+                 "controller_runtime_reconcile_errors_total",
+                 "controller_runtime_reconcile_time_seconds_sum",
+                 "controller_runtime_reconcile_time_seconds_count"],
+        labels={"controller": "controller", "result": "result"},
+        group_by=["controller"])
 
     controller_ops = []
     for row in controller_ops_raw:
@@ -264,96 +277,27 @@ def main():
         })
 
     print("Querying controller timeseries...")
-    controller_ts_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                CAST(labels->>'controller' AS VARCHAR) as controller,
-                CAST(labels->>'result' AS VARCHAR) as result,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric = 'controller_runtime_reconcile_total'
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                controller,
-                result,
-                value - lag(value) OVER (PARTITION BY instance, controller, result ORDER BY ts) as delta
-            FROM raw
-        ),
-        binned AS (
-            SELECT
-                time_bucket(INTERVAL '15 seconds', ts) as bucket_time,
-                controller,
-                SUM(delta) as total_reconciles
-            FROM diffs
-            WHERE delta >= 0
-            GROUP BY bucket_time, controller
-        )
-        SELECT 
-            strftime(bucket_time, '%Y-%m-%dT%H:%M:%SZ') as ts,
-            controller,
-            total_reconciles / 15.0 as reconcile_rate
-        FROM binned
-        ORDER BY ts, controller
-    """).fetchall()
+    controller_ts_raw = metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["controller_runtime_reconcile_total"],
+        labels={"controller": "controller", "result": "result"},
+        group_by=["controller"])
 
     controller_chart_data = [
-        {"ts": row[0], "controller": row[1], "reconcile_rate": row[2]}
+        {"ts": row[0], "controller": row[1], "reconcile_rate": row[2] / 15.0}
         for row in controller_ts_raw
     ]
 
     print("Querying apiserver operations by phase...")
-    apiserver_ops_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT 
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(labels->>'resource' AS VARCHAR) as resource,
-                CAST(labels->>'subresource' AS VARCHAR) as subresource,
-                CAST(labels->>'verb' AS VARCHAR) as verb,
-                CAST(labels->>'group' AS VARCHAR) as group_label,
-                CAST(labels->>'version' AS VARCHAR) as version,
-                CAST(labels->>'scope' AS VARCHAR) as scope,
-                CAST(labels->>'dry_run' AS VARCHAR) as dry_run,
-                CAST(instance AS VARCHAR) as instance,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('apiserver_request_duration_seconds_count', 'apiserver_request_duration_seconds_sum')
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                resource,
-                verb,
-                metric,
-                value - lag(value) OVER (PARTITION BY instance, group_label, version, resource, subresource, scope, verb, dry_run, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT 
-                p.name as phase_name,
-                d.resource,
-                d.verb,
-                d.metric,
-                d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT 
-            phase_name,
-            resource,
-            verb,
-            SUM(CASE WHEN metric = 'apiserver_request_duration_seconds_count' THEN delta ELSE 0 END) as count_delta,
-            SUM(CASE WHEN metric = 'apiserver_request_duration_seconds_sum' THEN delta ELSE 0 END) as sum_delta
-        FROM diffs_with_phase
-        GROUP BY phase_name, resource, verb
-        HAVING count_delta > 0
-        ORDER BY phase_name, count_delta DESC
-    """).fetchall()
+    apiserver_ops_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["apiserver_request_duration_seconds_count",
+                 "apiserver_request_duration_seconds_sum"],
+        labels={"resource": "resource", "subresource": "subresource", "verb": "verb",
+                "group_label": "group", "version": "version", "scope": "scope", "dry_run": "dry_run"},
+        group_by=["resource", "verb"])
+    apiserver_ops_raw = [r for r in apiserver_ops_raw if r[3] > 0]
+    apiserver_ops_raw.sort(key=lambda r: (r[0], -r[3]))
 
     apiserver_ops = []
     for row in apiserver_ops_raw:
@@ -368,99 +312,27 @@ def main():
         })
 
     print("Querying apiserver timeseries...")
-    apiserver_ts_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT 
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(labels->>'resource' AS VARCHAR) as resource,
-                CAST(labels->>'subresource' AS VARCHAR) as subresource,
-                CAST(labels->>'verb' AS VARCHAR) as verb,
-                CAST(labels->>'group' AS VARCHAR) as group_label,
-                CAST(labels->>'version' AS VARCHAR) as version,
-                CAST(labels->>'scope' AS VARCHAR) as scope,
-                CAST(labels->>'dry_run' AS VARCHAR) as dry_run,
-                CAST(instance AS VARCHAR) as instance,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric = 'apiserver_request_duration_seconds_count'
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                resource,
-                verb,
-                value - lag(value) OVER (PARTITION BY instance, group_label, version, resource, subresource, scope, verb, dry_run ORDER BY ts) as delta
-            FROM raw
-        ),
-        binned AS (
-            SELECT
-                time_bucket(INTERVAL '15 seconds', ts) as bucket_time,
-                resource,
-                verb,
-                SUM(delta) as total_requests
-            FROM diffs
-            WHERE delta >= 0
-            GROUP BY bucket_time, resource, verb
-        )
-        SELECT 
-            strftime(bucket_time, '%Y-%m-%dT%H:%M:%SZ') as ts,
-            resource,
-            verb,
-            total_requests / 15.0 as request_rate
-        FROM binned
-        ORDER BY ts, resource, verb
-    """).fetchall()
+    apiserver_ts_raw = metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["apiserver_request_duration_seconds_count"],
+        labels={"resource": "resource", "subresource": "subresource", "verb": "verb",
+                "group_label": "group", "version": "version", "scope": "scope", "dry_run": "dry_run"},
+        group_by=["resource", "verb"])
 
     apiserver_chart_data = [
-        {"ts": row[0], "resource": row[1], "verb": row[2], "request_rate": row[3]}
+        {"ts": row[0], "resource": row[1], "verb": row[2], "request_rate": row[3] / 15.0}
         for row in apiserver_ts_raw
     ]
 
     print("Querying etcd operations by phase...")
-    etcd_ops_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT 
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(labels->>'resource' AS VARCHAR) as resource,
-                CAST(labels->>'operation' AS VARCHAR) as operation,
-                CAST(labels->>'group' AS VARCHAR) as group_label,
-                CAST(instance AS VARCHAR) as instance,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('etcd_request_duration_seconds_count', 'etcd_request_duration_seconds_sum')
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                resource,
-                operation,
-                metric,
-                value - lag(value) OVER (PARTITION BY instance, group_label, resource, operation, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT 
-                p.name as phase_name,
-                d.resource,
-                d.operation,
-                d.metric,
-                d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT 
-            phase_name,
-            resource,
-            operation,
-            SUM(CASE WHEN metric = 'etcd_request_duration_seconds_count' THEN delta ELSE 0 END) as count_delta,
-            SUM(CASE WHEN metric = 'etcd_request_duration_seconds_sum' THEN delta ELSE 0 END) as sum_delta
-        FROM diffs_with_phase
-        GROUP BY phase_name, resource, operation
-        HAVING count_delta > 0
-        ORDER BY phase_name, count_delta DESC
-    """).fetchall()
+    etcd_ops_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["etcd_request_duration_seconds_count",
+                 "etcd_request_duration_seconds_sum"],
+        labels={"resource": "resource", "operation": "operation", "group_label": "group"},
+        group_by=["resource", "operation"])
+    etcd_ops_raw = [r for r in etcd_ops_raw if r[3] > 0]
+    etcd_ops_raw.sort(key=lambda r: (r[0], -r[3]))
 
     etcd_ops = []
     for row in etcd_ops_raw:
@@ -475,47 +347,14 @@ def main():
         })
 
     print("Querying etcd timeseries...")
-    etcd_ts_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT 
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(labels->>'resource' AS VARCHAR) as resource,
-                CAST(labels->>'operation' AS VARCHAR) as operation,
-                CAST(labels->>'group' AS VARCHAR) as group_label,
-                CAST(instance AS VARCHAR) as instance,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric = 'etcd_request_duration_seconds_count'
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                resource,
-                operation,
-                value - lag(value) OVER (PARTITION BY instance, group_label, resource, operation ORDER BY ts) as delta
-            FROM raw
-        ),
-        binned AS (
-            SELECT
-                time_bucket(INTERVAL '15 seconds', ts) as bucket_time,
-                resource,
-                operation,
-                SUM(delta) as total_requests
-            FROM diffs
-            WHERE delta >= 0
-            GROUP BY bucket_time, resource, operation
-        )
-        SELECT 
-            strftime(bucket_time, '%Y-%m-%dT%H:%M:%SZ') as ts,
-            resource,
-            operation,
-            total_requests / 15.0 as request_rate
-        FROM binned
-        ORDER BY ts, resource, operation
-    """).fetchall()
+    etcd_ts_raw = metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["etcd_request_duration_seconds_count"],
+        labels={"resource": "resource", "operation": "operation", "group_label": "group"},
+        group_by=["resource", "operation"])
 
     etcd_chart_data = [
-        {"ts": row[0], "resource": row[1], "operation": row[2], "request_rate": row[3]}
+        {"ts": row[0], "resource": row[1], "operation": row[2], "request_rate": row[3] / 15.0}
         for row in etcd_ts_raw
     ]
 
@@ -526,50 +365,14 @@ def main():
     # (api-rate-limit, default 0.5/s auto-adjusted), and that limiter's wait
     # time is where launch throughput ceilings show up.
     print("Querying cilium agent API latency by phase...")
-    cilium_api_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                CAST(labels->>'method' AS VARCHAR) as method,
-                CAST(labels->>'path' AS VARCHAR) as path,
-                COALESCE(CAST(labels->>'return_code' AS VARCHAR), '') as return_code,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('cilium_agent_api_process_time_seconds_count', 'cilium_agent_api_process_time_seconds_sum')
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                method,
-                path,
-                metric,
-                value - lag(value) OVER (PARTITION BY instance, method, path, return_code, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT
-                p.name as phase_name,
-                d.method,
-                d.path,
-                d.metric,
-                d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT
-            phase_name,
-            method,
-            path,
-            SUM(CASE WHEN metric LIKE '%_count' THEN delta ELSE 0 END) as count_delta,
-            SUM(CASE WHEN metric LIKE '%_sum' THEN delta ELSE 0 END) as sum_delta
-        FROM diffs_with_phase
-        GROUP BY phase_name, method, path
-        HAVING count_delta > 0
-        ORDER BY phase_name, sum_delta DESC
-    """).fetchall()
+    cilium_api_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["cilium_agent_api_process_time_seconds_count",
+                 "cilium_agent_api_process_time_seconds_sum"],
+        labels={"method": "method", "path": "path", "return_code": "return_code"},
+        group_by=["method", "path"])
+    cilium_api_raw = [r for r in cilium_api_raw if r[3] > 0]
+    cilium_api_raw.sort(key=lambda r: (r[0], -r[4]))
 
     cilium_api_ops = []
     for row in cilium_api_raw:
@@ -664,40 +467,14 @@ def main():
     ]
 
     print("Querying cilium endpoint regeneration by phase...")
-    cilium_regen_raw = conn.execute(f"""
-        WITH raw AS (
-            SELECT
-                CAST(ts AS TIMESTAMP) as ts,
-                CAST(instance AS VARCHAR) as instance,
-                metric,
-                value
-            FROM read_json_auto('{metrics_path_str}')
-            WHERE metric IN ('cilium_endpoint_regeneration_time_stats_seconds_count', 'cilium_endpoint_regeneration_time_stats_seconds_sum')
-              AND CAST(labels->>'scope' AS VARCHAR) = 'total'
-              AND CAST(labels->>'status' AS VARCHAR) = 'success'
-        ),
-        diffs AS (
-            SELECT
-                ts,
-                metric,
-                value - lag(value) OVER (PARTITION BY instance, metric ORDER BY ts) as delta
-            FROM raw
-        ),
-        diffs_with_phase AS (
-            SELECT p.name as phase_name, d.metric, d.delta
-            FROM diffs d
-            JOIN phases p ON d.ts >= p.start_time AND d.ts < p.end_time
-            WHERE d.delta >= 0
-        )
-        SELECT
-            phase_name,
-            SUM(CASE WHEN metric LIKE '%_count' THEN delta ELSE 0 END) as count_delta,
-            SUM(CASE WHEN metric LIKE '%_sum' THEN delta ELSE 0 END) as sum_delta
-        FROM diffs_with_phase
-        GROUP BY phase_name
-        HAVING count_delta > 0
-        ORDER BY phase_name
-    """).fetchall()
+    cilium_regen_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["cilium_endpoint_regeneration_time_stats_seconds_count",
+                 "cilium_endpoint_regeneration_time_stats_seconds_sum"],
+        labels={"scope": "scope", "status": "status"},
+        group_by=[],
+        where="scope = 'total' AND status = 'success'")
+    cilium_regen_raw = [r for r in cilium_regen_raw if r[1] > 0]
 
     cilium_regen = []
     for row in cilium_regen_raw:
@@ -709,6 +486,83 @@ def main():
         })
 
     cilium_available = bool(cilium_api_ops or cilium_limiter_summary or cilium_regen)
+
+    # Client-side API rate limiting, system-wide. Every component that talks
+    # to the apiserver throttles itself client-side (client-go QPS/burst;
+    # cilium-agent's k8s client exposes its own equivalent metric), and an
+    # undersized limit shows up as end-to-end latency while the apiserver
+    # sits idle. One unified table makes each limit raise provable in the
+    # report. Note: the agent-sandbox controller (controller-runtime) does
+    # not currently export rest_client rate-limiter metrics.
+    print("Querying client-side API throttling by phase...")
+    client_ratelimit_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["rest_client_rate_limiter_duration_seconds_count",
+                 "rest_client_rate_limiter_duration_seconds_sum"],
+        labels={"verb": "verb", "host": "host"},
+        group_by=["source", "verb"]) + metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["cilium_k8s_client_rate_limiter_duration_seconds_count",
+                 "cilium_k8s_client_rate_limiter_duration_seconds_sum"],
+        labels={"verb": "method", "path": "path"},
+        group_by=["source", "verb"])
+    client_ratelimit_raw = [r for r in client_ratelimit_raw if r[3] > 0]
+    client_ratelimit_raw.sort(key=lambda r: (r[0], -r[4]))
+
+    client_ratelimit_ops = []
+    for row in client_ratelimit_raw:
+        phase_name, source, verb, count_delta, wait_total = row
+        client_ratelimit_ops.append({
+            "phase_name": phase_name,
+            "source": source,
+            "verb": verb,
+            "count_delta": int(count_delta),
+            "total_wait_s": wait_total,
+            "avg_wait_ms": (wait_total / count_delta) * 1000 if count_delta > 0 else 0
+        })
+
+    print("Querying client throttling timeseries...")
+    client_ratelimit_ts_raw = metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["rest_client_rate_limiter_duration_seconds_count",
+                 "rest_client_rate_limiter_duration_seconds_sum"],
+        labels={"verb": "verb", "host": "host"},
+        group_by=["source"]) + metrics_timeseries(
+        conn, metrics_path_str,
+        metrics=["cilium_k8s_client_rate_limiter_duration_seconds_count",
+                 "cilium_k8s_client_rate_limiter_duration_seconds_sum"],
+        labels={"verb": "method", "path": "path"},
+        group_by=["source"])
+    client_ratelimit_ts_raw.sort(key=lambda r: (r[0], r[1]))
+
+    client_ratelimit_chart_data = [
+        {"ts": row[0], "source": row[1],
+         "avg_wait_s": row[3] / row[2] if row[2] > 0 else 0.0}
+        for row in client_ratelimit_ts_raw
+    ]
+
+    # API Priority & Fairness: server-side queueing at the apiserver, the
+    # other place where "the cluster feels slow but nothing is busy".
+    print("Querying API Priority & Fairness wait by phase...")
+    apf_raw = metrics_by_phase(
+        conn, metrics_path_str,
+        metrics=["apiserver_flowcontrol_request_wait_duration_seconds_count",
+                 "apiserver_flowcontrol_request_wait_duration_seconds_sum"],
+        labels={"priority_level": "priority_level", "flow_schema": "flow_schema", "execute": "execute"},
+        group_by=["priority_level"])
+    apf_raw = [r for r in apf_raw if r[2] > 0]
+    apf_raw.sort(key=lambda r: (r[0], -r[3]))
+
+    apf_ops = []
+    for row in apf_raw:
+        phase_name, priority_level, count_delta, wait_total = row
+        apf_ops.append({
+            "phase_name": phase_name,
+            "priority_level": priority_level,
+            "count_delta": int(count_delta),
+            "total_wait_s": wait_total,
+            "avg_wait_ms": (wait_total / count_delta) * 1000 if count_delta > 0 else 0
+        })
 
     # Query active sandboxes and pods capacity timeseries from the watch logs
     capacity_chart_data = []
@@ -925,19 +779,52 @@ def main():
 
     # Cilium endpoint-create rate limiting check: launch latency spent
     # queueing in the agent's api-rate-limit, not doing CNI work.
+    # Two distinct failure modes, tracked independently so the worst phase
+    # for each is evaluated: time queued in the api-rate-limit (raise the
+    # limit) vs time spent actually processing the create (the limiter is
+    # fine; look at what endpoint creation is doing).
     cilium_wait_worst = None
+    cilium_processing_worst = None
     for row in cilium_limiter_summary:
         if row['phase_name'].startswith('throughput'):
             if cilium_wait_worst is None or row['wait_mean_s'] > cilium_wait_worst['wait_mean_s']:
                 cilium_wait_worst = row
+            if cilium_processing_worst is None or row['processing_mean_s'] > cilium_processing_worst['processing_mean_s']:
+                cilium_processing_worst = row
 
-    if cilium_wait_worst and cilium_wait_worst['wait_mean_s'] > 0.5:
+    if (cilium_wait_worst and cilium_wait_worst['wait_mean_s'] > 0.5
+            and cilium_wait_worst['wait_mean_s'] >= cilium_wait_worst['processing_mean_s']):
         w = cilium_wait_worst
         findings.append({
             "severity": "critical" if w['wait_mean_s'] > 5.0 else "warning",
             "title": f"Cilium endpoint-create API Rate Limited ({w['wait_mean_s']:.1f}s mean wait)",
-            "desc": f"During phase {w['phase_name']}, CNI endpoint-create requests waited a mean of {w['wait_mean_s']:.1f}s (max {w['wait_max_s']:.0f}s) in cilium-agent's API rate limiter, while actual processing took only {w['processing_mean_s']:.2f}s. The effective limit averaged {w['rate_limit']:.1f} creates/s per node, which caps pod sandbox creation throughput. Consider raising the endpoint-create limits in Cilium's api-rate-limit configuration.",
+            "desc": f"During phase {w['phase_name']}, CNI endpoint-create requests waited a mean of {w['wait_mean_s']:.1f}s (max {w['wait_max_s']:.0f}s) in cilium-agent's API rate limiter, while actual processing took {w['processing_mean_s']:.2f}s. The effective limit averaged {w['rate_limit']:.1f} creates/s per node, which caps pod sandbox creation throughput. Consider raising the endpoint-create limits in Cilium's api-rate-limit configuration.",
             "link": "cilium.html"
+        })
+    elif cilium_processing_worst and cilium_processing_worst['processing_mean_s'] > 1.0:
+        w = cilium_processing_worst
+        findings.append({
+            "severity": "critical" if w['processing_mean_s'] > 5.0 else "warning",
+            "title": f"Cilium endpoint-create Slow ({w['processing_mean_s']:.1f}s mean processing)",
+            "desc": f"During phase {w['phase_name']}, cilium-agent spent a mean of {w['processing_mean_s']:.1f}s processing each endpoint create (limiter wait was only {w['wait_mean_s']:.1f}s, so api-rate-limit is not the cap). The time is going into the endpoint-create pipeline itself — check client-side API throttling on the Rate Limiting page, endpoint regeneration on the Cilium page, and apiserver latency.",
+            "link": "cilium.html"
+        })
+
+    # Client-side API throttling check: a component sitting in its own
+    # client-go rate limiter while the apiserver is idle.
+    client_throttle_worst = None
+    for row in client_ratelimit_ops:
+        if row['phase_name'].startswith('throughput') and row['count_delta'] >= 20:
+            if client_throttle_worst is None or row['avg_wait_ms'] > client_throttle_worst['avg_wait_ms']:
+                client_throttle_worst = row
+
+    if client_throttle_worst and client_throttle_worst['avg_wait_ms'] > 100:
+        w = client_throttle_worst
+        findings.append({
+            "severity": "critical" if w['avg_wait_ms'] > 1000 else "warning",
+            "title": f"Client-side API Throttling in {w['source']} ({w['avg_wait_ms']/1000:.2f}s avg wait)",
+            "desc": f"During phase {w['phase_name']}, {w['count_delta']:,} {w['verb']} requests from {w['source']} waited an average of {w['avg_wait_ms']/1000:.2f}s ({w['total_wait_s']:.0f}s in total) in the component's own client-side rate limiter before being sent to the apiserver. Consider raising that component's client QPS/burst configuration.",
+            "link": "ratelimits.html"
         })
 
     # Capacity saturation finding check
@@ -1114,6 +1001,17 @@ def main():
         "phases": js_phases
     }
     render_page("cilium.html", "cilium.html", cilium_ctx)
+
+    # Rate limiting context
+    ratelimits_ctx = {
+        "active_page": "ratelimits",
+        "summary": summary,
+        "client_ratelimit_ops": client_ratelimit_ops,
+        "apf_ops": apf_ops,
+        "chart_data": client_ratelimit_chart_data,
+        "phases": js_phases
+    }
+    render_page("ratelimits.html", "ratelimits.html", ratelimits_ctx)
 
     # Capacity context
     capacity_ctx = {
