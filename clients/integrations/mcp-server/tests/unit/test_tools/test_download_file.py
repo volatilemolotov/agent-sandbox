@@ -88,6 +88,7 @@ async def test_call_download_file_tool_with_non_default_args(
 @pytest.mark.usefixtures("mocked_servers_sandbox_client_class")
 async def test_call_download_file_tool_with_binary(
     mcp_client,
+    mock_sandbox_client,
     mock_sandbox
 ):
     content = b"some content"
@@ -108,6 +109,15 @@ async def test_call_download_file_tool_with_binary(
         "bytes_read": 12
     }
     assert result.is_error is False
+
+    mock_sandbox_client.get_sandbox.assert_called_once_with(
+        "my-claim",
+        namespace="my-namespace",
+    )
+    mock_sandbox.files.read.assert_called_once_with(
+        "some/path",
+        timeout=60,
+    )
 
 
 @pytest.mark.anyio
