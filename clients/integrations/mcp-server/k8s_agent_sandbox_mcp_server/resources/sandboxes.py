@@ -18,6 +18,8 @@ from ..settings import Settings
 from fastmcp.resources import resource
 from fastmcp.resources import ResourceResult, ResourceContent
 
+from ..utils import get_session_label_selector_from_context
+
 
 @resource("sandboxes://{namespace}")
 async def get_sandboxes(
@@ -29,9 +31,8 @@ async def get_sandboxes(
     """
 
     client = ctx.lifespan_context["client"]
-    settings: Settings = ctx.lifespan_context["settings"]
 
-    label_selector = f"{settings.session_id_label_key}={ctx.session_id}"
+    label_selector = get_session_label_selector_from_context(ctx)
 
     found = await client.list_all_sandboxes(
         namespace=namespace, 

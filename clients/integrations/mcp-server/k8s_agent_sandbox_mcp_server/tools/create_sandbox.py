@@ -19,6 +19,7 @@ from pydantic import (
 
 from fastmcp import Context
 from ..settings import Settings
+from ..utils import get_session_id_from_context
 
 
 class CreateSandboxOutputSchema(BaseModel):
@@ -51,13 +52,7 @@ async def create_sandbox(
 
     labels = labels or {}
 
-    session_id = getattr(ctx, "session_id", None)
-
-    if session_id is None:
-        raise RuntimeError(
-            "This server requires a transport that provides a session id (e.g. streamable HTTP); "
-            "ctx.session_id is None."
-        )
+    session_id = get_session_id_from_context(ctx)
 
     labels[settings.session_id_label_key] = session_id
 

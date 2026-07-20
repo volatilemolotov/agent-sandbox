@@ -25,10 +25,8 @@ async def get_sandbox(
 ):
 
     client: AsyncSandboxClient = ctx.lifespan_context["client"]
-    settings: Settings = ctx.lifespan_context["settings"]
 
-    label_selector = f"{settings.session_id_label_key}={ctx.session_id}"
-
+    label_selector = get_session_label_selector_from_context(ctx)
     found = set(await client.list_all_sandboxes(
         namespace=namespace,
         label_selector=label_selector,
@@ -41,4 +39,23 @@ async def get_sandbox(
 
     return sandbox
 
+def get_session_id_from_context(ctx: Context) -> str:
+
+    session_id = getattr(ctx, "session_id", None)
+
+    if session_id is None:
+        raise RuntimeError(
+            "This server requires a transport that provides a session id (e.g. streamable HTTP); "
+            "ctx.session_id is None."
+        )
+
+    return session_id
+
+
+def get_session_label_selector_from_context(ctx: Context) -> str:
+    settings: Settings = ctx.lifespan_context["settings"]
+    session_id = get_session_id_from_context(ctx)
+
+    label_selector = f"{settings.session_id_label_key}={session_id}"
+    return label_selector
 
