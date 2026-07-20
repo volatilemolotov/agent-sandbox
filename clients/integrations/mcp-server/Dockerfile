@@ -11,14 +11,12 @@ WORKDIR /app
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy the project configuration first to leverage Docker layer caching
-COPY pyproject.toml README.md /app/
+COPY --chown=appuser:appuser pyproject.toml README.md /app/
 
 # Copy the application code
-COPY k8s_agent_sandbox_mcp_server /app/k8s_agent_sandbox_mcp_server
+COPY --chown=appuser:appuser k8s_agent_sandbox_mcp_server /app/k8s_agent_sandbox_mcp_server
 
 RUN pip install --no-cache-dir .
-
-RUN chown -R appuser:appuser /app
 
 USER appuser
 

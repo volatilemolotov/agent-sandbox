@@ -25,7 +25,6 @@ from k8s_agent_sandbox_mcp_server.server import create_mcp_server
 
 @pytest.fixture
 def mcp_server_settings():
-    # settings = MagicMock()
     settings = Settings(
         connection=DirectConnectionConfig(api_url="http://some-url")
     )
@@ -63,6 +62,4 @@ def mocked_servers_sandbox_client_class(mock_sandbox_client):
     with patch("k8s_agent_sandbox_mcp_server.server.AsyncSandboxClient") as m:
         m.return_value = mock_sandbox_client
         yield
-
-
 
