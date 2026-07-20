@@ -7,6 +7,9 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory
 WORKDIR /app
 
+# Create a non-root user and group
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Copy the project configuration first to leverage Docker layer caching
 COPY pyproject.toml README.md /app/
 
@@ -15,6 +18,10 @@ COPY k8s_agent_sandbox_mcp_server /app/k8s_agent_sandbox_mcp_server
 
 ARG GIT_VERSION=0.0.1.dev0
 RUN SETUPTOOLS_SCM_PRETEND_VERSION=${GIT_VERSION} pip install --no-cache-dir .
+
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 # Expose the port uvicorn will run on
 EXPOSE 8000

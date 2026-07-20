@@ -54,7 +54,10 @@ async def create_sandbox(
     session_id = getattr(ctx, "session_id", None)
 
     if session_id is None:
-        raise RuntimeError("Session id if the context cannot be None.")
+        raise RuntimeError(
+            "This server requires a transport that provides a session id (e.g. streamable HTTP); "
+            "ctx.session_id is None."
+        )
 
     labels[settings.session_id_label_key] = session_id
 
