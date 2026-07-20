@@ -51,7 +51,10 @@ async def create_sandbox(
 
     labels = labels or {}
 
-    session_id = getattr(ctx, "session_id", None) or "00000000-0000-0000-0000-000000000000"
+    session_id = getattr(ctx, "session_id", None)
+
+    if session_id is None:
+        raise RuntimeError("Session id if the context cannot be None.")
 
     labels[settings.session_id_label_key] = session_id
 
