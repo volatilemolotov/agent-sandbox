@@ -78,7 +78,12 @@ class TestLabelScopedManager:
         mock_sandbox_client.create_sandbox.assert_called_once_with(
             sample_sandbox_settings.warmpool,
             namespace=sample_sandbox_settings.namespace,
+            sandbox_ready_timeout=sample_sandbox_settings.sandbox_ready_timeout,
             labels={'my-prefix/thread-id': '1', 'my-prefix/assistant-id': '2'},
+            shutdown_after_seconds=sample_sandbox_settings.shutdown_after_seconds,
+            volume_claim_templates=sample_sandbox_settings.volume_claim_templates,
+            pod_labels=sample_sandbox_settings.pod_labels,
+            pod_annotations=sample_sandbox_settings.pod_annotations,
         )
     
     def test_with_existing_sandbox(self, mock_sandbox_client, mock_sandbox, sample_sandbox_settings, manager):
