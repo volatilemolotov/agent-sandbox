@@ -84,12 +84,12 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
         self._client = client
         self._sandbox_settings = sandbox_settings
 
-        self._labels = {
+        self._scope_labels = {
             f"{scope_labels_prefix}/{k}": v for k, v in scope.items()
         }
         
-        self._label_selector = ",".join(
-            [f"{k}={v}" for k, v in self._labels.items()]
+        self._scope_label_selector = ",".join(
+            [f"{k}={v}" for k, v in self._scope_labels.items()]
         )
 
     def _get_sandbox(self) -> Sandbox:
@@ -104,23 +104,31 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
             except SandboxNotFoundError:
                 pass
 
+        labels = self._sandbox_settings.labels or {}
+        labels.update(self._scope_labels)
+
         return self._client.create_sandbox(
             self._sandbox_settings.warmpool,
             namespace=self._sandbox_settings.namespace,
-            labels=self._labels,
+            sandbox_ready_timeout=self._sandbox_settings.sandbox_ready_timeout,
+            labels=labels,
+            shutdown_after_seconds=self._sandbox_settings.shutdown_after_seconds,
+            volume_claim_templates=self._sandbox_settings.volume_claim_templates,
+            pod_labels=self._sandbox_settings.pod_labels,
+            pod_annotations=self._sandbox_settings.pod_annotations,
         )
         
     def _find_sandbox_claim_by_label_selector(self) -> str | None:
     
         found = self._client.list_all_sandboxes(
             namespace=self._sandbox_settings.namespace,
-            label_selector=self._label_selector,
+            label_selector=self._scope_label_selector,
         )
 
         if len(found) > 1:
             raise RuntimeError(
                 "Multiple sandboxes with matching scopes have been found. "
-                f"Delete the orphan sandboxes manually.\nScope labels: {self._labels}"
+                f"Delete the orphan sandboxes manually.\nScope labels: {self._scope_labels}"
             )
      
         if len(found) == 1:
