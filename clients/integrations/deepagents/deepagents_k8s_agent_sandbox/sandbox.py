@@ -149,7 +149,8 @@ class K8sAgentSandbox(BaseSandbox):
         Execute a shell command in the sandbox.
         """
 
-        wrapped = f"sh -c {shlex.quote(f'cd {self._root_dir} && {command}')}"
+        inner_shell_command = f"cd {shlex.quote(self._root_dir)} && {command}"
+        wrapped = f"sh -c {shlex.quote(inner_shell_command)}"
 
         effective_timeout = timeout or self._default_timeout_seconds
         try:
