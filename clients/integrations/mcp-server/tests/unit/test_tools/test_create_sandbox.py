@@ -43,7 +43,7 @@ async def test_call_create_sandbox_tool_with_default_args(
         namespace='my-namespace',
         sandbox_ready_timeout=180,
         labels=create_sandbox_labels,
-        shutdown_after_seconds=None,
+        shutdown_after_seconds=300,
         pod_labels=None,
         pod_annotations=None,
     )
@@ -63,7 +63,7 @@ async def test_call_create_sandbox_tool_with_non_default_args(
             "namespace": "my-namespace",
             "sandbox_ready_timeout": 30,
             "labels": {"my-label-key": "my-label-value"},
-            "shutdown_after_seconds": 300,
+            "shutdown_after_seconds": 500,
             "pod_labels": {"my-pod-label-key": "my-pod-label-value"},
             "pod_annotations": {"my-pod-annotation-key": "my-pod-annotation-value"},
         },
@@ -84,7 +84,7 @@ async def test_call_create_sandbox_tool_with_non_default_args(
         namespace='my-namespace',
         sandbox_ready_timeout=30,
         labels=create_sandbox_labels,
-        shutdown_after_seconds=300,
+        shutdown_after_seconds=500,
         pod_labels={'my-pod-label-key': 'my-pod-label-value'},
         pod_annotations={'my-pod-annotation-key': 'my-pod-annotation-value'},
     )

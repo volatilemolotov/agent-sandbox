@@ -30,7 +30,7 @@ async def create_sandbox(
     namespace: str,
     sandbox_ready_timeout: int = 180,
     labels: dict[str, str] | None = None,
-    shutdown_after_seconds: int | None = None,
+    shutdown_after_seconds: int | None = 300,
     pod_labels: dict[str, str] | None = None,
     pod_annotations: dict[str, str] | None = None,
 ) -> CreateSandboxOutputSchema:
