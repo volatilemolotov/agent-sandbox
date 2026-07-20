@@ -276,18 +276,11 @@ class K8sAgentSandbox(BaseSandbox):
 
     @property
     def id(self) -> str:
-        """Return a namespace-qualified sandbox identifier.
-
-        Format: ``{namespace}/{claim_name}``. Namespace-qualification
-        prevents collisions when multiple namespaces are in use.
-        Falls back to ``"agent-sandbox"`` before ``__enter__`` is called.
         """
-        if self._sandbox is not None:
-            ns = getattr(self._sandbox, "namespace", None) or "default"
-            claim = getattr(self._sandbox, "claim_name", None)
-            if claim:
-                return f"{ns}/{claim}"
-        return "agent-sandbox"
+        Return a namespace-qualified sandbox identifier.
+        """
+
+        return f"{self._sandbox.namespace}/{self._sandbox.claim_name}"
 
 
 def _map_file_error(error: Exception) -> FileOperationError | str:
