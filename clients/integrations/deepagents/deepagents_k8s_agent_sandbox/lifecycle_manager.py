@@ -72,7 +72,10 @@ class ExistingSandboxClaimLifecycleManager(K8sAgentSandboxLifecycleManager):
 
 
 class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
-    """Fully manage the lifecycle of a sandbox based on the provided scope."""
+    """
+    Fully manage the lifecycle of a sandbox based on the provided scope.
+    Concurrent first runs for the same scope may create duplicate sandboxes, subsequent runs then fail until the duplicates are deleted.
+    """
     def __init__(
         self, 
         client: SandboxClient,
@@ -104,7 +107,7 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
             except SandboxNotFoundError:
                 pass
 
-        labels = self._sandbox_settings.labels or {}
+        labels = dict(self._sandbox_settings.labels or {})
         labels.update(self._scope_labels)
 
         return self._client.create_sandbox(
