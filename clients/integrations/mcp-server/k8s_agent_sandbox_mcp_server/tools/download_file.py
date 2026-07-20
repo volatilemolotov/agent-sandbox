@@ -46,9 +46,7 @@ async def download_file(
         binary: When True, the content of a file is returned as a base64-encoded binary blob.
         timeout: Time in seconds to download the file until the timeout.
     """
-    client = ctx.lifespan_context["client"]
-
-    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
+    sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)
 
     try:
         content = await sandbox.files.read(path, timeout=timeout)

@@ -43,9 +43,8 @@ async def execute_command(
         command: Shell command to execute inside a sandbox.
         timeout: Time in seconds to execute the command before the timeout error.
     """
-    client = ctx.lifespan_context["client"]
 
-    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
+    sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)
 
     try:
         execution_result = await sandbox.commands.run(command, timeout=timeout)

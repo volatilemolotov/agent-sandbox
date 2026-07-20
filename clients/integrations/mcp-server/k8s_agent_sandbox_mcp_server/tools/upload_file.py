@@ -47,9 +47,8 @@ async def upload_file(
         binary: When True, the 'content' argument is expected to be a base64-encoded binary blob.
         timeout: Time in seconds to upload the file until the timeout.
     """
-    client = ctx.lifespan_context["client"]
 
-    sandbox = await get_sandbox(ctx, client, sandbox_claim_name, namespace)
+    sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)
     try:
         if binary:
             content_bytes = base64.b64decode(content)

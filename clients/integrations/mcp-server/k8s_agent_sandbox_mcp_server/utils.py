@@ -20,12 +20,11 @@ from .settings import Settings
 
 async def get_sandbox(
     ctx: Context,
-    client: AsyncSandboxClient,
     sandbox_claim_name: str,
     namespace: str,
 ):
 
-    client = ctx.lifespan_context["client"]
+    client: AsyncSandboxClient = ctx.lifespan_context["client"]
     settings: Settings = ctx.lifespan_context["settings"]
 
     label_selector = f"{settings.session_id_label_key}={ctx.session_id}"
@@ -36,7 +35,7 @@ async def get_sandbox(
     ))
 
     if sandbox_claim_name not in found:
-        raise RuntimeError(f"Sandbox claim '{sandbox_claim_name}' is not found in namespace 'namespace'.")
+        raise RuntimeError(f"Sandbox claim '{sandbox_claim_name}' is not found in namespace '{namespace}'.")
 
     sandbox = await client.get_sandbox(sandbox_claim_name, namespace=namespace)
 
