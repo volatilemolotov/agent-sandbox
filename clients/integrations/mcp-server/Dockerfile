@@ -16,8 +16,7 @@ COPY pyproject.toml README.md /app/
 # Copy the application code
 COPY k8s_agent_sandbox_mcp_server /app/k8s_agent_sandbox_mcp_server
 
-ARG GIT_VERSION=0.0.1.dev0
-RUN SETUPTOOLS_SCM_PRETEND_VERSION=${GIT_VERSION} pip install --no-cache-dir .
+RUN pip install --no-cache-dir .
 
 RUN chown -R appuser:appuser /app
 
