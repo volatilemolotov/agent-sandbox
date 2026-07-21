@@ -48,7 +48,10 @@ def create_mcp_server(settings: Settings | None = None):
             connection_config=settings.connection,
             cleanup=False,
         )
-        yield {"client": client, "settings": settings}
+        try:
+            yield {"client": client, "settings": settings}
+        finally:
+            await client.close()
 
     mcp = FastMCP("K8sAgentSandbox", lifespan=lifespan)
 
