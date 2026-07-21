@@ -24,8 +24,8 @@ from k8s_agent_sandbox_mcp_server.settings import (
 
 class TestDirectConnection:
     def test_env_vars(self, monkeypatch):
-        monkeypatch.setenv("CONNECTION__TYPE", "direct")
-        monkeypatch.setenv("CONNECTION__API_URL", "http://some-url")
+        monkeypatch.setenv("K8S_SANDBOX_CONNECTION__TYPE", "direct")
+        monkeypatch.setenv("K8S_SANDBOX_CONNECTION__API_URL", "http://some-url")
     
         settings = Settings()
     
@@ -35,8 +35,8 @@ class TestDirectConnection:
 
 class TestGatewayConnection:
     def test_env_vars(self, monkeypatch):
-        monkeypatch.setenv("CONNECTION__TYPE", "gateway")
-        monkeypatch.setenv("CONNECTION__GATEWAY_NAME", "some-gateway")
+        monkeypatch.setenv("K8S_SANDBOX_CONNECTION__TYPE", "gateway")
+        monkeypatch.setenv("K8S_SANDBOX_CONNECTION__GATEWAY_NAME", "some-gateway")
     
         settings = Settings()
     
@@ -45,7 +45,7 @@ class TestGatewayConnection:
 
 class TestInClusterConnection:
     def test_env_vars(self, monkeypatch):
-        monkeypatch.setenv("CONNECTION__TYPE", "in-cluster")
+        monkeypatch.setenv("K8S_SANDBOX_CONNECTION__TYPE", "in-cluster")
     
         settings = Settings()
     

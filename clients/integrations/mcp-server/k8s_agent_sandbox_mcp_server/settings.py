@@ -46,4 +46,8 @@ class Settings(BaseSettings):
         default="mcp.k8s-agent-sandbox/session-id",
     )
 
-    model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="K8S_SANDBOX_",
+        env_nested_delimiter="__",
+    )
