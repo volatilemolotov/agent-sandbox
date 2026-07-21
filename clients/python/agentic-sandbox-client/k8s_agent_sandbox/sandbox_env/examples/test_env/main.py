@@ -1,0 +1,42 @@
+import shlex
+import subprocess
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class ExecuteRequest(BaseModel):
+    command: str
+
+def check_reward(result) -> int:
+    reward = 0
+    reward += 1 if result.returncode == 0 else -1
+    return reward
+
+@app.get("/", summary="Health Check")
+async def health_check():
+    """A simple health check endpoint to confirm the server is running."""
+    return {"status": "ok", "message": "Sandbox Runtime is active."}
+
+@app.post("/execute")
+def execute_command(req: ExecuteRequest):
+    try:
+        args = shlex.split(req.command)
+        result = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+
+        return {
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "exit_code": result.returncode
+        }
+    except Exception as e:
+        return {
+            "stdout": "",
+            "stderr": str(e),
+            "exit_code": -1,
+        }
