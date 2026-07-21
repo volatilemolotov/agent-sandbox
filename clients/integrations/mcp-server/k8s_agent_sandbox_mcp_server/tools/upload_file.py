@@ -14,13 +14,19 @@
 
 import base64
 
+from typing import Annotated
+
 from pydantic import (
     BaseModel,
     Field,
 )
 from fastmcp import Context
 
-from ..utils import get_sandbox
+from ..utils import (
+    get_sandbox,
+    TOOL_DEFAULT_TIMEOUT,
+    TOOL_MAX_TIMEOUT,
+)
 
 
 class UploadFileOutputSchema(BaseModel):
@@ -29,23 +35,19 @@ class UploadFileOutputSchema(BaseModel):
 
 async def upload_file(
     ctx: Context,
-    sandbox_claim_name: str,
-    namespace: str,
-    path: str,
-    content: str,
-    binary: bool = False,
-    timeout: int = 60,
+    sandbox_claim_name: Annotated[str, Field(description="Name of a target sandbox claim.")],
+    namespace: Annotated[str, Field(description="Kubernetes namespace with a target sandbox.")],
+    path: Annotated[str, Field(description="The upload path.")],
+    content: Annotated[str, Field(description="Content of the file.")],
+    binary: Annotated[bool, Field(description="When True, the 'content' argument is expected to be a base64-encoded binary blob.")] = False,
+    timeout: Annotated[int, Field(
+        description="Time in seconds to upload the file until the timeout.",
+        gt=0,
+        lt=TOOL_MAX_TIMEOUT,
+    )] = TOOL_DEFAULT_TIMEOUT,
 ) -> UploadFileOutputSchema:
     """
     Upload file to a sandbox.
-
-    Args:
-        sandbox_claim_name: Name of a target sandbox claim.
-        namespace: Kubernetes namespace with a target sandbox.
-        path: The upload path.
-        content: Content of the file.
-        binary: When True, the 'content' argument is expected to be a base64-encoded binary blob.
-        timeout: Time in seconds to upload the file until the timeout.
     """
 
     sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)
@@ -65,5 +67,4 @@ async def upload_file(
     return UploadFileOutputSchema(
         bytes_written=len(content_bytes)
     )
-
 

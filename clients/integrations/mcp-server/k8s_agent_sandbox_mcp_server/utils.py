@@ -18,6 +18,9 @@ from k8s_agent_sandbox.async_sandbox_client import AsyncSandboxClient
 from .settings import Settings
 
 
+TOOL_DEFAULT_TIMEOUT = 60
+TOOL_MAX_TIMEOUT = 600
+
 async def get_sandbox(
     ctx: Context,
     sandbox_claim_name: str,

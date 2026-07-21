@@ -14,13 +14,19 @@
 
 import base64
 
+from typing import Annotated
+
 from pydantic import (
     BaseModel,
     Field,
 )
 from fastmcp import Context
 
-from ..utils import get_sandbox
+from ..utils import (
+    get_sandbox,
+    TOOL_DEFAULT_TIMEOUT,
+    TOOL_MAX_TIMEOUT,
+)
 
 
 class DownloadFileOutputSchema(BaseModel):
@@ -30,21 +36,18 @@ class DownloadFileOutputSchema(BaseModel):
 
 async def download_file(
     ctx: Context,
-    sandbox_claim_name: str,
-    namespace: str,
-    path: str,
-    binary: bool = False,
-    timeout: int = 60,
+    sandbox_claim_name: Annotated[str, Field(description="Name of a target sandbox claim.")],
+    namespace: Annotated[str, Field(description="Kubernetes namespace with a target sandbox.")],
+    path: Annotated[str, Field(description="The download path.")],
+    binary: Annotated[bool, Field(description="When True, the content of a file is returned as a base64-encoded binary blob.")] = False,
+    timeout: Annotated[int, Field(
+        description="Time in seconds to download the file until the timeout.",
+        gt=0,
+        lt=TOOL_MAX_TIMEOUT,
+    )] = TOOL_DEFAULT_TIMEOUT,
 ) -> DownloadFileOutputSchema:
     """
     Download a file from a sandbox.
-
-    Args:
-        sandbox_claim_name: Name of a target sandbox claim.
-        namespace: Kubernetes namespace with a target sandbox.
-        path: The download path.
-        binary: When True, the content of a file is returned as a base64-encoded binary blob.
-        timeout: Time in seconds to download the file until the timeout.
     """
     sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)
 

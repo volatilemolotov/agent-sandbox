@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Annotated
+from pydantic import Field
+
 from fastmcp import Context
 
 from ..utils import get_sandbox
@@ -19,15 +22,11 @@ from ..utils import get_sandbox
 
 async def delete_sandbox(
     ctx: Context,
-    sandbox_claim_name: str,
-    namespace: str,
+    sandbox_claim_name: Annotated[str, Field(description="Name of a target sandbox claim.")],
+    namespace: Annotated[str, Field(description="Kubernetes namespace for the target sandbox claim.")],
 ):
     """
     Delete a target sandbox.
-
-    Args:
-        sandbox_claim_name: Name of a target sandbox claim.
-        namespace: Kubernetes namespace for the target sandbox claim.
     """
 
     # Making sure that sandbox belongs to this session, otherwise raise error.

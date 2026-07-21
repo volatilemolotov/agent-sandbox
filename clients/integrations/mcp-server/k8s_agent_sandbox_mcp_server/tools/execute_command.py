@@ -12,13 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Annotated
+
 from pydantic import (
     BaseModel,
     Field,
 )
 from fastmcp import Context
 
-from ..utils import get_sandbox
+from ..utils import (
+    get_sandbox,
+    TOOL_DEFAULT_TIMEOUT,
+    TOOL_MAX_TIMEOUT,
+)
+
 
 
 class ExecuteCommandOutputSchema(BaseModel):
@@ -29,19 +36,24 @@ class ExecuteCommandOutputSchema(BaseModel):
 
 async def execute_command(
     ctx: Context,
-    sandbox_claim_name: str,
-    namespace: str,
-    command: str,
-    timeout: int = 60,
+    sandbox_claim_name: Annotated[str, Field(
+        description="Name of a target sandbox claim.",
+    )],
+    namespace: Annotated[str, Field(
+        description="Kubernetes namespace with a target sandbox."
+    )],
+    command: Annotated[str, Field(
+        description="Shell command to execute inside a sandbox.",
+    )],
+    timeout: Annotated[int, Field(
+        description="Time in seconds to execute the command before the timeout error.",
+        gt=0,
+        lt=TOOL_MAX_TIMEOUT,
+    )] = TOOL_DEFAULT_TIMEOUT,
+
 ) -> ExecuteCommandOutputSchema:
     """
     Execute command in a sandbox.
-
-    Args:
-        sandbox_claim_name: Name of a target sandbox claim.
-        namespace: Kubernetes namespace with a target sandbox.
-        command: Shell command to execute inside a sandbox.
-        timeout: Time in seconds to execute the command before the timeout error.
     """
 
     sandbox = await get_sandbox(ctx, sandbox_claim_name, namespace)

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Annotated
+
 from pydantic import (
     BaseModel,
     Field,
@@ -27,25 +29,15 @@ class CreateSandboxOutputSchema(BaseModel):
 
 async def create_sandbox(
     ctx: Context,
-    warmpool: str,
-    namespace: str,
-    sandbox_ready_timeout: int = 180,
-    labels: dict[str, str] | None = None,
-    shutdown_after_seconds: int | None = 300,
-    pod_labels: dict[str, str] | None = None,
-    pod_annotations: dict[str, str] | None = None,
+    warmpool: Annotated[str, Field(description="The name of the warmpool to use.")],
+    namespace: Annotated[str, Field(description="The Kubernetes namespace in which to create the sandbox.")],
+    sandbox_ready_timeout: Annotated[int, Field(description="Timeout in seconds to wait for the sandbox to be ready.")] = 180,
+    labels: Annotated[dict[str, str] | None, Field(description="Additional labels for the sandbox.")] = None,
+    shutdown_after_seconds: Annotated[int | None, Field(description="Time in seconds after which the sandbox automatically shuts down.")] = 300,
+    pod_labels: Annotated[dict[str, str] | None, Field(description="Additional labels for the pod.")] = None,
+    pod_annotations: Annotated[dict[str, str] | None, Field(description="Additional annotations for the pod.")] = None,
 ) -> CreateSandboxOutputSchema:
-    """Create a new sandbox.
-
-    Args:
-        warmpool: The name of the warmpool to use.
-        namespace: The Kubernetes namespace in which to create the sandbox.
-        sandbox_ready_timeout: Timeout in seconds to wait for the sandbox to be ready.
-        labels: Additional labels for the sandbox.
-        shutdown_after_seconds: Time in seconds after which the sandbox automatically shuts down.
-        pod_labels: Additional labels for the pod.
-        pod_annotations: Additional annotations for the pod.
-    """
+    """Create a new sandbox."""
 
     client = ctx.lifespan_context["client"]
     settings: Settings = ctx.lifespan_context["settings"]
