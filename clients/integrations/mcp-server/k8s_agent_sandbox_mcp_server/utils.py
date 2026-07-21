@@ -26,6 +26,7 @@ async def get_sandbox(
 
     client: AsyncSandboxClient = ctx.lifespan_context["client"]
 
+    # TODO: Get labels directly from the sanbox when it is in SDK.
     label_selector = get_session_label_selector_from_context(ctx)
     found = set(await client.list_all_sandboxes(
         namespace=namespace,
@@ -58,4 +59,3 @@ def get_session_label_selector_from_context(ctx: Context) -> str:
 
     label_selector = f"{settings.session_id_label_key}={session_id}"
     return label_selector
-
