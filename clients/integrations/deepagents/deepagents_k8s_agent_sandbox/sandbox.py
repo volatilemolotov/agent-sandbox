@@ -207,7 +207,7 @@ class K8sAgentSandbox(BaseSandbox):
         try:
             self._ensure_parent_dir(path)
             try:
-                self._assert_file_valid_state(path)
+                self._assert_file_valid_state(path, "w")
             except FileNotFoundError:
                 pass
             self._sandbox.files.write(path, content)
@@ -219,7 +219,7 @@ class K8sAgentSandbox(BaseSandbox):
 
     def _download_file(self, path: str):
         try:
-            self._assert_file_valid_state(path)
+            self._assert_file_valid_state(path, "r")
             content = self._sandbox.files.read(path)
             error = None
         except Exception as e:
@@ -238,9 +238,10 @@ class K8sAgentSandbox(BaseSandbox):
             error_msg = result.stderr.strip() if result.stderr else f"mkdir failed with exit code {result.exit_code}"
             raise RuntimeError(f"Cannot create parent directory '{parent}': {error_msg}")
 
-
     def _assert_file_valid_state(
-        self, path: str,
+        self,
+        path: str,
+        access_mode: str,
     ):
         """Run the shell command to validate the state of a target file."""
     
@@ -249,7 +250,7 @@ class K8sAgentSandbox(BaseSandbox):
             f"""
             if [ ! -e {quoted_path} ]; then echo missing; exit 0; fi;
             if [ -d {quoted_path} ]; then echo directory; exit 0; fi;
-            if [ -r {quoted_path} ]; then echo file; else echo denied; fi
+            if [ -{access_mode} {quoted_path} ]; then echo file; else echo denied; fi
             """
         )
 
