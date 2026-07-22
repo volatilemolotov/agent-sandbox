@@ -130,8 +130,8 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
 
         if len(found) > 1:
             raise RuntimeError(
-                "Multiple sandboxes with matching scopes have been found. "
-                f"Delete the orphan sandboxes manually.\nScope labels: {self._scope_labels}"
+                f"Expected 1 sandbox for scope {self._scope_labels}, found {len(found)}: "
+                f"{found}. Delete orphan sandboxes manually."
             )
      
         if len(found) == 1:
