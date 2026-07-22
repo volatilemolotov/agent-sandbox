@@ -75,7 +75,7 @@ class K8sAgentSandbox(BaseSandbox):
         client: SandboxClient,
         sandbox_settings: K8sAgentSandboxSettings,
         scope: dict[str, str],
-        scope_labels_prefix: str = "scope.langchain-deepagents",
+        scope_labels_prefix: str = "deepagents.agents.x-k8s.io",
     ):
         """
         Create DeepAgents backend that re-uses sandbox with matching "scope" labels
