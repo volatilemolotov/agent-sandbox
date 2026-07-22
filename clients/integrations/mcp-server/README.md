@@ -29,28 +29,28 @@ The MCP server exposes the following tools:
 
 ## Configuration
 
-The server is configured using environment variables via `pydantic-settings`. Nested configurations are denoted by a double underscore (`__`). You can define these variables in the environment or provide them via a `.env` file in the working directory.
+The server is configured using environment variables via `pydantic-settings` and their names must start with the `K8S_SANDBOX` prefix. Nested configurations are denoted by a double underscore (`__`). You can define these variables in the environment or provide them via a `.env` file in the working directory.
 
 ### Connection Configuration
 
-You must specify the connection method to the Kubernetes backend via the `CONNECTION__TYPE` variable. It accepts three possible values: `"gateway"`, `"direct"`, or `"in-cluster"`. Depending on the chosen type, different environment variables apply:
+You must specify the connection method to the Kubernetes backend via the `K8S_SANDBOX_CONNECTION__TYPE` variable. It accepts three possible values: `"gateway"`, `"direct"`, or `"in-cluster"`. Depending on the chosen type, different environment variables apply:
 
-#### 1. Gateway Connection (`CONNECTION__TYPE="gateway"`)
+#### 1. Gateway Connection (`K8S_SANDBOX_CONNECTION__TYPE="gateway"`)
 Connects via a Kubernetes Gateway API resource.
-* `CONNECTION__GATEWAY_NAME`: Name of the Gateway resource. (Required)
-* `CONNECTION__GATEWAY_NAMESPACE`: Namespace where the Gateway resource resides. (Default: `"default"`)
-* `CONNECTION__GATEWAY_READY_TIMEOUT`: Timeout in seconds to wait for Gateway IP. (Default: `180`)
-* `CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
+* `K8S_SANDBOX_CONNECTION__GATEWAY_NAME`: Name of the Gateway resource. (Required)
+* `K8S_SANDBOX_CONNECTION__GATEWAY_NAMESPACE`: Namespace where the Gateway resource resides. (Default: `"default"`)
+* `K8S_SANDBOX_CONNECTION__GATEWAY_READY_TIMEOUT`: Timeout in seconds to wait for Gateway IP. (Default: `180`)
+* `K8S_SANDBOX_CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
 
-#### 2. Direct Connection (`CONNECTION__TYPE="direct"`)
+#### 2. Direct Connection (`K8S_SANDBOX_CONNECTION__TYPE="direct"`)
 Connects directly to the Sandbox router API URL.
-* `CONNECTION__API_URL`: Direct URL to the router. (Required)
-* `CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
+* `K8S_SANDBOX_CONNECTION__API_URL`: Direct URL to the router. (Required)
+* `K8S_SANDBOX_CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
 
-#### 3. In-Cluster Connection (`CONNECTION__TYPE="in-cluster"`)
+#### 3. In-Cluster Connection (`K8S_SANDBOX_CONNECTION__TYPE="in-cluster"`)
 Connects directly to the sandbox pod from within the cluster (bypassing the router) using stable K8s DNS or the Pod IP.
-* `CONNECTION__USE_POD_IP`: If set to `true`, connect via the Pod IP fetched from the Sandbox status instead of cluster DNS. (Default: `false`)
-* `CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
+* `K8S_SANDBOX_CONNECTION__USE_POD_IP`: If set to `true`, connect via the Pod IP fetched from the Sandbox status instead of cluster DNS. (Default: `false`)
+* `K8S_SANDBOX_CONNECTION__SERVER_PORT`: Port the sandbox container listens on. (Default: `8888`)
 
 
 ### General Settings
