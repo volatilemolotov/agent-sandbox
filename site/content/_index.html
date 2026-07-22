@@ -11,7 +11,7 @@ description = "Agent Sandbox is a cloud native controller for sandboxes"
 <p class="quickstart-subtitle">Spin up an isolated sandbox and run code in a few lines with the SDK.</p>
 <div class="quickstart-container">
 {{< blocks/tabs name="quickstart" >}}
-  {{< blocks/tab name="Python" codelang="python" options="style=github-dark" >}}
+  {{< blocks/tab name="Python" codelang="python" options="style=github-dark" ctatext="Read the full Python SDK quickstart →" ctaurl="/docs/getting_started/python-sdk-quickstart/" >}}
 from k8s_agent_sandbox import SandboxClient
 
 client = SandboxClient()
@@ -27,7 +27,7 @@ try:
 finally:
     sandbox.terminate()
   {{< /blocks/tab >}}
-  {{< blocks/tab name="Go" codelang="go" options="style=github-dark" >}}
+  {{< blocks/tab name="Go" codelang="go" options="style=github-dark" ctatext="Read the full Go SDK quickstart →" ctaurl="/docs/getting_started/go-sdk-quickstart/" >}}
 package main
 import (
 	"context"
@@ -45,27 +45,25 @@ func main() {
 		Namespace:    "default",
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	defer client.DeleteAll(ctx)
 
 	// Create a sandbox and run a command.
 	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	result, err := sb.Run(ctx, "echo 'Hello from the sandbox!'")
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
 	}
 	fmt.Println(result.Stdout)
 }
   {{< /blocks/tab >}}
 {{< /blocks/tabs >}}
 </div>
-<p class="quickstart-cta">
-  <a href="/docs/getting_started/python-sdk-quickstart/">Read the full Python SDK quickstart →</a>
-</p>
+
 
 <div class="mx-auto">
 	<div class="container">
