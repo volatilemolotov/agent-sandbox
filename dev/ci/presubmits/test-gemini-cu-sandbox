@@ -35,7 +35,8 @@ if _repo_root not in sys.path:
 from dev.ci.shared.runner import TestRunner
 
 EXAMPLE_DIR = os.path.join(_repo_root, "examples", "gemini-cu-sandbox")
-ROUTER_DIR = os.path.join(_repo_root, "clients", "python", "agentic-sandbox-client", "sandbox-router")
+CLIENT_DIR = os.path.join(_repo_root, "clients", "python", "agentic-sandbox-client")
+ROUTER_DIR = os.path.join(CLIENT_DIR, "sandbox-router")
 GEMINI_IMAGE = "sandbox-gemini-runtime:latest"
 ROUTER_IMAGE = "sandbox-router:latest"
 
@@ -111,7 +112,7 @@ class GeminiCUSandboxTestRunner(TestRunner):
             kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "sandbox-gemini-computer-use.yaml"))
 
             print("\n-- Installing Python client --")
-            run(["pip", "install", "-e", ".", "--break-system-packages"], cwd=self.repo_root)
+            run(["pip", "install", "-e", ".", "--break-system-packages"], cwd=CLIENT_DIR)
 
             print("\n-- Running computer-use unittest --")
             result = run(
