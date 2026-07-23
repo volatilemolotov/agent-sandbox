@@ -55,4 +55,4 @@ Connects directly to the sandbox pod from within the cluster (bypassing the rout
 
 ### General Settings
 
-* `SESSION_ID_LABEL_KEY`: The Kubernetes label key to apply for tracking session IDs on the sandboxes. (Default: `"mcp.k8s-agent-sandbox/session-id"`)
+* `K8S_SANDBOX_SESSION_ID_LABEL_KEY`: The Kubernetes label key to apply for tracking session IDs on the sandboxes. (Default: `"mcp.k8s-agent-sandbox/session-id"`)
