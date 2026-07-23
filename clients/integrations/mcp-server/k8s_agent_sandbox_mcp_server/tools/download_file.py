@@ -61,6 +61,10 @@ async def download_file(
             final_content = base64.b64encode(content).decode("ascii")
         else:
             final_content = content.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise ValueError(
+            f"File at '{path}' contains non-UTF-8 bytes. Set binary=True to retrieve it as base64."
+        ) from e
     except Exception as e:
         raise ValueError(f"Failed to decode file content: {e}") from e
 
