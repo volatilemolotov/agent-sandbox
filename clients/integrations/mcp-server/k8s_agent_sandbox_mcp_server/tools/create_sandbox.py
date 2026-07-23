@@ -33,7 +33,13 @@ async def create_sandbox(
     namespace: Annotated[str, Field(description="The Kubernetes namespace in which to create the sandbox.")],
     sandbox_ready_timeout: Annotated[int, Field(description="Timeout in seconds to wait for the sandbox to be ready.")] = 180,
     labels: Annotated[dict[str, str] | None, Field(description="Additional labels for the sandbox.")] = None,
-    shutdown_after_seconds: Annotated[int | None, Field(description="Time in seconds after which the sandbox automatically shuts down.")] = 300,
+    shutdown_after_seconds: Annotated[
+        int | None,
+        Field(
+            description="Time in seconds after which the sandbox automatically shuts down. "
+                        "Default is 300s (5 min); increase for long-running tasks."
+        )
+    ] = 300,
     pod_labels: Annotated[dict[str, str] | None, Field(description="Additional labels for the pod.")] = None,
     pod_annotations: Annotated[dict[str, str] | None, Field(description="Additional annotations for the pod.")] = None,
 ) -> CreateSandboxOutputSchema:
