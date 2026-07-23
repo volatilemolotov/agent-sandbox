@@ -16,6 +16,7 @@ import logging
 import posixpath
 import textwrap
 import shlex
+from typing import Literal
 
 from deepagents.backends.protocol import (
     ExecuteResponse,
@@ -241,7 +242,7 @@ class K8sAgentSandbox(BaseSandbox):
     def _assert_file_valid_state(
         self,
         path: str,
-        access_mode: str,
+        access_mode: Literal["r", "w"],
     ):
         """Run the shell command to validate the state of a target file."""
     
