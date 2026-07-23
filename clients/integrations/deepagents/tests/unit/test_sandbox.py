@@ -60,6 +60,8 @@ def test_upload_files(lifecycle_manager, mock_sandbox, state, expected_error):
     def run_side_effect(cmd, *args, **kwargs):
         if "mkdir" in cmd:
             return ExecutionResult(exit_code=0, stdout="", stderr="")
+        else:
+            assert "if [ -w" in cmd
         return ExecutionResult(exit_code=0, stdout=state, stderr="")
 
     mock_sandbox.commands.run.side_effect = run_side_effect
@@ -89,6 +91,8 @@ def test_download_files(lifecycle_manager, mock_sandbox, state, expected_error, 
     mock_sandbox.files.read.return_value = b"file content"
 
     result = backend.download_files(["some/path.txt"])
+
+    assert "if [ -r" in mock_sandbox.commands.run.call_args.args[0]
 
     assert len(result) == 1
     assert result[0] == FileDownloadResponse(
