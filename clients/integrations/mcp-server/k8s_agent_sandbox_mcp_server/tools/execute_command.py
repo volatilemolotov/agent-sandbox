@@ -48,7 +48,7 @@ async def execute_command(
     timeout: Annotated[int, Field(
         description="Time in seconds to execute the command before the timeout error.",
         gt=0,
-        lt=TOOL_MAX_TIMEOUT,
+        le=TOOL_MAX_TIMEOUT,
     )] = TOOL_DEFAULT_TIMEOUT,
 
 ) -> ExecuteCommandOutputSchema:

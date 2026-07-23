@@ -43,7 +43,7 @@ async def upload_file(
     timeout: Annotated[int, Field(
         description="Time in seconds to upload the file until the timeout.",
         gt=0,
-        lt=TOOL_MAX_TIMEOUT,
+        le=TOOL_MAX_TIMEOUT,
     )] = TOOL_DEFAULT_TIMEOUT,
 ) -> UploadFileOutputSchema:
     """

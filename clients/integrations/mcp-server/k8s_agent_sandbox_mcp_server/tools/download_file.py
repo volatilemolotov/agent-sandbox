@@ -43,7 +43,7 @@ async def download_file(
     timeout: Annotated[int, Field(
         description="Time in seconds to download the file until the timeout.",
         gt=0,
-        lt=TOOL_MAX_TIMEOUT,
+        le=TOOL_MAX_TIMEOUT,
     )] = TOOL_DEFAULT_TIMEOUT,
 ) -> DownloadFileOutputSchema:
     """
