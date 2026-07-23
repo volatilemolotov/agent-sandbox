@@ -17,7 +17,7 @@ from k8s_agent_sandbox import SandboxClient
 client = SandboxClient()
 
 sandbox = client.create_sandbox(
-    warmpool="python-sandbox-pool",
+    warmpool="example-sandbox-pool",
     namespace="default",
 )
 try:
@@ -41,22 +41,24 @@ func main() {
 
 	// Connect to your cluster and ensure sandboxes are cleaned up.
 	client, err := sandbox.NewClient(ctx, sandbox.Options{
-		WarmPoolName: "python-sandbox-pool",
+		WarmPoolName: "example-sandbox-pool",
 		Namespace:    "default",
 	})
 	if err != nil {
-		log.Print(err)
+		log.Fatal(err)
 	}
 	defer client.DeleteAll(ctx)
 
 	// Create a sandbox and run a command.
-	sb, err := client.CreateSandbox(ctx, "python-sandbox-pool", "default")
+	sb, err := client.CreateSandbox(ctx, "example-sandbox-pool", "default")
 	if err != nil {
 		log.Print(err)
+    return
 	}
 	result, err := sb.Run(ctx, "echo 'Hello from the sandbox!'")
 	if err != nil {
 		log.Print(err)
+    return
 	}
 	fmt.Println(result.Stdout)
 }
