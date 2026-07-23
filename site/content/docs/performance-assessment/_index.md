@@ -1,7 +1,7 @@
 ---
 title: "Performance Assessment"
 linkTitle: "Performance Assessment"
-weight: 3
+weight: 33
 description: >
   How to measure, benchmark, and tune the performance of the Agent Sandbox controller.
 ---
@@ -14,8 +14,8 @@ The `agent-sandbox-controller` exposes several flags that directly affect throug
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--sandbox-concurrent-workers` | `1` | Max concurrent reconciles for the Sandbox controller |
-| `--sandbox-claim-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxClaim controller |
+| `--sandbox-concurrent-workers` | `100` | Max concurrent reconciles for the Sandbox controller |
+| `--sandbox-claim-concurrent-workers` | `50` | Max concurrent reconciles for the SandboxClaim controller |
 | `--sandbox-warm-pool-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxWarmPool controller |
 | `--sandbox-template-concurrent-workers` | `1` | Max concurrent reconciles for the SandboxTemplate controller |
 | `--kube-api-qps` | `-1` (no client-side throttling) | Disables client-side rate limiting to the Kubernetes API server. Server-side throttling (API Priority and Fairness) still applies. When setting a positive value, use at least the sum of all `--*-concurrent-workers` flags to avoid starving reconcile loops. |
@@ -154,6 +154,7 @@ The repository ships Go benchmarks in `test/e2e/` that measure Sandbox and Sandb
 |-----------|------|-----------------|
 | `BenchmarkChromeSandboxStartup` | `chromesandbox_test.go` | Chrome Sandbox pod startup latency |
 | `BenchmarkChromeSandboxClaimStartup` | `chromesandbox_claim_test.go` | Chrome SandboxClaim end-to-end startup latency |
+| `BenchmarkWarmPoolParallelClaim` | `warmpool_benchmark_test.go` | Parallel SandboxClaim latency against a pre-warmed WarmPool |
 
 ### Running benchmarks
 
@@ -250,19 +251,22 @@ The rapid burst test is the primary scalability scenario. It creates SandboxClai
 ```bash
 cd dev/load-test/test-recipes
 chmod +x run_rapid_burst.sh
-./run_rapid_burst.sh          # default parameters
-./run_rapid_burst.sh test1    # append a name to the output directory
+./run_rapid_burst.sh                           # script defaults
+BURST_SIZE=400 QPS=400 ./run_rapid_burst.sh    # conservative starting point, recommended for a first run
+./run_rapid_burst.sh test1                     # append a name to the output directory
 ```
 
 #### Configuration parameters
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BURST_SIZE` | `400` | SandboxClaims created per burst iteration |
-| `QPS` | `400` | Max creation rate (queries per second) |
+| `BURST_SIZE` | `1000` | SandboxClaims created per burst iteration |
+| `QPS` | `1000` | Max creation rate (queries per second) |
 | `TOTAL_BURSTS` | `10` | Total number of burst iterations |
 | `WARMPOOL_SIZE` | `1000` | Pre-warmed sandboxes to maintain |
 | `RUNTIME_CLASS` | `""` (none) | RuntimeClassName for the SandboxTemplate — set to `gvisor` if your cluster supports it |
+
+> **Note:** These are the script's own defaults, sized for a well-tuned cluster. For a first run, or before raising controller concurrency, start with the more conservative `BURST_SIZE=400 QPS=400` shown above.
 
 Total claims created = `BURST_SIZE × TOTAL_BURSTS`.
 
@@ -292,7 +296,7 @@ All load test recipes collect the following Prometheus-backed metrics:
 
 Measures the end-to-end time from when the kube-apiserver receives the SandboxClaim create request to when the claim is marked as Ready (implying the claim, sandbox, and pod are all ready).
 
-> **Note:** This metric requires a mutating admission webhook to record the start timestamp. The webhook is not yet merged (see PR #761). Because the kube-apiserver and controller may run on different nodes, this metric may include clock skew.
+> **Note:** This metric requires a mutating admission webhook to record the start timestamp. See the example webhook at [`examples/webhook-inject-timestamp`](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/examples/webhook-inject-timestamp) (#761) for a reference implementation. Because the kube-apiserver and controller may run on different nodes, this metric may include clock skew.
 
 | Metric | Prometheus query | Default threshold |
 |--------|-----------------|-------------------|
@@ -321,5 +325,5 @@ The controller exposes all metrics at its `/metrics` endpoint; a Prometheus `Ser
 ## See Also
 
 - [Configuration reference](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/docs/configuration.md) — full flag reference for the controller
-- [Running tests](../../contribution-guidelines/testing/) — unit, integration and e2e test commands
+- [Running tests](../contribution-guidelines/testing/) — unit, integration and e2e test commands
 - [ClusterLoader2 getting started](https://github.com/kubernetes/perf-tests/blob/master/clusterloader2/docs/GETTING_STARTED.md)
