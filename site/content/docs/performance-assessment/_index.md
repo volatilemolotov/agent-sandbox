@@ -296,7 +296,7 @@ All load test recipes collect the following Prometheus-backed metrics:
 
 Measures the end-to-end time from when the kube-apiserver receives the SandboxClaim create request to when the claim is marked as Ready (implying the claim, sandbox, and pod are all ready).
 
-> **Note:** This metric requires a mutating admission webhook to record the start timestamp. See the example webhook at [`examples/webhook-inject-timestamp`](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/examples/webhook-inject-timestamp) (#761) for a reference implementation. Because the kube-apiserver and controller may run on different nodes, this metric may include clock skew.
+> **Note:** This metric requires a mutating admission webhook to record the start timestamp. The webhook is not yet merged (see PR #761). Because the kube-apiserver and controller may run on different nodes, this metric may include clock skew.
 
 | Metric | Prometheus query | Default threshold |
 |--------|-----------------|-------------------|
