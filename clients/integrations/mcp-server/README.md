@@ -56,3 +56,9 @@ Connects directly to the sandbox pod from within the cluster (bypassing the rout
 ### General Settings
 
 * `K8S_SANDBOX_SESSION_ID_LABEL_KEY`: The Kubernetes label key to apply for tracking session IDs on the sandboxes. (Default: `"mcp.k8s-agent-sandbox/session-id"`)
+
+## Security
+
+The server ships with **no authentication**: the Dockerfile serves streamable HTTP on `0.0.0.0:8000`, and any client that can reach that port gets a fresh session and full access to every tool (create sandboxes, execute arbitrary commands, read/write files) across any namespace its Kubernetes service account can touch.
+
+Do not expose this server directly to untrusted networks. Deploy it behind an authenticating proxy or wire up [fastmcp's auth support](https://gofastmcp.com/servers/auth/authentication/) directly.
