@@ -57,7 +57,7 @@ class K8sAgentSandbox(BaseSandbox):
         root_dir: Sandbox's working directory.
         default_timeout_seconds: Default timeout for various operations.
         sandbox_api_accepts_relative_paths: When True, all paths that are passed to
-            sandbox operations are transformed to the relative paths agains `sandbox_api_cwd`.
+            sandbox operations are converted to paths relative to `sandbox_api_cwd`.
             Since the DeepAgents backends normally use absolute paths, this option can be
             used to convert them into relative paths in case when sandbox operations only
             accept relative paths. This is a temporary workaround until the sandbox SDK provides
