@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod, ABC
-from collections.abc import Callable
 import logging
 
 from k8s_agent_sandbox import SandboxClient, SandboxNotFoundError
