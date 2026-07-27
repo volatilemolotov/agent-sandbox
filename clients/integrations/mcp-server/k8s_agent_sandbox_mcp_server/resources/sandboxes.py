@@ -14,7 +14,6 @@
 
 from fastmcp import Context
 
-from ..settings import Settings
 from fastmcp.resources import resource
 from fastmcp.resources import ResourceResult, ResourceContent
 
