@@ -7,22 +7,46 @@ This MCP (Model Context Protocol) server provides tools to interact with Kuberne
 The MCP server exposes the following tools:
 
 * **`create_sandbox`**: Creates a new Kubernetes agent sandbox from a warmpool.
-  * **Arguments**: `warmpool` (str), `namespace` (str), `sandbox_ready_timeout` (int, default: 180), `labels` (dict), `shutdown_after_seconds` (int, default: 300), `pod_labels` (dict), `pod_annotations` (dict).
+  * **Arguments**:
+    * `warmpool` (str)
+    * `namespace` (str)
+    * `sandbox_ready_timeout` (int, default: 180)
+    * `labels` (dict)
+    * `shutdown_after_seconds` (int, default: 300). Set as `None` to disable a timeout.
+    * `pod_labels` (dict)
+    * `pod_annotations` (dict)
   * **Returns**: The claim name of the newly created sandbox.
 
 * **`delete_sandbox`**: Deletes a target sandbox claim.
-  * **Arguments**: `sandbox_claim_name` (str), `namespace` (str).
+  * **Arguments**:
+    * `sandbox_claim_name` (str)
+    * `namespace` (str)
 
 * **`execute_command`**: Executes a shell command inside a sandbox.
-  * **Arguments**: `sandbox_claim_name` (str), `namespace` (str), `command` (str), `timeout` (int, default: 60).
+  * **Arguments**:
+    * `sandbox_claim_name` (str)
+    * `namespace` (str)
+    * `command` (str)
+    * `timeout` (int, default: 60)
   * **Returns**: Execution exit code, stdout, and stderr.
 
 * **`upload_file`**: Uploads a file to a target sandbox.
-  * **Arguments**: `sandbox_claim_name` (str), `namespace` (str), `path` (str), `content` (str), `binary` (bool, default: False), `timeout` (int, default: 60). Base64-encoded strings should be passed if `binary` is set to True.
+  * **Arguments**:
+    * `sandbox_claim_name` (str)
+    * `namespace` (str)
+    * `path` (str)
+    * `content` (str)
+    * `binary` (bool, default: False) — Base64-encoded strings should be passed if `binary` is set to True.
+    * `timeout` (int, default: 60)
   * **Returns**: The number of bytes written to the file.
 
 * **`download_file`**: Downloads a file from a target sandbox.
-  * **Arguments**: `sandbox_claim_name` (str), `namespace` (str), `path` (str), `binary` (bool, default: False), `timeout` (int, default: 60). If `binary` is True, it returns the contents as a base64-encoded string.
+  * **Arguments**:
+    * `sandbox_claim_name` (str)
+    * `namespace` (str)
+    * `path` (str)
+    * `binary` (bool, default: False) — If True, returns the contents as a base64-encoded string.
+    * `timeout` (int, default: 60)
   * **Returns**: Content of the file and the number of bytes read.
 
 *(The server also provides a `get_sandboxes` resource to fetch a list of existing sandboxes.)*
