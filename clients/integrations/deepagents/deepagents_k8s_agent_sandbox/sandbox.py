@@ -83,6 +83,7 @@ class K8sAgentSandbox(BaseSandbox):
         self._sandbox_api_accepts_relative_paths = sandbox_api_accepts_relative_paths
         self._sandbox_api_cwd = sandbox_api_cwd
         self._root_dir_initialized = False
+        self._last_used_sandbox: Sandbox | None = None
 
 
     @classmethod
@@ -321,13 +322,14 @@ class K8sAgentSandbox(BaseSandbox):
     def _sandbox(self):
         sandbox = self._lifecycle_manager.get_sandbox()
         self._initialize_root_dir(sandbox)
+        self._last_used_sandbox = sandbox
         return sandbox
 
     def _initialize_root_dir(self, sandbox: Sandbox):
         """
         Create a root directory in case it does not exist.
         """
-        if self._root_dir_initialized:
+        if self._root_dir_initialized and self._last_used_sandbox is sandbox:
             return
 
         command = f"mkdir -p {shlex.quote(self._root_dir)}"
