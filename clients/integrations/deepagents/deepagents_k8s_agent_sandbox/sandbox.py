@@ -72,7 +72,7 @@ class K8sAgentSandbox(BaseSandbox):
         lifecycle_manager: K8sAgentSandboxLifecycleManager,
         root_dir: str = "/app/work",
         default_timeout_seconds: int = 30 * 60,
-        sandbox_api_cwd: str | None = "/app",
+        sandbox_api_cwd: str = "/app",
         sandbox_api_accepts_relative_paths: bool = True,
 
     ) -> None:
@@ -92,7 +92,8 @@ class K8sAgentSandbox(BaseSandbox):
         sandbox_settings: K8sAgentSandboxSettings,
         scope: dict[str, str],
         scope_labels_prefix: str = "deepagents.agents.x-k8s.io",
-        sandbox_api_cwd: str | None = None,
+        root_dir: str = "/app/work",
+        sandbox_api_cwd: str = "/app",
         sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
@@ -106,6 +107,7 @@ class K8sAgentSandbox(BaseSandbox):
                 This can be used in a graph factory to specify user, thread or 
                 assistant specific labels to isolate sandboxes from different runs.
             scope_labels_prefix: Prefix for scope label keys.
+            root_dir: See :meth:`__init__` for details.
             sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
             sandbox_api_cwd: See :meth:`__init__` for details.
         """
@@ -119,6 +121,7 @@ class K8sAgentSandbox(BaseSandbox):
 
         return cls(
             lifecycle_manager,
+            root_dir=root_dir,
             sandbox_api_cwd=sandbox_api_cwd,
             sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
@@ -127,7 +130,8 @@ class K8sAgentSandbox(BaseSandbox):
     def from_existing_sandbox(
         cls,
         sandbox: Sandbox,
-        sandbox_api_cwd: str | None = None,
+        root_dir: str = "/app/work",
+        sandbox_api_cwd: str = "/app",
         sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
@@ -135,6 +139,7 @@ class K8sAgentSandbox(BaseSandbox):
 
         Args:
             sandbox: Existing k8s_agent_sandbox.sandbox.Sandbox instance to use.
+            root_dir: See :meth:`__init__` for details.
             sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
             sandbox_api_cwd: See :meth:`__init__` for details.
         """
@@ -143,6 +148,7 @@ class K8sAgentSandbox(BaseSandbox):
 
         return cls(
             lifecycle_manager,
+            root_dir=root_dir,
             sandbox_api_cwd=sandbox_api_cwd,
             sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
@@ -154,7 +160,8 @@ class K8sAgentSandbox(BaseSandbox):
         client: SandboxClient,
         claim_name: str,
         namespace: str,
-        sandbox_api_cwd: str | None = None,
+        root_dir: str = "/app/work",
+        sandbox_api_cwd: str = "/app",
         sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
@@ -163,6 +170,7 @@ class K8sAgentSandbox(BaseSandbox):
             client: SandboxClient instance.
             claim_name: Name of an existing sandbox claim to use.
             namespace: Namespace with a target sandbox claim.
+            root_dir: See :meth:`__init__` for details.
             sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
             sandbox_api_cwd: See :meth:`__init__` for details.
         """
@@ -176,6 +184,7 @@ class K8sAgentSandbox(BaseSandbox):
  
         return cls(
             lifecycle_manager,
+            root_dir=root_dir,
             sandbox_api_cwd=sandbox_api_cwd,
             sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
