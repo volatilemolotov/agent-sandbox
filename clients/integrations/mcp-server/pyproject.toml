@@ -31,6 +31,6 @@ exclude = [
 test = [
     "pytest",
     "pytest-xdist",
-    "pytest-asyncio",
+    "anyio",
 ]
 
