@@ -7,7 +7,7 @@ This MCP (Model Context Protocol) server provides tools to interact with Kuberne
 The MCP server exposes the following tools:
 
 * **`create_sandbox`**: Creates a new Kubernetes agent sandbox from a warmpool.
-  * **Arguments**: `warmpool` (str), `namespace` (str), `sandbox_ready_timeout` (int, default: 180), `labels` (dict), `shutdown_after_seconds` (int), `pod_labels` (dict), `pod_annotations` (dict).
+  * **Arguments**: `warmpool` (str), `namespace` (str), `sandbox_ready_timeout` (int, default: 180), `labels` (dict), `shutdown_after_seconds` (int, default: 300), `pod_labels` (dict), `pod_annotations` (dict).
   * **Returns**: The claim name of the newly created sandbox.
 
 * **`delete_sandbox`**: Deletes a target sandbox claim.
