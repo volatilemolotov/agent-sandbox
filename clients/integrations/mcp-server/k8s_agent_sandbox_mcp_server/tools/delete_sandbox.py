@@ -17,7 +17,7 @@ from pydantic import Field
 
 from fastmcp import Context
 
-from ..utils import get_sandbox
+from ..utils import ensure_session_owns
 
 
 async def delete_sandbox(
@@ -30,7 +30,7 @@ async def delete_sandbox(
     """
 
     # Making sure that sandbox belongs to this session, otherwise raise error.
-    await get_sandbox(ctx, sandbox_claim_name, namespace)
+    await ensure_session_owns(ctx, sandbox_claim_name, namespace)
 
     client = ctx.lifespan_context["client"]
 

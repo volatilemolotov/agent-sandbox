@@ -21,15 +21,14 @@ from .settings import Settings
 TOOL_DEFAULT_TIMEOUT = 60
 TOOL_MAX_TIMEOUT = 600
 
-async def get_sandbox(
+async def ensure_session_owns(
     ctx: Context,
     sandbox_claim_name: str,
     namespace: str,
 ):
-
     client: AsyncSandboxClient = ctx.lifespan_context["client"]
 
-    # TODO: Get labels directly from the sanbox when it is in SDK.
+    # TODO: Get labels directly from the sandbox when it is in SDK.
     label_selector = get_session_label_selector_from_context(ctx)
     found = set(await client.list_all_sandboxes(
         namespace=namespace,
@@ -39,6 +38,16 @@ async def get_sandbox(
     if sandbox_claim_name not in found:
         raise RuntimeError(f"Sandbox claim '{sandbox_claim_name}' is not found in namespace '{namespace}'.")
 
+
+async def get_sandbox(
+    ctx: Context,
+    sandbox_claim_name: str,
+    namespace: str,
+):
+    # Making sure that sandbox belongs to this session, otherwise raise error.
+    await ensure_session_owns(ctx, sandbox_claim_name, namespace)
+
+    client: AsyncSandboxClient = ctx.lifespan_context["client"]
     sandbox = await client.get_sandbox(sandbox_claim_name, namespace=namespace)
 
     return sandbox
