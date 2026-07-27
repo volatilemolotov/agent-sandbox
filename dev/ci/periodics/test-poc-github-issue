@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""PoC periodic job: proves the Prow -> GitHub-issue pipeline works end to end.
+
+Every run, it files (or comments on) a single tracking issue, using only the
+standard library so this periodic job needs no extra pip dependencies. Delete
+this script and its Prow job config once the pipeline (periodic job -> mounted
+github-token secret -> GitHub API) has been verified to work.
+"""
+
+import json
+import os
+import sys
+import urllib.parse
+import urllib.request
+
+API_ROOT = "https://api.github.com"
+TOKEN_PATH = "/etc/github-token/token"
+REPO = "kubernetes-sigs/agent-sandbox"
+MARKER = "<!-- poc-periodic-github-issue -->"
+
+
+def _request(method, url, token, body=None):
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Authorization", f"Bearer {token}")
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("User-Agent", "agent-sandbox-poc-github-issue")
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _job_url():
+    """Best-effort link to the current build, using Prow's injected env vars."""
+    job_name = os.environ.get("JOB_NAME")
+    build_id = os.environ.get("BUILD_ID")
+    if not job_name or not build_id:
+        return None
+    return (
+        "https://prow.k8s.io/view/gs/kubernetes-ci-logs/logs/"
+        f"sigs.k8s.io_agent-sandbox/{job_name}/{build_id}/"
+    )
+
+
+def main():
+    with open(TOKEN_PATH) as f:
+        token = f.read().strip()
+
+    query = f"repo:{REPO} is:issue is:open in:body {MARKER}"
+    search_url = f"{API_ROOT}/search/issues?q={urllib.parse.quote(query)}"
+    results = _request("GET", search_url, token)
+
+    body_lines = [
+        MARKER,
+        "### PoC: periodic Prow job GitHub issue creation",
+        "",
+        "Filed automatically by the `periodic-agent-sandbox-poc-github-issue` "
+        "Prow job to verify that a periodic job can authenticate to GitHub "
+        "and file/update an issue. Safe to close.",
+    ]
+    job_url = _job_url()
+    if job_url:
+        body_lines += ["", f"[Latest run]({job_url})"]
+    body = "\n".join(body_lines)
+
+    if results.get("total_count", 0) > 0:
+        issue_number = results["items"][0]["number"]
+        comment_url = f"{API_ROOT}/repos/{REPO}/issues/{issue_number}/comments"
+        _request("POST", comment_url, token, {"body": body})
+    else:
+        issues_url = f"{API_ROOT}/repos/{REPO}/issues"
+        _request(
+            "POST",
+            issues_url,
+            token,
+            {"title": "[PoC] periodic Prow job GitHub issue creation", "body": body},
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
