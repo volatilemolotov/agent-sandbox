@@ -59,8 +59,9 @@ class TestLabelScopedManager:
         )
     def test_with_new_sandbox(self, mock_sandbox_client, mock_sandbox, sample_sandbox_settings, manager):
 
-        mock_sandbox_client.list_all_sandboxes.return_value = ["my-claim"]
+        mock_sandbox_client.list_all_sandboxes.return_value = []
         mock_sandbox_client.get_sandbox.side_effect = SandboxNotFoundError
+        mock_sandbox_client.k8s_helper.get_sandbox_claim.return_value = None
 
         sandbox = manager.get_sandbox()
 
@@ -71,9 +72,8 @@ class TestLabelScopedManager:
             label_selector="my-prefix/thread-id=1,my-prefix/assistant-id=2"
         )
 
-        mock_sandbox_client.get_sandbox.assert_called_once_with(
-            "my-claim", namespace=sample_sandbox_settings.namespace
-        )
+
+        mock_sandbox_client.get_sandbox.assert_not_called()
 
         mock_sandbox_client.create_sandbox.assert_called_once_with(
             sample_sandbox_settings.warmpool,
@@ -85,7 +85,25 @@ class TestLabelScopedManager:
             pod_labels=sample_sandbox_settings.pod_labels,
             pod_annotations=sample_sandbox_settings.pod_annotations,
         )
-    
+
+    def test_with_existing_stale_sandbox(self, mock_sandbox_client, sample_sandbox_settings, manager):
+        """Claim was found by the label selector and still exists, but get_sandbox()
+        failed to resolve it (transient error, timeout, etc). Must not create a
+        duplicate claim for the same scope -> propagate the error instead."""
+
+        mock_sandbox_client.list_all_sandboxes.return_value = ["my-claim"]
+        mock_sandbox_client.get_sandbox.side_effect = SandboxNotFoundError
+        mock_sandbox_client.k8s_helper.get_sandbox_claim.return_value = {"metadata": {"name": "my-claim"}}
+
+        with pytest.raises(SandboxNotFoundError):
+            manager.get_sandbox()
+
+        mock_sandbox_client.k8s_helper.get_sandbox_claim.assert_called_once_with(
+            "my-claim", namespace=sample_sandbox_settings.namespace
+        )
+
+        assert mock_sandbox_client.create_sandbox.call_count == 0
+
     def test_with_existing_sandbox(self, mock_sandbox_client, mock_sandbox, sample_sandbox_settings, manager):
         mock_sandbox_client.list_all_sandboxes.return_value = ["my-claim"]
 

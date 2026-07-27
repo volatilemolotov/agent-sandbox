@@ -100,11 +100,14 @@ class LabelScopedLifecycleManager(K8sAgentSandboxLifecycleManager):
         if claim_name is not None:
             try:
                 return self._client.get_sandbox(
-                    claim_name, 
+                    claim_name,
                     namespace=self._sandbox_settings.namespace
                 )
             except SandboxNotFoundError:
-                pass
+                if self._client.k8s_helper.get_sandbox_claim(
+                    claim_name, namespace=self._sandbox_settings.namespace
+                ) is not None:
+                    raise
 
         labels = dict(self._sandbox_settings.labels or {})
         labels.update(self._scope_labels)
