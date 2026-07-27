@@ -19,7 +19,10 @@ client = SandboxClient()
 sandbox = K8sAgentSandbox.from_existing_claim_name(
     client,
     claim_name="some-claim",
-    namespace="default"
+    namespace="default",
+    # The directory the sandbox runtime's file API resolves relative paths
+    # against. This is a property of the sandbox image, not `root_dir`.
+    sandbox_api_cwd="/app",
 )
 
 result = sandbox.execute("echo hello")
@@ -58,6 +61,9 @@ backend = K8sAgentSandbox.from_labels_scope(
     client=client,
     sandbox_settings=settings,
     scope={"thread": "my-graph-thread"},
+    # The directory the sandbox runtime's file API resolves relative paths
+    # against. This is a property of the sandbox image, not `root_dir`.
+    sandbox_api_cwd="/app",
 )
 
 # 5. Create the DeepAgent graph, injecting the K8s sandbox as the backend

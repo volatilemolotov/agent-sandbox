@@ -67,10 +67,10 @@ def test_upload_files(lifecycle_manager, mock_sandbox, state, expected_error):
     mock_sandbox.commands.run.side_effect = run_side_effect
     mock_sandbox.files.write.return_value = None
 
-    result = backend.upload_files([("some/path.txt", b"content")])
+    result = backend.upload_files([("/some/path.txt", b"content")])
 
     assert len(result) == 1
-    assert result[0] == FileUploadResponse(path="some/path.txt", error=expected_error)
+    assert result[0] == FileUploadResponse(path="/some/path.txt", error=expected_error)
 
 
 @pytest.mark.parametrize("state,expected_error,expected_content", [
@@ -90,13 +90,13 @@ def test_download_files(lifecycle_manager, mock_sandbox, state, expected_error, 
 
     mock_sandbox.files.read.return_value = b"file content"
 
-    result = backend.download_files(["some/path.txt"])
+    result = backend.download_files(["/some/path.txt"])
 
     assert "if [ -r" in mock_sandbox.commands.run.call_args.args[0]
 
     assert len(result) == 1
     assert result[0] == FileDownloadResponse(
-        path="some/path.txt",
+        path="/some/path.txt",
         content=expected_content,
         error=expected_error,
     )

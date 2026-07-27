@@ -22,7 +22,6 @@ from deepagents.backends.protocol import (
     ExecuteResponse,
     FileDownloadResponse,
     FileUploadResponse,
-    GlobResult,
     FileOperationError,
     FILE_NOT_FOUND,
     PERMISSION_DENIED,
@@ -57,17 +56,33 @@ class K8sAgentSandbox(BaseSandbox):
             which is responsible for managing the sandbox instance.
         root_dir: Sandbox's working directory.
         default_timeout_seconds: Default timeout for various operations.
+        sandbox_api_accepts_relative_paths: When True, all paths that are passed to
+            sandbox operations are transformed to the relative paths agains `sandbox_api_cwd`.
+            Since the DeepAgents backends normally use absolute paths, this option can be
+            used to convert them into relative paths in case when sandbox operations only
+            accept relative paths. This is a temporary workaround until the sandbox SDK provides
+            this as a built-in feature.
+        sandbox_api_cwd: The directory that the sandbox's file API (upload/download)
+            resolves relative paths against. This is a property of the sandbox runtime
+            image, unrelated to `root_dir`.
     """
 
     def __init__(
         self,
         lifecycle_manager: K8sAgentSandboxLifecycleManager,
-        root_dir: str = "/app",
+        root_dir: str = "/app/work",
         default_timeout_seconds: int = 30 * 60,
+        sandbox_api_cwd: str | None = "/app",
+        sandbox_api_accepts_relative_paths: bool = True,
+
     ) -> None:
         self._lifecycle_manager = lifecycle_manager
         self._root_dir = root_dir
         self._default_timeout_seconds = default_timeout_seconds
+
+        self._sandbox_api_accepts_relative_paths = sandbox_api_accepts_relative_paths
+        self._sandbox_api_cwd = sandbox_api_cwd
+        self._root_dir_initialized = False
 
 
     @classmethod
@@ -77,6 +92,8 @@ class K8sAgentSandbox(BaseSandbox):
         sandbox_settings: K8sAgentSandboxSettings,
         scope: dict[str, str],
         scope_labels_prefix: str = "deepagents.agents.x-k8s.io",
+        sandbox_api_cwd: str | None = None,
+        sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
         Create DeepAgents backend that re-uses sandbox with matching "scope" labels
@@ -89,6 +106,8 @@ class K8sAgentSandbox(BaseSandbox):
                 This can be used in a graph factory to specify user, thread or 
                 assistant specific labels to isolate sandboxes from different runs.
             scope_labels_prefix: Prefix for scope label keys.
+            sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
+            sandbox_api_cwd: See :meth:`__init__` for details.
         """
 
         lifecycle_manager = LabelScopedLifecycleManager(
@@ -100,21 +119,32 @@ class K8sAgentSandbox(BaseSandbox):
 
         return cls(
             lifecycle_manager,
+            sandbox_api_cwd=sandbox_api_cwd,
+            sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
      
     @classmethod
     def from_existing_sandbox(
         cls,
         sandbox: Sandbox,
+        sandbox_api_cwd: str | None = None,
+        sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
         Create Sandbox backend from existing sandbox instance.
+
+        Args:
+            sandbox: Existing k8s_agent_sandbox.sandbox.Sandbox instance to use.
+            sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
+            sandbox_api_cwd: See :meth:`__init__` for details.
         """
 
         lifecycle_manager = ExistingSandboxInstanceLifecycleManager(sandbox)
 
         return cls(
             lifecycle_manager,
+            sandbox_api_cwd=sandbox_api_cwd,
+            sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
 
 
@@ -124,9 +154,17 @@ class K8sAgentSandbox(BaseSandbox):
         client: SandboxClient,
         claim_name: str,
         namespace: str,
+        sandbox_api_cwd: str | None = None,
+        sandbox_api_accepts_relative_paths: bool = True,
     ):
         """
         Create Sandbox backend from existing sandbox by finding it by its claim name.
+        Args:
+            client: SandboxClient instance.
+            claim_name: Name of an existing sandbox claim to use.
+            namespace: Namespace with a target sandbox claim.
+            sandbox_api_accepts_relative_paths: See :meth:`__init__` for details.
+            sandbox_api_cwd: See :meth:`__init__` for details.
         """
 
 
@@ -138,6 +176,8 @@ class K8sAgentSandbox(BaseSandbox):
  
         return cls(
             lifecycle_manager,
+            sandbox_api_cwd=sandbox_api_cwd,
+            sandbox_api_accepts_relative_paths=sandbox_api_accepts_relative_paths,
         )
 
     def execute(
@@ -154,6 +194,7 @@ class K8sAgentSandbox(BaseSandbox):
         wrapped = f"sh -c {shlex.quote(inner_shell_command)}"
 
         effective_timeout = timeout or self._default_timeout_seconds
+
         try:
             result = self._sandbox.commands.run(wrapped, timeout=effective_timeout)
         except Exception as e:
@@ -171,14 +212,6 @@ class K8sAgentSandbox(BaseSandbox):
             exit_code=result.exit_code,
             truncated=False,
         )
-
-    def glob(self, pattern: str, path: str | None = None) -> GlobResult:
-        path = path or self._root_dir
-        return super().glob(pattern, path)
-
-    async def aglob(self, pattern: str, path: str | None = None) -> GlobResult:
-        path = path or self._root_dir
-        return await super().aglob(pattern, path)
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         """Upload multiple files to the sandbox.
@@ -211,7 +244,8 @@ class K8sAgentSandbox(BaseSandbox):
                 self._assert_file_valid_state(path, "w")
             except FileNotFoundError:
                 pass
-            self._sandbox.files.write(path, content)
+            rel_path = self._get_path_relative_to_cwd_if_needed(path)
+            self._sandbox.files.write(rel_path, content, allow_unsafe_paths=True)
             error = None
         except Exception as e:
             error = _map_file_error(e)
@@ -221,7 +255,8 @@ class K8sAgentSandbox(BaseSandbox):
     def _download_file(self, path: str):
         try:
             self._assert_file_valid_state(path, "r")
-            content = self._sandbox.files.read(path)
+            rel_path = self._get_path_relative_to_cwd_if_needed(path)
+            content = self._sandbox.files.read(rel_path, allow_unsafe_paths=True)
             error = None
         except Exception as e:
             content = None
@@ -275,7 +310,27 @@ class K8sAgentSandbox(BaseSandbox):
 
     @property
     def _sandbox(self):
-        return self._lifecycle_manager.get_sandbox()
+        sandbox = self._lifecycle_manager.get_sandbox()
+        self._initialize_root_dir(sandbox)
+        return sandbox
+
+    def _initialize_root_dir(self, sandbox: Sandbox):
+        """
+        Create a root directory in case it does not exist.
+        """
+        if self._root_dir_initialized:
+            return
+
+        command = f"mkdir -p {shlex.quote(self._root_dir)}"
+        result = sandbox.commands.run(f"sh -c {shlex.quote(command)}")
+
+        if result.exit_code == 0:
+            self._root_dir_initialized = True
+            return
+
+        raise RuntimeError(
+            f"Cannot create working directory {self._root_dir}. Error: {result.stderr}"
+        )
 
     @property
     def id(self) -> str:
@@ -284,6 +339,12 @@ class K8sAgentSandbox(BaseSandbox):
         """
 
         return f"{self._sandbox.namespace}/{self._sandbox.claim_name}"
+
+    def _get_path_relative_to_cwd_if_needed(self, path: str) -> str:
+        if self._sandbox_api_accepts_relative_paths and posixpath.isabs(path):
+            return posixpath.relpath(path, self._sandbox_api_cwd)
+
+        return path
 
 
 def _map_file_error(error: Exception) -> FileOperationError | str:
