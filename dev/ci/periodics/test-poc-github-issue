@@ -13,12 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""PoC periodic job: proves the Prow -> GitHub-issue pipeline works end to end.
+"""PoC periodic job: proves the CI -> GitHub-issue pipeline works end to end.
 
-Every run, it files (or comments on) a single tracking issue, using only the
-standard library so this periodic job needs no extra pip dependencies. Delete
-this script and its Prow job config once the pipeline (periodic job -> mounted
-github-token secret -> GitHub API) has been verified to work.
+Runs identically from Prow (periodic-agent-sandbox-poc-github-issue) and from
+GitHub Actions (.github/workflows/poc-github-issue.yml). Every run, it files
+(or comments on) a single shared tracking issue, using only the standard
+library so this job needs no extra pip dependencies. Delete this script and
+both its CI job configs once the pipeline (periodic job -> github token ->
+GitHub API) has been verified to work.
 """
 
 import json
@@ -43,8 +45,25 @@ def _request(method, url, token, body=None):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _token():
+    """GITHUB_TOKEN env var (GitHub Actions) or mounted secret file (Prow)."""
+    env_token = os.environ.get("GITHUB_TOKEN")
+    if env_token:
+        return env_token
+    with open(TOKEN_PATH) as f:
+        return f.read().strip()
+
+
 def _job_url():
-    """Best-effort link to the current build, using Prow's injected env vars."""
+    """Best-effort link to the current run, on either GitHub Actions or Prow."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        server = os.environ.get("GITHUB_SERVER_URL")
+        repo = os.environ.get("GITHUB_REPOSITORY")
+        run_id = os.environ.get("GITHUB_RUN_ID")
+        if server and repo and run_id:
+            return f"{server}/{repo}/actions/runs/{run_id}"
+        return None
+
     job_name = os.environ.get("JOB_NAME")
     build_id = os.environ.get("BUILD_ID")
     if not job_name or not build_id:
@@ -56,8 +75,7 @@ def _job_url():
 
 
 def main():
-    with open(TOKEN_PATH) as f:
-        token = f.read().strip()
+    token = _token()
 
     query = f"repo:{REPO} is:issue is:open in:body {MARKER}"
     search_url = f"{API_ROOT}/search/issues?q={urllib.parse.quote(query)}"
@@ -65,11 +83,11 @@ def main():
 
     body_lines = [
         MARKER,
-        "### PoC: periodic Prow job GitHub issue creation",
+        "### PoC: periodic CI job GitHub issue creation",
         "",
-        "Filed automatically by the `periodic-agent-sandbox-poc-github-issue` "
-        "Prow job to verify that a periodic job can authenticate to GitHub "
-        "and file/update an issue. Safe to close.",
+        "Filed automatically by a periodic CI job (Prow or GitHub Actions) "
+        "to verify that it can authenticate to GitHub and file/update an "
+        "issue. Safe to close.",
     ]
     job_url = _job_url()
     if job_url:
@@ -86,7 +104,7 @@ def main():
             "POST",
             issues_url,
             token,
-            {"title": "[PoC] periodic Prow job GitHub issue creation", "body": body},
+            {"title": "[PoC] periodic CI job GitHub issue creation", "body": body},
         )
     return 0
 

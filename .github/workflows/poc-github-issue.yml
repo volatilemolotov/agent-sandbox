@@ -1,0 +1,24 @@
+name: "PoC: periodic GitHub issue creation"
+
+# Mirrors periodic-agent-sandbox-poc-github-issue in
+# kubernetes/test-infra:config/jobs/kubernetes/sig-k8s-infra/trusted/agent-sandbox-poc-github-issue.yaml,
+# proving the same dev/ci/periodics/test-poc-github-issue script also works
+# from GitHub Actions using the built-in GITHUB_TOKEN, with no secret to
+# provision. Delete this workflow together with that Prow job and the script
+# once the pipeline has been verified.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # hourly, matching the Prow job's interval
+
+jobs:
+  poc-github-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - name: "File/update PoC issue"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: dev/ci/periodics/test-poc-github-issue
