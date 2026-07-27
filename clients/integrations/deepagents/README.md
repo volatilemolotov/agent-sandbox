@@ -48,7 +48,7 @@ model = ChatGoogleGenerativeAI(model="gemini-3-pro")
 client = SandboxClient()
 
 # 3. Configure the sandbox settings
-# 'warmpool' references a pre-defined SandboxTemplate in your cluster
+# 'warmpool' references a pre-defined SandboxWarmPool in your cluster
 settings = K8sAgentSandboxSettings(
     warmpool="python-deepagent",
     namespace="default"
