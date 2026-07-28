@@ -349,7 +349,8 @@ class K8sAgentSandbox(BaseSandbox):
         Return a namespace-qualified sandbox identifier.
         """
 
-        return f"{self._sandbox.namespace}/{self._sandbox.claim_name}"
+        sandbox = self._lifecycle_manager.get_sandbox()
+        return f"{sandbox.namespace}/{sandbox.claim_name}"
 
     def _get_path_relative_to_cwd_if_needed(self, path: str) -> str:
         if self._sandbox_api_accepts_relative_paths and posixpath.isabs(path):
