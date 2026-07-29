@@ -16,32 +16,26 @@ Create a GKE autopilot cluster
 gcloud container clusters create-auto sandbox-rl-cluster --location=us-east1
 ```
 
-Apply Agent Sandbox CRDs:
-
-```bash
-kubectl apply -f gymnasium-tests/sandbox-manifests/manifest.yaml
-kubectl apply -f gymnasium-tests/sandbox-manifests/extensions.yaml
-kubectl apply -f gymnasium-tests/sandbox-manifests/router.yaml
-```
+Follow the instructions from oficial guide to [install Agent Sandbox CRDs and Router](https://github.com/kubernetes-sigs/agent-sandbox#installation).
 
 Since the example Docker image is public, you can just deploy sandbox resources:
 
 ```bash
-kubectl apply -f examples/test_env/template.yaml
-kubectl apply -f examples/test_env/warmpool.yaml
+kubectl apply -f sandbox/template.yaml
+kubectl apply -f sandbox/warmpool.yaml
 ```
 
 Create a configmap with the example jupyter notebook:
 
 ```bash
-kubectl create configmap rl-notebook-config --from-file=rl_training.ipynb=rl_training.ipynb
+kubectl create configmap rl-notebook-config --from-file=rl_training.ipynb=jupyter/rl_training.ipynb
 ```
 
 Deploy a jupyter instance:
 
 ```bash
-kubectl apply -f gymnasium-tests/jupyter-rbac.yaml
-kubectl apply -f gymnasium-tests/jupyter.yaml
+kubectl apply -f jupyter/jupyter-rbac.yaml
+kubectl apply -f jupyter/jupyter.yaml
 ```
 
 To access the jupyter instance, get a generated access token by running this command:
