@@ -26,7 +26,8 @@ import tempfile
 
 import pytest
 
-_workspace_dir = tempfile.mkdtemp(prefix="mcp-server-test-")
+_workspace = tempfile.TemporaryDirectory(prefix="mcp-server-test-")
+_workspace_dir = _workspace.name
 os.environ["MCP_WORKSPACE"] = _workspace_dir
 
 import mcp_server  # noqa: E402  (must be imported after MCP_WORKSPACE is set)

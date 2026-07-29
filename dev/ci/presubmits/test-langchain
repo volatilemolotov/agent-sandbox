@@ -32,13 +32,25 @@ _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.
 EXAMPLE_DIR = os.path.join(_repo_root, "examples", "langchain")
 
 
+def read_requirement(name):
+    """Returns the requirements.txt line pinning `name`, so the version
+    installed here always matches what the example itself declares."""
+    path = os.path.join(EXAMPLE_DIR, "requirements.txt")
+    with open(path) as f:
+        for line in f:
+            if line.strip().startswith(name):
+                return line.strip()
+    raise ValueError(f"{name} not found in {path}")
+
+
 def main():
     def run(cmd, **kwargs):
         print(f"+ {' '.join(cmd)}")
         return subprocess.run(cmd, **kwargs)
 
     print("\n-- Installing langchain unit test dependencies --")
-    run(["pip", "install", "--break-system-packages", "pytest"], check=True)
+    langgraph_requirement = read_requirement("langgraph")
+    run(["pip", "install", "--break-system-packages", "pytest", langgraph_requirement], check=True)
 
     print("\n-- Running langchain unit tests --")
     result = run(["python3", "-m", "pytest", "test_coding_agent.py", "-v"], cwd=EXAMPLE_DIR)

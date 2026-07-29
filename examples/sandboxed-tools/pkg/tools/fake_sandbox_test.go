@@ -14,7 +14,10 @@
 
 package tools
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // fakeResponse is a canned result for one fakeSandbox.ExecCommand call.
 type fakeResponse struct {
@@ -36,7 +39,7 @@ func (f *fakeSandbox) ExecCommand(ctx context.Context, opts ExecCommandOptions) 
 	f.calls = append(f.calls, opts)
 
 	if i >= len(f.responses) {
-		return &ExecCommandResult{}, nil
+		return nil, fmt.Errorf("unexpected ExecCommand call %d", i+1)
 	}
 	resp := f.responses[i]
 	if resp.err != nil {

@@ -27,7 +27,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
+
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 func fail(format string, args ...any) {
 	fmt.Printf(format+"\n", args...)
@@ -35,7 +38,7 @@ func fail(format string, args ...any) {
 }
 
 func doGet(target string) (*http.Response, []byte) {
-	resp, err := http.Get(target)
+	resp, err := httpClient.Get(target)
 	if err != nil {
 		fail("An error occurred: %v", err)
 	}
@@ -52,7 +55,7 @@ func doPostJSON(target string, payload any) (*http.Response, []byte) {
 	if err != nil {
 		fail("An error occurred encoding payload: %v", err)
 	}
-	resp, err := http.Post(target, "application/json", bytes.NewReader(encoded))
+	resp, err := httpClient.Post(target, "application/json", bytes.NewReader(encoded))
 	if err != nil {
 		fail("An error occurred: %v", err)
 	}
@@ -78,7 +81,7 @@ func doPostUpload(target, filename string, content []byte) (*http.Response, []by
 		fail("An error occurred closing multipart writer: %v", err)
 	}
 
-	resp, err := http.Post(target, w.FormDataContentType(), &buf)
+	resp, err := httpClient.Post(target, w.FormDataContentType(), &buf)
 	if err != nil {
 		fail("An error occurred: %v", err)
 	}
