@@ -55,8 +55,14 @@ PYTHON_TEST_SUITES = [
         "dir": os.path.join("clients", "integrations", "mcp-server"),
         "editable_installs": [
             (os.path.join("clients", "integrations", "mcp-server"), "[test]"),
+        ]
+    },
+    {
+        "name": "integrations-deepagents",
+        "dir": os.path.join("clients", "integrations", "deepagents"),
+        "editable_installs": [
+            (os.path.join("clients", "integrations", "deepagents"), "[test]"),
         ],
-
     }
 ]
 
