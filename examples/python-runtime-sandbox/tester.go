@@ -191,8 +191,8 @@ func testExists(baseURL string) {
 	decodeJSON(body, &result)
 	fmt.Println("Exists check successful!")
 	fmt.Printf("Response JSON: %s\n", body)
-	if result.Path != "" || !result.Exists {
-		fail("An error occurred during exists check: got path=%q exists=%v, want path=\"\" exists=true", result.Path, result.Exists)
+	if result.Path != "." || !result.Exists {
+		fail("An error occurred during exists check: got path=%q exists=%v, want path=\".\" exists=true", result.Path, result.Exists)
 	}
 
 	target = baseURL + "/exists/does_not_exist"
