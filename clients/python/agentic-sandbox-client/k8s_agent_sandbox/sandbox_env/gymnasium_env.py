@@ -134,10 +134,12 @@ class SandboxEnv(gym.Env):
             stdout     = result.stdout or ""
             stderr     = result.stderr or ""
             exit_code  = result.exit_code
+            env_error  = False
         except Exception as exc:
             stdout     = ""
             stderr     = str(exc)
             exit_code  = -1
+            env_error  = True
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
@@ -150,6 +152,7 @@ class SandboxEnv(gym.Env):
             "stderr":     stderr,
             "elapsed_ms": elapsed_ms,
             "step":       self._step_count,
+            "env_error":  env_error
         }
 
         reward     = self.reward_fn(action, obs, info, self._current_task)
