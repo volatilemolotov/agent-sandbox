@@ -56,6 +56,12 @@ class PythonRuntimeSandboxTestRunner(TestRunner):
     def __init__(self):
         super().__init__("python-runtime-sandbox-test", "e2e test for the python-runtime-sandbox example")
 
+    def setup_cluster(self, args):
+        # run_tests() builds sandbox-runtime itself below; setup_cluster()
+        # only needs the controller image for the k8s/ manifests
+        # deploy-to-kube applies, not every example in the repo.
+        return super().setup_cluster(args, extra_push_images_args=["--images", "agent-sandbox-controller"])
+
     def run_tests(self, args):
         env = os.environ.copy()
         env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
