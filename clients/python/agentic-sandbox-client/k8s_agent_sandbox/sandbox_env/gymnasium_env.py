@@ -42,7 +42,7 @@ class SandboxEnv(gym.Env):
 
     Args:
         reward_fn:      A RewardFn instance that scores each (action, obs, info, task).
-        template:       Name of the SandboxTemplate (or warmpool-backed template) to use.
+        warmpool:       Name of the SandboxWarmpool to use.
         namespace:      Kubernetes namespace.
         connection_mode: One of "tunnel" (local/KinD), "gateway" (GKE),
                          "in_cluster", or "direct".
