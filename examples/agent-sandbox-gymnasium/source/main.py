@@ -1,4 +1,3 @@
-import shlex
 import subprocess
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -8,11 +7,6 @@ app = FastAPI()
 class ExecuteRequest(BaseModel):
     command: str
 
-def check_reward(result) -> int:
-    reward = 0
-    reward += 1 if result.returncode == 0 else -1
-    return reward
-
 @app.get("/", summary="Health Check")
 async def health_check():
     """A simple health check endpoint to confirm the server is running."""
@@ -21,12 +15,13 @@ async def health_check():
 @app.post("/execute")
 def execute_command(req: ExecuteRequest):
     try:
-        args = shlex.split(req.command)
         result = subprocess.run(
-            args,
+            req.command,
+            shell=True,
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=req.timeout,
+            executable="/bin/bash"
         )
 
         return {
