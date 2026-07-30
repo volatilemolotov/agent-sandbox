@@ -13,9 +13,7 @@ spec:
     spec:
       containers:
       - name: simple-sandbox
-        image: us-docker.pkg.dev/akvelon-gke-aieco/agent-sandbox-dima/gymnasium-env:1.0.2
-        # image: local-sandbox-gym:v3
-        # imagePullPolicy: Never
+        image: us-docker.pkg.dev/<PROJECT_ID>/<REGISTRY_NAME>/gymnasium-env:1.0.0
         ports:
         - containerPort: 8888
         readinessProbe:

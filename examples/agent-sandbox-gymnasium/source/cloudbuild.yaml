@@ -1,5 +1,5 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'us-docker.pkg.dev/akvelon-gke-aieco/agent-sandbox-dima/gymnasium-env:1.0.2', '.' ]
+  args: [ 'build', '-t', 'us-docker.pkg.dev/<PROJECT_ID>/<REGISTRY_NAME>/gymnasium-env:1.0.0', '.' ]
 images:
-- 'us-docker.pkg.dev/akvelon-gke-aieco/agent-sandbox-dima/gymnasium-env:1.0.2'
+- 'us-docker.pkg.dev/<PROJECT_ID>/<REGISTRY_NAME>/gymnasium-env:1.0.0'
