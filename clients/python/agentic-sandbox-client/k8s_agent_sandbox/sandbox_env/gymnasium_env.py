@@ -1,9 +1,15 @@
-# sandbox_env/gymnasium_env.py
-from __future__ import annotations
-
 import time
-import gymnasium as gym
-from gymnasium import spaces
+
+try:
+    import gymnasium as gym
+    from gymnasium import spaces
+except ModuleNotFoundError as e:
+    raise ImportError(
+        "The 'gymnasium' library is required to use 'k8s_agent_sandbox.sandbox_env'. "
+        "Please install the 'rl' extra: `pip install 'your-package[rl]'` "
+        "or install gymnasium directly: `pip install gymnasium`."
+    ) from e
+
 from typing import Optional
 
 from k8s_agent_sandbox import SandboxClient
