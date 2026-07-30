@@ -32,7 +32,7 @@ func (valueTool) Schema() llm.Tool {
 	return llm.Tool{Function: llm.ToolFunction{Name: "value_tool"}}
 }
 
-func (valueTool) Run(ctx context.Context, sandbox Sandbox) (llm.Message, error) {
+func (valueTool) Run(_ context.Context, _ Sandbox) (llm.Message, error) {
 	return llm.Message{}, nil
 }
 

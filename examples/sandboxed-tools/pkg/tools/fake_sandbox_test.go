@@ -34,7 +34,7 @@ type fakeSandbox struct {
 	responses []fakeResponse
 }
 
-func (f *fakeSandbox) ExecCommand(ctx context.Context, opts ExecCommandOptions) (*ExecCommandResult, error) {
+func (f *fakeSandbox) ExecCommand(_ context.Context, opts ExecCommandOptions) (*ExecCommandResult, error) {
 	i := len(f.calls)
 	f.calls = append(f.calls, opts)
 
