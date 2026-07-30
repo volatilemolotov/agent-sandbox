@@ -18,7 +18,15 @@ gcloud container clusters create-auto sandbox-rl-cluster --location=us-east1
 
 Follow the instructions from oficial guide to [install Agent Sandbox CRDs and Router](https://github.com/kubernetes-sigs/agent-sandbox#installation).
 
-Since the example Docker image is public, you can just deploy sandbox resources:
+Create an Artifact Registry repository:
+
+```bash
+gcloud artifacts repositories create <REGISTRY_NAME> \
+    --repository-format=docker \
+    --location=us
+```
+
+Update `source/cloudbuild.yaml` and `sandbox/template.yaml` with your data. Apply the manifests:
 
 ```bash
 kubectl apply -f sandbox/template.yaml
@@ -56,4 +64,8 @@ Open `localhost:8888` and go to the `rl_training.ipynb` to see the example.
 
 ```bash
 gcloud container clusters delete sandbox-rl-cluster --location=us-east1
+```
+
+```bash
+gcloud artifacts repositories delete <REGISTRY_NAME>
 ```
