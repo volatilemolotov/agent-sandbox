@@ -21,6 +21,7 @@ from k8s_agent_sandbox.models import (
 )
 
 from .reward_fn import RewardFn
+from .termination_fn import TerminationFn
 
 
 # Connection config factory — keeps __init__ signature clean
@@ -57,6 +58,7 @@ class SandboxEnv(gym.Env):
     def __init__(
         self,
         reward_fn: RewardFn,
+        termination_fn: TerminationFn,
         warmpool: str = "simple-sandbox-warmpool",
         namespace: str = "default",
         connection_mode: str = "tunnel",
@@ -72,6 +74,7 @@ class SandboxEnv(gym.Env):
             raise ValueError(f"connection_mode must be one of {list(_CONNECTION_MODES)}")
 
         self.reward_fn         = reward_fn
+        self.termination_fn    = termination_fn
         self.warmpool          = warmpool
         self.namespace         = namespace
         self.max_episode_steps = max_episode_steps
@@ -113,6 +116,7 @@ class SandboxEnv(gym.Env):
 
         # Let the reward function reset its internal state for the new episode
         self.reward_fn.reset(self._current_task)
+        self.termination_fn.reset(self._current_task)
 
         obs  = "Sandbox ready."
         info = {
@@ -156,7 +160,7 @@ class SandboxEnv(gym.Env):
         }
 
         reward     = self.reward_fn(action, obs, info, self._current_task)
-        terminated = False   # reward_fn drives termination logic via info
+        terminated = self.termination_fn(obs, info, self._current_task)
         truncated  = self._step_count >= self.max_episode_steps
 
         return obs, reward, terminated, truncated, info
