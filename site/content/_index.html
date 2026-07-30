@@ -50,15 +50,17 @@ func main() {
 	defer client.DeleteAll(ctx)
 
 	// Create a sandbox and run a command.
+	// CreateSandbox arguments take precedence to options passed with Options
+	
 	sb, err := client.CreateSandbox(ctx, "example-sandbox-pool", "default")
 	if err != nil {
 		log.Print(err)
-    return
+		return
 	}
 	result, err := sb.Run(ctx, "echo 'Hello from the sandbox!'")
 	if err != nil {
 		log.Print(err)
-    return
+		return
 	}
 	fmt.Println(result.Stdout)
 }
