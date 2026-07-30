@@ -116,7 +116,8 @@ class SandboxEnv(gym.Env):
 
         obs  = "Sandbox ready."
         info = {
-            "sandbox_id": getattr(self._sandbox, "id", "unknown"),
+            "claim_name": getattr(self._sandbox, "claim_name", "unknown"),
+            "sandbox_id": getattr(self._sandbox, "sandbox_id", "unknown"),
             "task": self._current_task,
         }
         return obs, info
