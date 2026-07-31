@@ -6,6 +6,8 @@ from .reward_fns import (
     StepPenaltyReward,
     FileCreatedReward,
 )
+from .termination_fn import TerminationFn
+from .termination_fns import SparseTaskTermination
 
 __all__ = [
     "SandboxEnv",
@@ -14,4 +16,6 @@ __all__ = [
     "SparseTaskReward",
     "StepPenaltyReward",
     "FileCreatedReward",
+    "TerminationFn",
+    "SparseTaskTermination",
 ]
