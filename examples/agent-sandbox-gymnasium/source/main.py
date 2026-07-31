@@ -20,7 +20,8 @@ def execute_command(req: ExecuteRequest):
             shell=True,
             capture_output=True,
             text=True,
-            executable="/bin/bash"
+            executable="/bin/bash",
+            timeout=60
         )
 
         return {
