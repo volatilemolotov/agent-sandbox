@@ -20,7 +20,6 @@ def execute_command(req: ExecuteRequest):
             shell=True,
             capture_output=True,
             text=True,
-            timeout=req.timeout,
             executable="/bin/bash"
         )
 

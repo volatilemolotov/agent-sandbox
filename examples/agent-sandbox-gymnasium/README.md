@@ -24,11 +24,20 @@ Create an Artifact Registry repository:
 gcloud artifacts repositories create <REGISTRY_NAME> \
     --repository-format=docker \
     --location=us
+
+# For the simplicity, make this repo public
+gcloud artifacts repositories add-iam-policy-binding <REGISTRY_NAME> \
+    --location=us \
+    --member="allUsers" \
+    --role="roles/artifactregistry.reader"
 ```
 
 Update `source/cloudbuild.yaml` and `sandbox/template.yaml` with your data. Apply the manifests:
 
 ```bash
+cd source
+gcloud builds submit .
+cd ..
 kubectl apply -f sandbox/template.yaml
 kubectl apply -f sandbox/warmpool.yaml
 ```
@@ -67,5 +76,11 @@ gcloud container clusters delete sandbox-rl-cluster --location=us-east1
 ```
 
 ```bash
-gcloud artifacts repositories delete <REGISTRY_NAME>
+gcloud artifacts repositories delete <REGISTRY_NAME> \
+    --location=us
+
+gcloud artifacts repositories remove-iam-policy-binding <REGISTRY_NAME> \
+    --location=us \
+    --member="allUsers" \
+    --role="roles/artifactregistry.reader"
 ```
