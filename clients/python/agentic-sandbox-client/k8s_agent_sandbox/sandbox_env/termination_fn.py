@@ -16,5 +16,5 @@ class TerminationFn(ABC):
         obs: str,
         info: dict,
         task: str,
-    ) -> float:
+    ) -> bool:
         ...
