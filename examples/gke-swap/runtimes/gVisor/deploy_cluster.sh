@@ -15,11 +15,8 @@
 
 set -eo pipefail
 
-CLUSTER_NAME=${CLUSTER_NAME:-"agent-sandbox-swap"}
-REGION=${REGION:-"us-east4"}
-ZONE=${ZONE:-"us-east4-a"}
-BASELINE_MACHINE_TYPE=${BASELINE_MACHINE_TYPE:-"c4-standard-8"}
-SWAP_MACHINE_TYPE=${SWAP_MACHINE_TYPE:-"c4-standard-8-lssd"}
+CLUSTER_NAME=${CLUSTER_NAME:-"agent-sandbox-gvisor-1"}
+ZONE=${ZONE:-"us-east1-b"}
 
 # Get the directory of this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -28,33 +25,38 @@ echo "Creating GKE cluster base (with small default pool)..."
 gcloud container clusters create "${CLUSTER_NAME}" \
     --zone "${ZONE}" \
     --num-nodes 1 \
-    --machine-type e2-standard-4
+    --machine-type e2-standard-4 \
+    --image-type cos_containerd \
+    --enable-ip-alias
 
-echo "Creating baseline node pool (no swap)..."
+echo "Creating baseline node pool (no swap, gVisor enabled)..."
 gcloud container node-pools create baseline-pool \
     --cluster "${CLUSTER_NAME}" \
     --zone "${ZONE}" \
-    --machine-type "${BASELINE_MACHINE_TYPE}" \
+    --sandbox type=gvisor \
+    --machine-type c4-standard-8 \
     --num-nodes 1 \
-    --max-pods-per-node 256
- 
-echo "Creating lssd-swap node pool (with dedicated LSSD swap)..."
-# We use c4-standard-8-lssd which comes with 1 local SSD.
-# We dedicate this single SSD entirely to swap (via swap-dedicated-lssd.yaml).
+    --max-pods-per-node 256 \
+    --image-type cos_containerd
+
+echo "Creating lssd-swap node pool (with dedicated LSSD swap, gVisor enabled)..."
 gcloud container node-pools create lssd-swap-pool \
     --cluster "${CLUSTER_NAME}" \
     --zone "${ZONE}" \
-    --machine-type "${SWAP_MACHINE_TYPE}" \
+    --sandbox type=gvisor \
+    --machine-type c4-standard-8-lssd \
     --num-nodes 1 \
     --max-pods-per-node 256 \
-    --system-config-from-file "${DIR}/swap-dedicated-lssd.yaml"
+    --image-type cos_containerd \
+    --system-config-from-file "${DIR}/../../swap-dedicated-lssd.yaml"
 
 echo "Fetching cluster credentials..."
-REPO_ROOT="${DIR}/../.."
+REPO_ROOT="$(cd "${DIR}/../../../.." && pwd)"
 mkdir -p "${REPO_ROOT}/bin"
-KUBECONFIG="${KUBECONFIG:-"${REPO_ROOT}/bin/KUBECONFIG"}" gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${ZONE}"
+export KUBECONFIG="${KUBECONFIG:-"${REPO_ROOT}/bin/KUBECONFIG"}"
+gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${ZONE}"
 
 echo "Cluster deployed successfully."
-echo "Please ensure the Agent Sandbox controller and CRDs are deployed on this cluster before running the tests."
+echo "Please ensure the Agent Sandbox controller and CRDs (including extensions) are deployed on this cluster before running the tests."
 # Example installation (all-in-one controller + extension CRDs):
 # kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/latest/download/sandbox-with-extensions.yaml
