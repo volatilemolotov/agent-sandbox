@@ -40,6 +40,13 @@ PYTHON_TEST_SUITES = [
         "requirements": "requirements.txt",
     },
     {
+        "name": "hermes-agent",
+        # chat_hermes.py only uses stdlib (urllib.request, json), so the test
+        # needs no requirements.txt -- just pytest, installed unconditionally
+        # below.
+        "dir": os.path.join("examples", "hermes-agent"),
+    },
+    {
         "name": "agent-sandbox-rl",
         "dir": os.path.join("examples", "agent-sandbox-rl"),
         # Editable installs (in order): the in-repo SDK first (so we don't depend
