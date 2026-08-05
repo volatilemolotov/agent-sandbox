@@ -155,6 +155,12 @@ def main(args):
                 context_dir = "."
                 service_name = "sandbox-router-go"
 
+            # sandboxd (the portable runtime daemon) also imports the shared
+            # Go module, so it too builds from the repo root.
+            sandboxd_dir = os.path.join(".", "packages", "sandboxd")
+            if root == sandboxd_dir:
+                context_dir = "."
+
             if args.controller_only and service_name != "agent-sandbox-controller":
                 continue
 
