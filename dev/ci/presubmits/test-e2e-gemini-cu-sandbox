@@ -122,9 +122,8 @@ class GeminiCUSandboxTestRunner(TestRunner):
 
             print("\n-- Running computer-use unittest --")
             result = run(
-                ["python3", "-m", "unittest",
-                 "clients.python.agentic-sandbox-client.test_computer_use_extension"],
-                cwd=self.repo_root,
+                ["python3", "-m", "unittest", "test_computer_use_extension"],
+                cwd=CLIENT_DIR,
                 check=False,
             )
             if result.returncode != 0:
