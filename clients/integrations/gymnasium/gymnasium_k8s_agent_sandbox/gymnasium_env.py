@@ -13,24 +13,9 @@ except ModuleNotFoundError as e:
 from typing import Optional
 
 from k8s_agent_sandbox import SandboxClient
-from k8s_agent_sandbox.models import (
-    SandboxLocalTunnelConnectionConfig,
-    SandboxGatewayConnectionConfig,
-    SandboxInClusterConnectionConfig,
-    SandboxDirectConnectionConfig,
-)
 
 from .reward_fn import RewardFn
 from .termination_fn import TerminationFn
-
-
-# Connection config factory — keeps __init__ signature clean
-_CONNECTION_MODES = {
-    "tunnel":     lambda cfg: SandboxLocalTunnelConnectionConfig(**cfg),
-    "gateway":    lambda cfg: SandboxGatewayConnectionConfig(**cfg),
-    "in_cluster": lambda cfg: SandboxInClusterConnectionConfig(**cfg),
-    "direct":     lambda cfg: SandboxDirectConnectionConfig(**cfg),
-}
 
 
 class SandboxEnv(gym.Env):
@@ -61,8 +46,7 @@ class SandboxEnv(gym.Env):
         termination_fn: TerminationFn,
         warmpool: str = "simple-sandbox-warmpool",
         namespace: str = "default",
-        connection_mode: str = "tunnel",
-        connection_cfg: Optional[dict] = None,
+        client: SandboxClient = None,
         max_episode_steps: int = 20,
         max_obs_length: int = 4096,
     ):
@@ -70,8 +54,6 @@ class SandboxEnv(gym.Env):
 
         if not isinstance(reward_fn, RewardFn):
             raise TypeError(f"reward_fn must be a RewardFn instance, got {type(reward_fn)}")
-        if connection_mode not in _CONNECTION_MODES:
-            raise ValueError(f"connection_mode must be one of {list(_CONNECTION_MODES)}")
 
         self.reward_fn         = reward_fn
         self.termination_fn    = termination_fn
@@ -80,10 +62,7 @@ class SandboxEnv(gym.Env):
         self.max_episode_steps = max_episode_steps
         self.max_obs_length    = max_obs_length
 
-        # Build the SDK client once — it's reused across episodes
-        conn = _CONNECTION_MODES[connection_mode](connection_cfg or {})
-        self._client = SandboxClient(connection_config=conn)
-
+        self._client        = client
         self._sandbox       = None
         self._current_task  = ""
         self._step_count    = 0

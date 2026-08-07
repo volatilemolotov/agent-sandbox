@@ -19,7 +19,8 @@ dependencies = [
 test = ["pytest>=8", "pytest-asyncio>=0.24"]
 
 [tool.setuptools.packages.find]
-include = ["k8s_agent_sandbox_gymnasium*"]
+include = ["gymnasium_k8s_agent_sandbox*"]
+exclude = ["tests*"]
 
 [tool.setuptools_scm]
 root = "../../.."
