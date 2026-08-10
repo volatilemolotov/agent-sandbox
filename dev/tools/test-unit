@@ -37,6 +37,13 @@ PYTHON_TEST_SUITES = [
         # No requirements file; headers.py relies only on the standard library,
         # so the runner just installs pytest and runs the suite.
         "requirements": "requirements.txt",
+    },
+    {
+        "name": "integrations-gymnasium",
+        "dir": os.path.join("clients", "integrations", "gymnasium"),
+        "editable_installs": [
+            (os.path.join("clients", "integrations", "gymnasium"), "[test]"),
+        ]
     }
 ]
 

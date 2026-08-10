@@ -19,7 +19,7 @@ spec:
         cloud.google.com/gke-accelerator: nvidia-l4
       containers:
       - name: jupyter
-        image: tensorflow/tensorflow:latest-gpu-jupyter
+        image: tensorflow/tensorflow:2.21.0-gpu-jupyter
         ports:
         - containerPort: 8888
         resources:

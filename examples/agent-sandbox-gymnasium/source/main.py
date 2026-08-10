@@ -16,12 +16,11 @@ async def health_check():
 def execute_command(req: ExecuteRequest):
     try:
         result = subprocess.run(
-            req.command,
-            shell=True,
+            ["/bin/bash", "-lc", req.command],
             capture_output=True,
             text=True,
             executable="/bin/bash",
-            timeout=60
+            timeout=60,
         )
 
         return {

@@ -1,3 +1,17 @@
+ # Copyright 2026 The Kubernetes Authors.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+
 import pytest
 from unittest.mock import MagicMock
 import gymnasium as gym
@@ -27,13 +41,13 @@ def mock_sandbox():
     sandbox = MagicMock()
     sandbox.claim_name = "test-claim"
     sandbox.sandbox_id = "test-id"
-    
+
     # Mock command result
     result = MagicMock()
     result.stdout = "test output"
     result.stderr = ""
     result.exit_code = 0
-    
+
     sandbox.commands.run.return_value = result
     return sandbox
 
@@ -46,14 +60,14 @@ def mock_client(mock_sandbox):
 def test_env_initialization(mock_client):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client,
         max_episode_steps=10
     )
-    
+
     assert env.reward_fn is reward_fn
     assert env.termination_fn is termination_fn
     assert env.max_episode_steps == 10
@@ -62,7 +76,7 @@ def test_env_initialization(mock_client):
 
 def test_env_invalid_reward():
     termination_fn = MockTermination()
-    
+
     with pytest.raises(TypeError, match="must be a RewardFn instance"):
         SandboxEnv(
             reward_fn="not a reward fn",
@@ -72,46 +86,46 @@ def test_env_invalid_reward():
 def test_env_reset(mock_client, mock_sandbox):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client
     )
-    
+
     obs, info = env.reset(options={"task": "do something"})
-    
+
     # Check that old sandbox is closed if it existed (in this case, it was None)
     mock_client.create_sandbox.assert_called_once_with(
         warmpool="simple-sandbox-warmpool",
         namespace="default"
     )
-    
+
     assert obs == "Sandbox ready."
     assert info["claim_name"] == "test-claim"
     assert info["sandbox_id"] == "test-id"
     assert info["task"] == "do something"
-    
+
     assert reward_fn.reset_calls == 1
     assert termination_fn.reset_calls == 1
 
 def test_env_step(mock_client, mock_sandbox):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client,
         max_episode_steps=5
     )
-    
+
     env.reset(options={"task": "test-task"})
-    
+
     obs, reward, terminated, truncated, info = env.step("echo hello")
-    
+
     mock_sandbox.commands.run.assert_called_once_with("echo hello")
-    
+
     assert obs == "test output"
     assert reward == 1.0
     assert not terminated
@@ -125,20 +139,20 @@ def test_env_step(mock_client, mock_sandbox):
 def test_env_step_error_handling(mock_client, mock_sandbox):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client
     )
-    
+
     env.reset()
-    
+
     # Simulate an exception during run
     mock_sandbox.commands.run.side_effect = Exception("Connection lost")
-    
+
     obs, reward, terminated, truncated, info = env.step("echo hello")
-    
+
     assert obs == "Connection lost"
     assert info["exit_code"] == -1
     assert info["env_error"] is True
@@ -147,33 +161,33 @@ def test_env_step_error_handling(mock_client, mock_sandbox):
 def test_env_step_before_reset(mock_client):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client
     )
-    
+
     with pytest.raises(RuntimeError, match="Call reset\\(\\) before step\\(\\)."):
         env.step("echo hello")
 
 def test_env_truncation(mock_client, mock_sandbox):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client,
         max_episode_steps=2
     )
-    
+
     env.reset()
-    
+
     # Step 1
     obs, reward, terminated, truncated, info = env.step("cmd1")
     assert not truncated
-    
+
     # Step 2 (should truncate)
     obs, reward, terminated, truncated, info = env.step("cmd2")
     assert truncated
@@ -181,15 +195,15 @@ def test_env_truncation(mock_client, mock_sandbox):
 def test_env_close(mock_client, mock_sandbox):
     reward_fn = MockReward()
     termination_fn = MockTermination()
-    
+
     env = SandboxEnv(
         reward_fn=reward_fn,
         termination_fn=termination_fn,
         client=mock_client
     )
-    
+
     env.reset()
     env.close()
-    
+
     mock_sandbox.terminate.assert_called_once()
     assert env._sandbox is None

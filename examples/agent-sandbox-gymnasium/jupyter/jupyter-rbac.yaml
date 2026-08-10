@@ -12,11 +12,11 @@ metadata:
   namespace: default
 rules:
   - apiGroups: ["extensions.agents.x-k8s.io"]
-    resources: ["sandboxclaims", "sandboxes"]
+    resources: ["sandboxclaims"]
     verbs: ["get", "list", "watch", "create", "delete"]
   - apiGroups: ["agents.x-k8s.io"]
-    resources: ["sandboxes", "sandboxclaims"]
-    verbs: ["get", "list", "watch", "create", "delete"]
+    resources: ["sandboxes"]
+    verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

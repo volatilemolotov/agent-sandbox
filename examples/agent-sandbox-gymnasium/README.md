@@ -16,7 +16,7 @@ Create a GKE autopilot cluster
 gcloud container clusters create-auto sandbox-rl-cluster --location=us-east1
 ```
 
-Follow the instructions from oficial guide to [install Agent Sandbox CRDs and Router](https://github.com/kubernetes-sigs/agent-sandbox#installation).
+Follow the instructions from official guide to [install Agent Sandbox CRDs and Router](https://github.com/kubernetes-sigs/agent-sandbox#installation).
 
 Create an Artifact Registry repository:
 
