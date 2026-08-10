@@ -1,8 +1,8 @@
-FROM python:3.11.15
+FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install fastapi uvicorn pydantic python-multipart
+RUN pip install --no-cache-dir fastapi uvicorn pydantic python-multipart
 
 COPY server.py .
 

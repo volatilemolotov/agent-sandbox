@@ -20,7 +20,7 @@ docker build -t local-sandbox:v1 .
 kind load docker-image local-sandbox:v1 --name agent-sandbox
 ```
 
-Apply these manifests to create `SandboxTemplate` and `SandboxWarmpool`:
+Apply these manifests to create `SandboxTemplate` and `SandboxWarmPool`:
 
 ```bash
 kubectl apply -f template.yaml
@@ -29,7 +29,7 @@ kubectl apply -f warmpool.yaml
 
 ## Set up an MCP Server
 
-Install k8s-agent-sandbox CRDs and router using the [oficial guide](https://github.com/kubernetes-sigs/agent-sandbox#installation).
+Install k8s-agent-sandbox CRDs and router using the [official guide](https://github.com/kubernetes-sigs/agent-sandbox#installation).
 
 Go to the `clients/integrations/mcp-server` directory and create `.env` file with this content:
 
@@ -58,15 +58,15 @@ docker volume create n8n_data
 docker run -it --rm \
  --name n8n \
  -p 5678:5678 \
- -e GENERIC_TIMEZONE="us" \
- -e TZ="us" \
+ -e GENERIC_TIMEZONE="Etc/UTC" \
+ -e TZ="Etc/UTC" \
  -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
  -e N8N_RUNNERS_ENABLED=true \
  -v n8n_data:/home/node/.n8n \
  docker.n8n.io/n8nio/n8n
 ```
 
-Open `http://127.0.0.1:5678` and click the `Add first step...` button. Search for `MCP Client` and select it. In the `MCP Client` configuration set `MCP Endpoint URL` to `http://host.docker.internal:8000/mcp`. The modal window will aquire the specification and you will be able to set up everything from dropdowns. For example:
+Open `http://127.0.0.1:5678` and click the `Add first step...` button. Search for `MCP Client` and select it. In the `MCP Client` configuration set `MCP Endpoint URL` to `http://host.docker.internal:8000/mcp`. The modal window will acquire the specification and you will be able to set up everything from dropdowns. For example:
 
 - `Tool`: `create_sandbox`
 - `warmpool`: `simple-sandbox-warmpool`

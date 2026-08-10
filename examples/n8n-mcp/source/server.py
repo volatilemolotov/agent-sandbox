@@ -1,3 +1,17 @@
+ # Copyright 2026 The Kubernetes Authors.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+
 import os
 import posixpath
 import shlex
@@ -12,9 +26,18 @@ from pydantic import BaseModel
 app = FastAPI()
 
 SANDBOX_ROOT = os.getcwd()
+ALLOWED_COMMANDS = {"ls", "echo", "cat", "grep", "pwd", "zip", "unzip", "mv", "curl"}
+WORKING_DIR = "/app" if os.path.isdir("/app") else os.getcwd()
 
 class ExecuteRequest(BaseModel):
     command: str
+
+
+class ExecuteResponse(BaseModel):
+    """Response model for the /execute endpoint."""
+    stdout: str
+    stderr: str
+    exit_code: int
 
 
 class FileEntry(BaseModel):
@@ -43,10 +66,8 @@ def _resolve_safe_path(rel_path: str) -> str:
 
     root = os.path.realpath(SANDBOX_ROOT)
     full_path = os.path.realpath(os.path.join(root, normalized))
-    print(full_path)
     if full_path != root and not full_path.startswith(root + os.sep):
         raise HTTPException(status_code=400, detail="Path escapes the sandbox root.")
-    print(full_path)
     return full_path
 
 
@@ -58,25 +79,54 @@ async def health_check():
 
 @app.post("/execute")
 def execute_command(req: ExecuteRequest):
+    """
+    Executes a shell command inside the sandbox and returns its output.
+    Uses shlex.split for security to prevent shell injection.
+    """
     try:
-        args = shlex.split(req.command)
-        result = subprocess.run(
+        # Syntax Validation: shlex.split raises ValueError on malformed quotes
+        try:
+            args = shlex.split(req.command)
+        except ValueError as e:
+            return ExecuteResponse(
+                stdout="",
+                stderr=f"Malformed command syntax: {str(e)}",
+                exit_code=1
+            )
+        # Structural Validation: Ensure the command isn't empty
+        if not args:
+            return ExecuteResponse(
+                stdout="",
+                stderr="No command provided",
+                exit_code=1
+            )
+
+        # Security Validation: Check against an Allow-list
+        executable = args[0]
+        if executable not in ALLOWED_COMMANDS:
+            return ExecuteResponse(
+                stdout="",
+                stderr=f"Forbidden command: '{executable}'. Only {list(ALLOWED_COMMANDS)} are allowed.",
+                exit_code=1
+            )
+
+        # Execute the command, always from the WORKING_DIR directory
+        process = subprocess.run(
             args,
             capture_output=True,
             text=True,
-            timeout=120
+            cwd=WORKING_DIR,
+            timeout=30,
         )
-        return {
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "exit_code": result.returncode
-        }
+        return ExecuteResponse(
+            stdout=process.stdout,
+            stderr=process.stderr,
+            exit_code=process.returncode
+        )
+    except subprocess.TimeoutExpired:
+        return ExecuteResponse(stdout="", stderr="Command timed out", exit_code=124)
     except Exception as e:
-        return {
-            "stdout": "",
-            "stderr": str(e),
-            "exit_code": 1
-        }
+        return ExecuteResponse(stdout="", stderr=str(e), exit_code=1)
 
 
 @app.post("/upload", summary="Upload a file into the sandbox")
