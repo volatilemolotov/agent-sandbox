@@ -8,7 +8,6 @@
 <p>
   <a href="https://github.com/kubernetes-sigs/agent-sandbox/releases"><img src="https://img.shields.io/github/v/release/kubernetes-sigs/agent-sandbox" alt="GitHub release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Apache-2-blue.svg" alt="Apache-2.0 license"></a>
-  <a href="https://goreportcard.com/report/sigs.k8s.io/agent-sandbox"><img src="https://goreportcard.com/badge/sigs.k8s.io/agent-sandbox" alt="Go Report Card"></a>
 </p>
 
 [Website](https://agent-sandbox.sigs.k8s.io) · [Docs](https://agent-sandbox.sigs.k8s.io/docs/) · [DeepWiki](https://deepwiki.com/kubernetes-sigs/agent-sandbox) · [Getting Started](https://agent-sandbox.sigs.k8s.io/docs/getting_started/) · [Examples](examples/) · [Roadmap](roadmap.md)
@@ -16,6 +15,9 @@
 **agent-sandbox enables easy management of isolated, stateful, singleton workloads, ideal for use cases like AI agent runtimes.**
 
 This project is developing a `Sandbox` Custom Resource Definition (CRD) and controller for Kubernetes, under the umbrella of [SIG Apps](https://github.com/kubernetes/community/tree/master/sig-apps). The goal is to provide a declarative, standardized API for managing workloads that require the characteristics of a long-running, stateful, singleton container with a stable identity, much like a lightweight, single-container VM experience built on Kubernetes primitives.
+
+> [!NOTE]
+> **Scope:** Agent Sandbox is a *sandbox orchestrator*. It delegates low-level container isolation to secure "Sandbox Runtimes" (like gVisor or Kata Containers) by managing Pods configured to use these runtimes (via `RuntimeClass`).
 
 ## Overview
 
@@ -84,21 +86,44 @@ flowchart LR
 
 ## Installation
 
-### Core Components & Extensions
+### Standard Install (Core + Extensions)
 
-You can install the agent-sandbox controller and its CRDs with the following command.
+Recommended for most users and GitOps engines (Argo CD, Config Sync, kustomize).
+`sandbox-with-extensions.yaml` is a single, collision-free asset (the controller is
+declared once with extensions enabled):
 
 ```sh
 # Replace "vX.Y.Z" with a specific version tag (e.g., "v0.1.0") from
 # https://github.com/kubernetes-sigs/agent-sandbox/releases
 export VERSION="vX.Y.Z"
 
-# To install only the core components:
-kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/manifest.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/sandbox-with-extensions.yaml
+```
 
-# To install the extensions components:
+You can also render it directly from source with `kubectl kustomize k8s/`.
+
+### Selective Install
+
+If you prefer to install components separately:
+
+```sh
+# Core only:
+kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/sandbox.yaml
+
+# Extensions (opt-in):
 kubectl apply -f https://github.com/kubernetes-sigs/agent-sandbox/releases/download/${VERSION}/extensions.yaml
 ```
+
+### Go SDK
+
+To interact with the agent-sandbox programmatically from Go, use the Go SDK:
+
+```sh
+go get sigs.k8s.io/agent-sandbox/clients/go/sandbox@latest
+```
+
+The Go SDK currently ships from the repository's root Go module, so repository release tags such as `v0.1.0` are also the Go SDK versions.
+For detailed installation and usage instructions, please refer to the [Go SDK README](clients/go/README.md).
 
 ### Python SDK
 
@@ -157,6 +182,10 @@ We aim for the Sandbox to be vendor-neutral, supporting various runtimes. Key ch
 ## Roadmap
 
 The current Roadmap can be found at [roadmap.md](roadmap.md).
+
+## Security
+
+For information on the security model, trust boundaries, and mitigations of Agent Sandbox, please refer to the [Threat Model](docs/security/threat_model.md).
 
 ## Community, Discussion, Contribution, and Support
 
