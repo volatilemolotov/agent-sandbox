@@ -59,6 +59,15 @@ PYTHON_TEST_SUITES = [
         "requirements": "requirements.txt",
     },
     {
+        "name": "ray-integration",
+        # requirements.txt pulls in ray plus an editable install of the
+        # in-repo SDK (needed by all three modules under test). Test
+        # discovery is recursive from this dir, so it also picks up
+        # direct-proxy/test_rl_production_loop.py.
+        "dir": os.path.join("examples", "ray-integration"),
+        "requirements": "requirements.txt",
+    },
+    {
         "name": "keda-scale-to-zero",
         "dir": os.path.join("examples", "keda-scale-to-zero"),
         "requirements": "requirements.txt",
@@ -108,6 +117,38 @@ def run_go_tests(repo_root, artifact_dir):
     ), cwd=repo_root)
 
     return result.returncode
+
+
+# Directories with their own go.mod, so "go list ./..." from the repo root
+# (run_go_tests, above) never sees their packages -- each needs go test run
+# separately, from inside its own module.
+NESTED_GO_MODULES = [
+    os.path.join("examples", "chrome-sandbox"),
+]
+
+
+def run_nested_go_module_tests(repo_root, artifact_dir):
+    """ runs Go unit tests for each entry in NESTED_GO_MODULES and returns the exit code """
+    returncode = 0
+
+    for module_dir in NESTED_GO_MODULES:
+        module_path = os.path.join(repo_root, module_dir)
+        junit_name = f"junit_unit-go-{os.path.basename(module_dir)}.xml"
+        # gotestsum itself is resolved via dev/tools' pinned version
+        # (-modfile), but cwd is the target module, so the "./..." packages
+        # it runs are resolved and built using that module's own go.mod.
+        result = subprocess.run(utils.go_tool_args(
+            "gotestsum",
+            f"--junitfile={os.path.join(artifact_dir, junit_name)}",
+            "--",
+            "-race",
+            "./...",
+        ), cwd=module_path)
+
+        if result.returncode != 0:
+            returncode = result.returncode
+
+    return returncode
 
 
 def run_python_tests(repo_root, artifact_dir):
@@ -189,10 +230,13 @@ def main():
     os.makedirs(artifact_dir, exist_ok=True)
 
     go_rc = run_go_tests(repo_root, artifact_dir)
+    nested_go_rc = run_nested_go_module_tests(repo_root, artifact_dir)
     python_rc = run_python_tests(repo_root, artifact_dir)
 
     if go_rc != 0:
         return go_rc
+    if nested_go_rc != 0:
+        return nested_go_rc
     return python_rc
 
 
