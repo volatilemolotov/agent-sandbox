@@ -56,7 +56,10 @@ class GeminiCUSandboxTestRunner(TestRunner):
         env = os.environ.copy()
         env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
 
-        gemini_api_key = env["GEMINI_API_KEY"]
+        gemini_api_key = env.get("GEMINI_API_KEY")
+        if not gemini_api_key:
+            print("ERROR: GEMINI_API_KEY environment variable is not set.", file=sys.stderr)
+            return subprocess.CompletedProcess([], 1)
 
         def run(cmd, check=True, **kwargs):
             print(f"+ {' '.join(cmd)}")

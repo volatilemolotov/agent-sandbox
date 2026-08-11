@@ -28,9 +28,16 @@ import pytest
 
 _workspace = tempfile.TemporaryDirectory(prefix="mcp-server-test-")
 _workspace_dir = _workspace.name
+_previous_workspace = os.environ.get("MCP_WORKSPACE")
 os.environ["MCP_WORKSPACE"] = _workspace_dir
 
-import mcp_server  # noqa: E402  (must be imported after MCP_WORKSPACE is set)
+try:
+    import mcp_server  # noqa: E402  (must be imported after MCP_WORKSPACE is set)
+finally:
+    if _previous_workspace is None:
+        os.environ.pop("MCP_WORKSPACE", None)
+    else:
+        os.environ["MCP_WORKSPACE"] = _previous_workspace
 
 
 @pytest.fixture(autouse=True)

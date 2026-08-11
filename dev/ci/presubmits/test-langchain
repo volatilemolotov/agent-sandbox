@@ -38,8 +38,9 @@ def read_requirement(name):
     path = os.path.join(EXAMPLE_DIR, "requirements.txt")
     with open(path) as f:
         for line in f:
-            if line.strip().startswith(name):
-                return line.strip()
+            stripped = line.strip()
+            if stripped.startswith(name + "==") or stripped.startswith(name + ">="):
+                return stripped
     raise ValueError(f"{name} not found in {path}")
 
 
@@ -50,10 +51,11 @@ def main():
 
     print("\n-- Installing langchain unit test dependencies --")
     langgraph_requirement = read_requirement("langgraph")
-    run(["pip", "install", "--break-system-packages", "pytest", langgraph_requirement], check=True)
+    run([sys.executable, "-m", "pip", "install", "--break-system-packages", "pytest", langgraph_requirement],
+        check=True)
 
     print("\n-- Running langchain unit tests --")
-    result = run(["python3", "-m", "pytest", "test_coding_agent.py", "-v"], cwd=EXAMPLE_DIR)
+    result = run([sys.executable, "-m", "pytest", "test_coding_agent.py", "-v"], cwd=EXAMPLE_DIR)
     return result.returncode
 
 
