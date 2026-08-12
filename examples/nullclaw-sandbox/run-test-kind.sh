@@ -45,6 +45,9 @@ cleanup() {
 }
 # trap cleanup EXIT
 
+echo "Waiting for Sandbox to be ready..."
+kubectl wait --for=condition=Ready sandbox/nullclaw-sandbox --timeout=120s
+
 echo "Waiting for sandbox pod to be ready..."
 kubectl wait --for=condition=ready pod --selector=sandbox=nullclaw-sandbox --timeout=120s
 
