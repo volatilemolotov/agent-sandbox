@@ -17,7 +17,7 @@ from .termination_fn import TerminationFn
 
 class SparseTaskTermination(TerminationFn):
     """
-    Returns True if obs["reward"] == 1 and False otherwise
+    Invokes success_fn(obs, info) internally that returns True if terminated and False otherwise.
 
     Example:
         termination_fn = SparseTaskTermination(success_fn=lambda obs, info: "done" in obs)

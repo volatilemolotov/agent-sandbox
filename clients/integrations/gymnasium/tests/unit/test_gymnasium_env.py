@@ -80,7 +80,8 @@ def test_env_invalid_reward():
     with pytest.raises(TypeError, match="must be a RewardFn instance"):
         SandboxEnv(
             reward_fn="not a reward fn",
-            termination_fn=termination_fn
+            termination_fn=termination_fn,
+            client=MagicMock()
         )
 
 def test_env_reset(mock_client, mock_sandbox):
@@ -124,7 +125,7 @@ def test_env_step(mock_client, mock_sandbox):
 
     obs, reward, terminated, truncated, info = env.step("echo hello")
 
-    mock_sandbox.commands.run.assert_called_once_with("echo hello")
+    mock_sandbox.commands.run.assert_called_once_with("echo hello", timeout=60)
 
     assert obs == "test output"
     assert reward == 1.0

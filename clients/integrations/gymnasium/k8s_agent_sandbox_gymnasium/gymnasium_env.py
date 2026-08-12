@@ -13,6 +13,7 @@
  # limitations under the License.
 
 import time
+import logging
 
 try:
     import gymnasium as gym
@@ -31,6 +32,7 @@ from k8s_agent_sandbox import SandboxClient
 from .reward_fn import RewardFn
 from .termination_fn import TerminationFn
 
+logger = logging.getLogger(__name__)
 
 class SandboxEnv(gym.Env):
     """
@@ -42,14 +44,13 @@ class SandboxEnv(gym.Env):
 
     Args:
         reward_fn:      A RewardFn instance that scores each (action, obs, info, task).
+        termination_fn: A TerminationFn instance that returns True if terminated and False otherwise.
+        client:         An instance of k8s_agent_sandbox.SandboxClient that manages sandboxes.
         warmpool:       Name of the SandboxWarmpool to use.
         namespace:      Kubernetes namespace.
-        connection_mode: One of "tunnel" (local/KinD), "gateway" (GKE),
-                         "in_cluster", or "direct".
-        connection_cfg: Extra kwargs forwarded to the connection config constructor
-                        (e.g. {"gateway_name": "my-gw"} or {"api_url": "http://..."}).
-        max_episode_steps: Hard truncation limit per episode.
-        max_obs_length:    Max characters kept from stdout/stderr.
+        step_timeout_seconds: A timeout in seconds for each action.
+        max_episode_steps:    Hard truncation limit per episode.
+        max_obs_length:       Max characters kept from stdout/stderr.
     """
 
     metadata = {"render_modes": []}
@@ -61,6 +62,7 @@ class SandboxEnv(gym.Env):
         client: SandboxClient,
         warmpool: str = "simple-sandbox-warmpool",
         namespace: str = "default",
+        step_timeout_seconds: int = 60,
         max_episode_steps: int = 20,
         max_obs_length: int = 4096,
     ):
@@ -79,10 +81,11 @@ class SandboxEnv(gym.Env):
         self.max_episode_steps = max_episode_steps
         self.max_obs_length    = max_obs_length
 
-        self._client        = client
-        self._sandbox       = None
-        self._current_task  = ""
-        self._step_count    = 0
+        self._client               = client
+        self._step_timeout_seconds = step_timeout_seconds
+        self._sandbox              = None
+        self._current_task         = ""
+        self._step_count           = 0
 
         # Gymnasium spaces — text-native; wrap with TokenizedWrapper for RLlib/SB3
         self.observation_space = spaces.Text(max_length=max_obs_length)
@@ -130,7 +133,7 @@ class SandboxEnv(gym.Env):
         t0 = time.monotonic()
 
         try:
-            result     = self._sandbox.commands.run(action)
+            result     = self._sandbox.commands.run(action, timeout=self._step_timeout_seconds)
             stdout     = result.stdout or ""
             stderr     = result.stderr or ""
             exit_code  = result.exit_code
@@ -140,6 +143,7 @@ class SandboxEnv(gym.Env):
             stderr     = str(exc)
             exit_code  = -1
             env_error  = True
+            logger.warning("Failed to run action in sandbox (%s). Excpetion: %s", self._sandbox.claim_name, exc)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
@@ -170,6 +174,6 @@ class SandboxEnv(gym.Env):
         if self._sandbox is not None:
             try:
                 self._sandbox.terminate()
-            except Exception:
-                pass  # best-effort cleanup
+            except Exception as e:
+                logger.warning("Failed to terminate sandbox: %s", e)
             self._sandbox = None
