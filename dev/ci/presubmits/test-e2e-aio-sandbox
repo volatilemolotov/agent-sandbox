@@ -18,6 +18,15 @@ End-to-end test for the aio-sandbox example.
 
 Creates a kind cluster, deploys the agent-sandbox controller, applies the
 aio-sandbox example manifest, and verifies the HTTP server responds on port 8080.
+
+Not live-validated against a real cluster: aio-sandbox.yaml requests a full
+2 CPUs for its pod, which exceeds what's schedulable on the small-node
+validation cluster used to test test-e2e-nullclaw-sandbox and the
+gemini-cu-sandbox/python-runtime-sandbox presubmits (both of which turned
+out to have real, otherwise-invisible bugs only a live run caught). This
+script is a near-verbatim port of one that similarly was never actually
+run before now, so treat it with the same caution: it's expected to work
+on the real eks-prow-build-cluster (cpu:4 jobs), but hasn't been proven to.
 """
 
 import os
