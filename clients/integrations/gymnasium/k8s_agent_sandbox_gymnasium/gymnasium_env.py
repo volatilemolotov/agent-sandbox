@@ -143,7 +143,7 @@ class SandboxEnv(gym.Env):
             stderr     = str(exc)
             exit_code  = -1
             env_error  = True
-            logger.warning("Failed to run action in sandbox (%s). Excpetion: %s", self._sandbox.claim_name, exc)
+            logger.warning("Failed to run action in sandbox (%s). Exception: %s", self._sandbox.claim_name, exc)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
