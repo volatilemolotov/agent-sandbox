@@ -30,13 +30,26 @@ _repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.
 EXAMPLE_DIR = os.path.join(_repo_root, "examples", "mcp-server-sandbox")
 
 
+def read_requirement(name):
+    """Returns the requirements.txt line pinning `name`, so the version
+    installed here always matches what the example itself declares."""
+    path = os.path.join(EXAMPLE_DIR, "requirements.txt")
+    with open(path) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped.startswith(name + "==") or stripped.startswith(name + ">="):
+                return stripped
+    raise ValueError(f"{name} not found in {path}")
+
+
 def main():
     def run(cmd, **kwargs):
         print(f"+ {' '.join(cmd)}")
         return subprocess.run(cmd, **kwargs)
 
     print("\n-- Installing mcp-server-sandbox unit test dependencies --")
-    run(["pip", "install", "--break-system-packages", "mcp", "pytest"], check=True)
+    mcp_requirement = read_requirement("mcp")
+    run(["pip", "install", "--break-system-packages", "pytest", mcp_requirement], check=True)
 
     print("\n-- Running mcp-server-sandbox unit tests --")
     result = run(["python3", "-m", "pytest", "test_mcp_server.py", "-v"], cwd=EXAMPLE_DIR)
