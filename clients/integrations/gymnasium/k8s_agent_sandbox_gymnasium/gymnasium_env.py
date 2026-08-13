@@ -148,7 +148,12 @@ class SandboxEnv(gym.Env):
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 
         # Observation: prefer stdout, fall back to stderr
-        obs = (stdout if stdout else stderr)[: self.max_obs_length]
+        parts = []
+        if stdout:
+            parts.append(stdout)
+        if stderr:
+            parts.append(f"[stderr]\n{stderr}")
+        obs = "\n".join(parts)[: self.max_obs_length]
 
         info = {
             "exit_code":  exit_code,
