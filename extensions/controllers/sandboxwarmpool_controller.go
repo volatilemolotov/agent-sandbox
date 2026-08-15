@@ -598,6 +598,11 @@ func (r *SandboxWarmPoolReconciler) reconcilePool(ctx context.Context, warmPool 
 	}
 	warmPool.Status.ReadyReplicas = readyReplicas
 
+	// Surface the pool's observed generation so clients can gate on
+	// status.observedGeneration == metadata.generation before trusting the
+	// replica counts (eliminates read-after-write races on scale/spec updates).
+	warmPool.Status.ObservedGeneration = warmPool.Generation
+
 	maxBatchSize := int32(r.MaxBatchSize)
 
 	// Record the observed member count and check whether replacement creation
