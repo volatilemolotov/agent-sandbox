@@ -25,6 +25,16 @@ kind-loads the gateway image itself), and cascade delete. This is by far
 the slowest of the example e2e tests -- the warm pool fill alone polls for
 up to 10 minutes, and the idle-sweeper/wake-on-connect checks add another
 few minutes on top.
+
+Confirmed live, steps 1-4 pass cleanly (warm pool fill, claim/adoption, PVC
+write, suspend with PVC/Service retained) -- but step 5 (resume) needs a
+third hermes pod (cpu request 500m) scheduled alongside the two the warm
+pool refilled after the first adoption, and three such pods exceed the
+cpu:1 budget the validation cluster's outer test container was sized to
+fit. Same category of finding as aio-sandbox's 2-CPU pod request: a
+resource ceiling of this particular validation cluster, not a bug in the
+wiring or in the example's own script. The real upstream CI cluster's
+cpu:4 e2e jobs have much more headroom and should clear this.
 """
 
 import os
