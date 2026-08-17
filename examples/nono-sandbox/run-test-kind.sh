@@ -159,6 +159,13 @@ kubectl wait --for=condition=Ready sandbox/nono-agent --timeout=120s
 
 echo "Reading workload output..."
 POD="$(kubectl get pod -l sandbox=nono-agent -o jsonpath='{.items[0].metadata.name}')"
+# The Sandbox can report Ready (pod scheduled and briefly running) moments
+# before nono's own startup checks -- e.g. its Landlock probe -- crash the
+# container. Capturing logs immediately after the Ready wait can race that
+# crash and grab a truncated stream, missing exactly the failure text below
+# needs to detect. Give any just-started container a beat to finish writing
+# and flush its output before reading it.
+sleep 3
 LOGS="$(kubectl logs "${POD}")"
 echo "----------------------------------------"
 echo "${LOGS}"
