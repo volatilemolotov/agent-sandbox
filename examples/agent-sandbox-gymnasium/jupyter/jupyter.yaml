@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jupyter-l4-gpu
+  namespace: gymnasium
   labels:
     app: jupyter
 spec:
@@ -15,11 +16,24 @@ spec:
         app: jupyter
     spec:
       serviceAccountName: jupyter-sandbox-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       nodeSelector:
         cloud.google.com/gke-accelerator: nvidia-l4
       containers:
       - name: jupyter
         image: tensorflow/tensorflow:2.21.0-gpu-jupyter
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 8888
         resources:
@@ -36,15 +50,30 @@ spec:
         - name: notebook-volume
           mountPath: /tf/rl_training.ipynb
           subPath: rl_training.ipynb
+          readOnly: true
+        # Writable locations required by Jupyter/Python
+        - name: tmp
+          mountPath: /tmp
+        - name: jupyter-runtime
+          mountPath: /home/jovyan/.local
+        - name: jupyter-data
+          mountPath: /home/jovyan/.jupyter
       volumes:
       - name: notebook-volume
         configMap:
           name: rl-notebook-config
+      - name: tmp
+        emptyDir: {}
+      - name: jupyter-runtime
+        emptyDir: {}
+      - name: jupyter-data
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: jupyter-service
+  namespace: gymnasium
 spec:
   type: ClusterIP
   selector:

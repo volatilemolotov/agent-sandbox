@@ -4,8 +4,8 @@ This integration provides a standard [Gymnasium](https://gymnasium.farama.org/) 
 
 ## Features
 
-- **Standard `gym.Env` interface**: Fits right into standard RL pipelines like Stable Baselines 3, Ray RLlib, or custom benchmarking scripts.
-- **Isolated Pods per Episode**: Each episode automatically claims a fresh sandbox from a Kubernetes warmpool and tears it down gracefully when the episode ends or `env.reset()` is called.
+- **Standard `gym.Env` interface**: Fits right into standard RL pipelines.
+- **Isolated Pods per Episode**: Each episode automatically claims a fresh sandbox from a Kubernetes warmpool and tears it down gracefully when `env.reset()` is called. When the episode ends you should invoke `env.reset()` to get a fresh environment.
 - **Text-native Spaces**: The environment features text-based `observation_space` (stdout/stderr) and `action_space` (shell commands).
 - **Customizable Rewards and Terminations**: Extend `RewardFn` and `TerminationFn` classes to precisely define your scoring and episodic completion logic.
 - **Support for Multi-Connection Backends**: Leverage any configured k8s-agent-sandbox backend ("tunnel", "gateway", "in_cluster", or "direct") for robust scaling.
@@ -37,7 +37,7 @@ termination_fn = SparseTaskTermination(success_fn=lambda obs, info: info.get("ex
 env = SandboxEnv(
     reward_fn=reward_fn,
     termination_fn=termination_fn,
-    client=SandboxClient(...),
+    client=SandboxClient(...), # SandboxClient definition pseudocode
     warmpool="simple-sandbox-warmpool",
     namespace="default",
     max_episode_steps=10
@@ -81,7 +81,7 @@ class MyCustomReward(RewardFn):
 
 class MyCustomTermination(TerminationFn):
     def __call__(self, obs: str, info: dict, task: str) -> bool:
-        # Terminate early if the agent crashes the process
+        # Terminate when the command fails
         if info.get("exit_code", 0) != 0:
             return True
         return False
@@ -94,7 +94,7 @@ Both actions and observations map directly to shell-based inputs and outputs.
 - **Action Space**: `gymnasium.spaces.Text(max_length=2048)`.
   The agent submits arbitrary shell commands as strings (e.g., `ls -la`, `python script.py`).
 - **Observation Space**: `gymnasium.spaces.Text(max_length=4096)` (configurable).
-  The output of the executed command. By default, it prioritizes `stdout`. If `stdout` is empty and the process produced `stderr`, it falls back to `stderr`.
+  The output of the executed command. By default, it concatenates `stdout` and `stderr`. `stderr` is marked with `[stderr]` tag.
 
 ### `info` Dictionary
 

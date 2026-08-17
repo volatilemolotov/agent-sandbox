@@ -32,6 +32,7 @@ Update `source/cloudbuild.yaml` and `sandbox/template.yaml` with your data. Appl
 cd source
 gcloud builds submit .
 cd ..
+kubectl create namespace gymnasium
 kubectl apply -f sandbox/template.yaml
 kubectl apply -f sandbox/warmpool.yaml
 ```
@@ -39,7 +40,9 @@ kubectl apply -f sandbox/warmpool.yaml
 Create a configmap with the example jupyter notebook:
 
 ```bash
-kubectl create configmap rl-notebook-config --from-file=rl_training.ipynb=jupyter/rl_training.ipynb
+kubectl create configmap rl-notebook-config \
+    --from-file=rl_training.ipynb=jupyter/rl_training.ipynb \
+    --namespace=gymnasium
 ```
 
 Deploy a jupyter instance:

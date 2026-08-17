@@ -154,7 +154,7 @@ def test_env_step_error_handling(mock_client, mock_sandbox):
 
     obs, reward, terminated, truncated, info = env.step("echo hello")
 
-    assert obs == "Connection lost"
+    assert obs == "[stderr]\nConnection lost"
     assert info["exit_code"] == -1
     assert info["env_error"] is True
     assert info["stderr"] == "Connection lost"
