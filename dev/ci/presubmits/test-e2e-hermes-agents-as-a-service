@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+End-to-end test for the hermes-agents-as-a-service example.
+
+Creates a kind cluster, deploys the agent-sandbox controller, then hands off
+to the example's own run-test-kind.sh, which runs the full README
+walkthrough non-interactively: warm pool fill, claim/adoption, a PVC write
+that survives suspend/resume, an env-injection policy rejection, the
+gateway's signup/proxy/idle-suspend/wake-on-connect flow (it builds and
+kind-loads the gateway image itself), and cascade delete. This is by far
+the slowest of the example e2e tests -- the warm pool fill alone polls for
+up to 10 minutes, and the idle-sweeper/wake-on-connect checks add another
+few minutes on top.
+"""
+
+import os
+import subprocess
+import sys
+
+_repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from dev.ci.shared.runner import TestRunner
+
+EXAMPLE_DIR = os.path.join(_repo_root, "examples", "hermes-agents-as-a-service")
+
+
+class HermesAgentsAsAServiceTestRunner(TestRunner):
+    def __init__(self):
+        super().__init__("hermes-agents-as-a-service-test", "e2e test for the hermes-agents-as-a-service example")
+
+    def setup_cluster(self, args):
+        # run-test-kind.sh builds and kind-loads the gateway image itself;
+        # cluster bring-up only needs the controller image for the k8s/
+        # manifests deploy-to-kube applies, not every example in the repo.
+        return super().setup_cluster(args, extra_push_images_args=["--images", "agent-sandbox-controller"])
+
+    def run_tests(self, args):
+        env = os.environ.copy()
+        env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
+        # run-test-kind.sh derives its own kind cluster name from
+        # `kubectl config current-context` (stripping the "kind-" prefix)
+        # rather than hardcoding one, so it naturally matches whatever
+        # TestRunner named this cluster -- no override needed here.
+
+        print("=== hermes-agents-as-a-service e2e test ===")
+        result = subprocess.run(
+            ["bash", os.path.join(EXAMPLE_DIR, "run-test-kind.sh")],
+            cwd=EXAMPLE_DIR, env=env,
+        )
+
+        if result.returncode != 0:
+            print("ERROR: run-test-kind.sh failed.", file=sys.stderr)
+            subprocess.run(
+                ["kubectl", "get", "all", "-n", "hermes-demo"],
+                env=env, check=False,
+            )
+            subprocess.run(
+                ["kubectl", "describe", "pods", "-n", "hermes-demo"],
+                env=env, check=False,
+            )
+
+        return result
+
+
+if __name__ == "__main__":
+    runner = HermesAgentsAsAServiceTestRunner()
+    runner.main()

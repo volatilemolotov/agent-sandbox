@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+# Copyright 2026 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+End-to-end test for the containarium-ssh-sandbox example.
+
+Creates a kind cluster, deploys the agent-sandbox controller, then hands off
+to the example's own run-test-kind.sh, which generates throwaway SSH keys,
+applies the raw manifests (direct-access box, then a two-box sshpiper
+gateway), and speaks one round of MCP JSON-RPC over each SSH path to prove
+the agent-box responds -- both the direct/port-forward path and, per
+username, each of the two boxes behind the gateway.
+"""
+
+import os
+import subprocess
+import sys
+
+_repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from dev.ci.shared.runner import TestRunner
+
+EXAMPLE_DIR = os.path.join(_repo_root, "examples", "containarium-ssh-sandbox")
+
+
+class ContainariumSshSandboxTestRunner(TestRunner):
+    def __init__(self):
+        super().__init__("containarium-ssh-sandbox-test", "e2e test for the containarium-ssh-sandbox example")
+
+    def setup_cluster(self, args):
+        # run-test-kind.sh only ever pulls published images (agent-box,
+        # sshpiper) -- no local build/load of its own -- so cluster bring-up
+        # only needs the controller image for the k8s/ manifests
+        # deploy-to-kube applies, not every example in the repo.
+        return super().setup_cluster(args, extra_push_images_args=["--images", "agent-sandbox-controller"])
+
+    def run_tests(self, args):
+        env = os.environ.copy()
+        env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
+
+        print("=== containarium-ssh-sandbox e2e test ===")
+        result = subprocess.run(
+            ["bash", os.path.join(EXAMPLE_DIR, "run-test-kind.sh")],
+            cwd=EXAMPLE_DIR, env=env,
+        )
+
+        if result.returncode != 0:
+            print("ERROR: run-test-kind.sh failed.", file=sys.stderr)
+            subprocess.run(
+                ["kubectl", "get", "pods", "-o", "wide"],
+                env=env, check=False,
+            )
+            subprocess.run(
+                ["kubectl", "logs", "-l", "sandbox=containarium-ssh-sandbox", "--tail=50"],
+                env=env, check=False,
+            )
+
+        return result
+
+
+if __name__ == "__main__":
+    runner = ContainariumSshSandboxTestRunner()
+    runner.main()
