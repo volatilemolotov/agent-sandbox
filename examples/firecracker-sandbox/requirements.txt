@@ -4,3 +4,5 @@ uvicorn>=0.24.0,<1.0.0
 h11>=0.16.0,<1.0.0
 pydantic>=2.5.0,<3.0.0
 python-multipart>=0.0.30
+# Test-only: fastapi.testclient.TestClient (used by test_main.py) requires it.
+httpx>=0.24.0,<1.0.0
