@@ -20,6 +20,8 @@ docker build -t local-sandbox:v1 .
 kind load docker-image local-sandbox:v1 --name agent-sandbox
 ```
 
+Install k8s-agent-sandbox CRDs and router using the [official guide](https://github.com/kubernetes-sigs/agent-sandbox#installation).
+
 Apply these manifests to create `SandboxTemplate` and `SandboxWarmPool`:
 
 ```bash
@@ -28,8 +30,6 @@ kubectl apply -f warmpool.yaml
 ```
 
 ## Set up an MCP Server
-
-Install k8s-agent-sandbox CRDs and router using the [official guide](https://github.com/kubernetes-sigs/agent-sandbox#installation).
 
 Go to the `clients/integrations/mcp-server` directory and create `.env` file with this content:
 
@@ -63,7 +63,8 @@ docker run -it --rm \
  -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
  -e N8N_RUNNERS_ENABLED=true \
  -v n8n_data:/home/node/.n8n \
- docker.n8n.io/n8nio/n8n
+ docker.n8n.io/n8nio/n8n \
+ --add-host=host.docker.internal:host-gateway
 ```
 
 Open `http://127.0.0.1:5678` and click the `Add first step...` button. Search for `MCP Client` and select it. In the `MCP Client` configuration set `MCP Endpoint URL` to `http://host.docker.internal:8000/mcp`. The modal window will acquire the specification and you will be able to set up everything from dropdowns. For example:
