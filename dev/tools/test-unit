@@ -73,6 +73,26 @@ PYTHON_TEST_SUITES = [
         "requirements": "requirements.txt",
     },
     {
+        "name": "hermes-agents-as-a-service-gateway",
+        "dir": os.path.join("examples", "hermes-agents-as-a-service", "gateway"),
+        "requirements": "requirements.txt",
+    },
+    {
+        "name": "kata-aks-agent",
+        "dir": os.path.join("examples", "kata-aks", "agent"),
+        "requirements": "requirements.txt",
+    },
+    {
+        "name": "firecracker-sandbox",
+        "dir": os.path.join("examples", "firecracker-sandbox"),
+        "requirements": "requirements.txt",
+    },
+    {
+        "name": "nono-sandbox",
+        # workload.py and verify-audit.py are both stdlib-only.
+        "dir": os.path.join("examples", "nono-sandbox"),
+    },
+    {
         "name": "agent-sandbox-rl",
         "dir": os.path.join("examples", "agent-sandbox-rl"),
         # Editable installs (in order): the in-repo SDK first (so we don't depend
@@ -124,6 +144,7 @@ def run_go_tests(repo_root, artifact_dir):
 # separately, from inside its own module.
 NESTED_GO_MODULES = [
     os.path.join("examples", "chrome-sandbox"),
+    os.path.join("examples", "webhook-inject-timestamp"),
 ]
 
 
