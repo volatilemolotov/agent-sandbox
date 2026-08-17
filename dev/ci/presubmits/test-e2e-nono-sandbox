@@ -27,8 +27,15 @@ Note: nono fails closed on filesystem controls if the node kernel lacks
 Landlock (Linux >= 5.13 with landlock in the active LSM stack) -- the script
 detects this and exits with a clear message rather than a confusing
 assertion failure, but the presubmit will still fail on a kernel without it.
-This is a real, not-yet-confirmed risk for standard kind-in-docker CI nodes,
-analogous to openclaw-gvisor-sandbox needing a gvisor RuntimeClass.
+
+Confirmed live: this cluster's kernel does not have Landlock available
+("No supported Landlock ABI detected"), so this presubmit currently fails
+there every run, the same way openclaw-gvisor-sandbox's does for a missing
+gvisor RuntimeClass. The wiring itself is otherwise sound -- cluster
+bring-up, image build/load, Loki + audit identity setup, and Sandbox
+creation all succeed; only nono's own Landlock probe fails. Whether to run
+this on Landlock-enabled nodes, or accept it as an expected failure until
+then, is a call for whoever owns the real CI environment.
 """
 
 import os
