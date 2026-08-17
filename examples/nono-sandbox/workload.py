@@ -200,25 +200,31 @@ def tool_sandbox_probes():
         )
 
 
-fs_attempt("wrote /workspace/hello.txt", write_workspace)
-expect_blocked("read of mounted /etc/secret-config", read_secret)
-expect_blocked("read of protected audit state", read_audit_state)
-credential_probe()
-tool_sandbox_probes()
+if __name__ == "__main__":
+    # Guarded so test_workload.py can import the individual probe functions
+    # above without running the live demo (which needs a real /workspace,
+    # real network policy in front of it, and blocks forever on the finish
+    # sentinel). nono always runs this file as `python3 workload.py`, never
+    # as an import, so this is behavior-preserving for the real demo.
+    fs_attempt("wrote /workspace/hello.txt", write_workspace)
+    expect_blocked("read of mounted /etc/secret-config", read_secret)
+    expect_blocked("read of protected audit state", read_audit_state)
+    credential_probe()
+    tool_sandbox_probes()
 
-# Not allow-listed at all -> proxy refuses the CONNECT.
-expect_http_blocked(
-    "egress to non-allow-listed host (example.com)", "GET", "https://example.com/"
-)
-# Allow-listed host, but only POST /v1/chat/completions is permitted -> L7 deny.
-expect_http_blocked(
-    "allow-listed host at disallowed path (/v1/models)",
-    "GET",
-    "https://api.openai.com/v1/models",
-)
+    # Not allow-listed at all -> proxy refuses the CONNECT.
+    expect_http_blocked(
+        "egress to non-allow-listed host (example.com)", "GET", "https://example.com/"
+    )
+    # Allow-listed host, but only POST /v1/chat/completions is permitted -> L7 deny.
+    expect_http_blocked(
+        "allow-listed host at disallowed path (/v1/models)",
+        "GET",
+        "https://api.openai.com/v1/models",
+    )
 
-finish_sentinel = "/workspace/.finish-demo"
-print("demo complete; holding open so the Sandbox stays Ready", flush=True)
-while not os.path.exists(finish_sentinel):
-    time.sleep(1)
-print("[audit-ok] workload exiting so the supervisor can finalize audit", flush=True)
+    finish_sentinel = "/workspace/.finish-demo"
+    print("demo complete; holding open so the Sandbox stays Ready", flush=True)
+    while not os.path.exists(finish_sentinel):
+        time.sleep(1)
+    print("[audit-ok] workload exiting so the supervisor can finalize audit", flush=True)
