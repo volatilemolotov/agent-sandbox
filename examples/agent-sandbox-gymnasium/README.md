@@ -26,10 +26,10 @@ gcloud artifacts repositories create <REGISTRY_NAME> \
     --location=us
 ```
 
-Update `source/cloudbuild.yaml` and `sandbox/template.yaml` with your data. Apply the manifests:
+Update `gymnasium-env/cloudbuild.yaml` and `sandbox/template.yaml` with your data. Apply the manifests:
 
 ```bash
-cd source
+cd gymnasium-env
 gcloud builds submit .
 cd ..
 kubectl create namespace gymnasium

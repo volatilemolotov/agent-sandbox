@@ -152,7 +152,7 @@ def test_env_step_error_handling(mock_client, mock_sandbox):
     # Simulate an exception during run
     mock_sandbox.commands.run.side_effect = Exception("Connection lost")
 
-    obs, reward, terminated, truncated, info = env.step("echo hello")
+    obs, _, _, _, info = env.step("echo hello")
 
     assert obs == "[stderr]\nConnection lost"
     assert info["exit_code"] == -1
@@ -186,11 +186,11 @@ def test_env_truncation(mock_client, mock_sandbox):
     env.reset()
 
     # Step 1
-    obs, reward, terminated, truncated, info = env.step("cmd1")
+    _, _, _, truncated, _ = env.step("cmd1")
     assert not truncated
 
     # Step 2 (should truncate)
-    obs, reward, terminated, truncated, info = env.step("cmd2")
+    _, _, _, truncated, _ = env.step("cmd2")
     assert truncated
 
 def test_env_close(mock_client, mock_sandbox):

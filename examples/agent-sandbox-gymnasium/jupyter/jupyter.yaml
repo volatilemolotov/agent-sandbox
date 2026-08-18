@@ -34,6 +34,13 @@ spec:
           capabilities:
             drop:
             - ALL
+        env:
+        - name: HOME
+          value: /home/tfuser
+        - name: JUPYTER_RUNTIME_DIR
+          value: /tmp/jupyter/runtime
+        - name: JUPYTER_DATA_DIR
+          value: /home/tfuser/.local/share/jupyter
         ports:
         - containerPort: 8888
         resources:
@@ -54,19 +61,20 @@ spec:
         # Writable locations required by Jupyter/Python
         - name: tmp
           mountPath: /tmp
-        - name: jupyter-runtime
-          mountPath: /home/jovyan/.local
-        - name: jupyter-data
-          mountPath: /home/jovyan/.jupyter
+        - name: user-home
+          mountPath: /home/tfuser
+        # Prevents auto-save crashes on a read-only root
+        - name: jupyter-checkpoints
+          mountPath: /tf/.ipynb_checkpoints
       volumes:
       - name: notebook-volume
         configMap:
           name: rl-notebook-config
       - name: tmp
         emptyDir: {}
-      - name: jupyter-runtime
+      - name: user-home
         emptyDir: {}
-      - name: jupyter-data
+      - name: jupyter-checkpoints
         emptyDir: {}
 ---
 apiVersion: v1

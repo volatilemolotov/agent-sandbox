@@ -11,9 +11,24 @@ spec:
       labels:
         app: my-app
     spec:
+      # Pod-level security boundaries
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: simple-sandbox
         image: us-docker.pkg.dev/<PROJECT_ID>/<REGISTRY_NAME>/gymnasium-env:1.0.0
+        # Container-level security boundaries
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 8888
         readinessProbe:
@@ -33,3 +48,10 @@ spec:
             cpu: "250m"
             memory: "512Mi"
             ephemeral-storage: "512Mi"
+        # Writable mount required for Python/Uvicorn when root is read-only
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
