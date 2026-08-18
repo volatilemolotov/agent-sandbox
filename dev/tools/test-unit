@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import sys
 
-from shared import utils
+from shared import golang, utils
 
 PYTHON_TEST_SUITES = [
     {
@@ -139,22 +139,33 @@ def run_go_tests(repo_root, artifact_dir):
     return result.returncode
 
 
-# Directories with their own go.mod, so "go list ./..." from the repo root
-# (run_go_tests, above) never sees their packages -- each needs go test run
-# separately, from inside its own module.
-NESTED_GO_MODULES = [
-    os.path.join("examples", "chrome-sandbox"),
-    os.path.join("examples", "webhook-inject-timestamp"),
-]
+# Nested go.mod directories to skip when running their tests below, keyed by
+# path relative to repo_root: "." is the root module (already covered by
+# run_go_tests, above); dev/tools is the CI-tooling module itself (golangci-lint,
+# gotestsum, ...), not test-target code; olm has its own dedicated presubmit
+# (test-olm-unit); site is a Hugo module, not Go source (same exclusion
+# dev/tools/fix-gomod already makes for the same reason).
+NESTED_GO_MODULE_EXCLUDES = {".", os.path.join("dev", "tools"), "olm", "site"}
 
 
 def run_nested_go_module_tests(repo_root, artifact_dir):
-    """ runs Go unit tests for each entry in NESTED_GO_MODULES and returns the exit code """
+    """ runs Go unit tests for every other nested go.mod and returns the exit code
+
+    Discovers modules via shared.golang.find_go_mod_files() (the same helper
+    dev/tools/fix-go-format and dev/tools/fix-gomod already use) instead of a
+    hand-maintained list, so a new example shipping its own go.mod gets
+    covered automatically instead of silently running zero tests until
+    someone remembers to add it here.
+    """
     returncode = 0
 
-    for module_dir in NESTED_GO_MODULES:
-        module_path = os.path.join(repo_root, module_dir)
-        junit_name = f"junit_unit-go-{os.path.basename(module_dir)}.xml"
+    for mod_file in golang.find_go_mod_files():
+        module_path = os.path.dirname(mod_file)
+        rel_dir = os.path.relpath(module_path, repo_root)
+        if rel_dir in NESTED_GO_MODULE_EXCLUDES:
+            continue
+
+        junit_name = f"junit_unit-go-{os.path.basename(module_path)}.xml"
         # gotestsum itself is resolved via dev/tools' pinned version
         # (-modfile), but cwd is the target module, so the "./..." packages
         # it runs are resolved and built using that module's own go.mod.
