@@ -30,7 +30,13 @@ import (
 // polling logic can be exercised for real by actually binding one.
 
 func TestChromeWaitForReady_ReturnsOnceServerResponds200(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:9222")
+	// Bind to "localhost", the same hostname WaitForReady dials, rather than
+	// hardcoding 127.0.0.1: if "localhost" ever resolved to the IPv6 loopback
+	// first on some environment, a listener fixed to 127.0.0.1 would silently
+	// never be reached, and the test would fail against a genuinely healthy
+	// server. Using the identical hostname for both sides means whatever it
+	// resolves to, they agree.
+	listener, err := net.Listen("tcp", "localhost:9222")
 	if err != nil {
 		t.Skipf("port 9222 unavailable in this environment: %v", err)
 	}
