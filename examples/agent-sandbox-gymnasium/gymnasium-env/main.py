@@ -34,6 +34,7 @@ def execute_command(req: ExecuteRequest):
             capture_output=True,
             text=True,
             executable="/bin/bash",
+            cwd="/workspace",
             timeout=60,
         )
 
