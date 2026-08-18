@@ -37,11 +37,7 @@ EXAMPLE_DIR = os.path.join(_repo_root, "examples", "nullclaw-sandbox")
 
 class NullclawSandboxTestRunner(TestRunner):
     def __init__(self):
-        # run-test-kind.sh unconditionally does `export KIND_CLUSTER_NAME=
-        # "agent-sandbox"` at the top, clobbering whatever's already in the
-        # environment -- so self.name (the actual kind cluster name TestRunner
-        # creates) has to match that hardcoded value, not describe this job.
-        super().__init__("agent-sandbox", "e2e test for the nullclaw-sandbox example")
+        super().__init__("nullclaw-sandbox-test", "e2e test for the nullclaw-sandbox example")
 
     def setup_cluster(self, args):
         # run-test-kind.sh pulls/loads the nullclaw image itself; cluster
@@ -52,10 +48,9 @@ class NullclawSandboxTestRunner(TestRunner):
     def run_tests(self, args):
         env = os.environ.copy()
         env["KUBECONFIG"] = os.path.join(self.repo_root, "bin", "KUBECONFIG")
-        # Harmless belt-and-suspenders: run-test-kind.sh currently clobbers
-        # this with its own hardcoded "agent-sandbox" anyway (see __init__),
-        # but sets it here too in case that ever changes to respect an
-        # existing value.
+        # run-test-kind.sh now defaults to "agent-sandbox" only if
+        # KIND_CLUSTER_NAME is unset, so this makes it use the cluster
+        # TestRunner actually created instead of a hardcoded name.
         env["KIND_CLUSTER_NAME"] = self.name
 
         print("=== nullclaw-sandbox e2e test ===")

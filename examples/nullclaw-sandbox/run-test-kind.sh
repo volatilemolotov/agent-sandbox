@@ -15,7 +15,7 @@
 
 set -e
 
-export KIND_CLUSTER_NAME="agent-sandbox"
+export KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-agent-sandbox}"
 
 # Resolve paths from the script location so it works from any cwd
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
