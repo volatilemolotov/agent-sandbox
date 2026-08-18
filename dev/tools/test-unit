@@ -208,8 +208,15 @@ def run_python_tests(repo_root, artifact_dir):
                     [venv_pip, "install", "--quiet", "-e", f".{extras}"],
                     cwd=os.path.join(repo_root, rel_dir), env=env)
         elif req_file and os.path.isfile(req_file):
+            # cwd matters: pip resolves a relative `-e ../path` line inside a
+            # requirements.txt against the *calling process's* cwd, not the
+            # requirements file's own directory. Every other suite here only
+            # pins plain PyPI packages, but ray-integration's requirements.txt
+            # has exactly such a line (for the in-repo SDK), so without this
+            # it would resolve two levels above whatever directory test-unit
+            # itself happened to be invoked from instead of the repo root.
             subprocess.check_call(
-                [venv_pip, "install", "--quiet", "-r", req_file], env=env)
+                [venv_pip, "install", "--quiet", "-r", req_file], cwd=test_dir, env=env)
         elif suite["name"] == "k8s-agent-sandbox":
             # install the package itself with test extras
             package_dir = os.path.dirname(test_dir)
