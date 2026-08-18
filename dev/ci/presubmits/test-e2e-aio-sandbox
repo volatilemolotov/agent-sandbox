@@ -77,6 +77,17 @@ class AioSandboxTestRunner(TestRunner):
             print("\n-- Applying aio-sandbox.yaml --")
             kubectl("apply", "-f", os.path.join(EXAMPLE_DIR, "aio-sandbox.yaml"))
 
+            print(f"\n-- Waiting for Sandbox to be Ready (timeout {POD_READY_TIMEOUT}) --")
+            # The Sandbox controller creates the pod asynchronously, so a
+            # pod-selector wait issued immediately after apply can hit an
+            # empty selector match and exit early. Waiting on the Sandbox
+            # itself first closes that race, same fix as nullclaw-sandbox's
+            # run-test-kind.sh.
+            kubectl(
+                "wait", "--for=condition=Ready", "sandbox/aio-sandbox-example",
+                f"--timeout={POD_READY_TIMEOUT}",
+            )
+
             print(f"\n-- Waiting for pod to be Ready (timeout {POD_READY_TIMEOUT}) --")
             kubectl(
                 "wait", "--for=condition=ready", "pod",
