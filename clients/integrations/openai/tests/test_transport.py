@@ -137,3 +137,22 @@ async def test_timeout_error_reports_the_requested_budget(
         assert excinfo.value.context["timeout_s"] == 1.0
 
     await client.delete(session)
+
+
+async def test_timeout_error_reports_the_default_when_none_was_requested(
+    client: K8sSandboxClient, workspace: Path
+) -> None:
+    """Reporting None for something that just timed out would read as "no timeout"."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)),
+        options=make_options(exec_timeout_default_s=1.0),
+    )
+
+    async with session:
+        with pytest.raises(ExecTimeoutError) as excinfo:
+            await session.exec("sleep 5", timeout=None)
+
+        assert excinfo.value.context["timeout_s"] == 1.0
+
+    await client.delete(session)

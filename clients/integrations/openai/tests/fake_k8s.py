@@ -78,7 +78,7 @@ class FakeFilesystem:
         self, path: str, timeout: int = 60, allow_unsafe_paths: bool = False
     ) -> bytes:
         self._sandbox.assert_live()
-        _reject_relative(path, allow_unsafe_paths)
+        _reject_absolute_without_allow_unsafe(path, allow_unsafe_paths)
         self._sandbox.files_read.append(path)
         if self._sandbox.fail_file_reads is not None:
             raise self._sandbox.fail_file_reads
@@ -92,7 +92,7 @@ class FakeFilesystem:
         allow_unsafe_paths: bool = False,
     ) -> None:
         self._sandbox.assert_live()
-        _reject_relative(path, allow_unsafe_paths)
+        _reject_absolute_without_allow_unsafe(path, allow_unsafe_paths)
         self._sandbox.files_written.append(path)
         if self._sandbox.fail_file_writes is not None:
             raise self._sandbox.fail_file_writes
@@ -242,7 +242,7 @@ class FakeAsyncSandboxClient:
         self._warm_pools.pop((namespace, claim_name), None)
 
 
-def _reject_relative(path: str, allow_unsafe_paths: bool) -> None:
+def _reject_absolute_without_allow_unsafe(path: str, allow_unsafe_paths: bool) -> None:
     # The real client's sanitizer strips a leading "/", so an absolute workspace path
     # only survives with allow_unsafe_paths=True. Enforce that here so the provider
     # cannot silently regress to server-relative paths.

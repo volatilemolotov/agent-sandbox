@@ -118,17 +118,19 @@ class K8sHttpTransport:
     ) -> ExecResult:
         reported_command = list(argv) if argv is not None else [command]
         # There is no unbounded mode on the HTTP API, so `None` becomes the configured
-        # default rather than "wait forever".
+        # default rather than "wait forever". The endpoint takes whole seconds.
         effective = self._default_timeout_s if timeout is None else timeout
-        timeout_s = max(1, int(math.ceil(effective)))
+        enforced_s = max(1, int(math.ceil(effective)))
 
         try:
-            result = await self._sandbox.commands.run(command, timeout=timeout_s)
+            result = await self._sandbox.commands.run(command, timeout=enforced_s)
         except Exception as e:
             if self._is_timeout(e):
+                # Report the budget the pod actually enforced, not the caller's request:
+                # `None` would read as "no timeout" for something that just timed out.
                 raise ExecTimeoutError(
                     command=reported_command,
-                    timeout_s=None if timeout is None else float(timeout),
+                    timeout_s=float(enforced_s),
                     cause=e,
                 ) from e
             raise ExecTransportError(command=reported_command, cause=e) from e
