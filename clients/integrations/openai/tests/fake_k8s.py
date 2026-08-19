@@ -8,18 +8,27 @@ shell probes the SDK runs during ``start()``, without needing a cluster.
 
 Deliberate fidelity choices:
 
-* ``commands.run`` takes a command *string* and runs it through ``sh -c``, mirroring the
-  in-pod HTTP server, so the provider's ``shlex.join`` round-trip is exercised.
+* ``commands.run`` takes a command *string*, ``shlex.split``s it and execs the argv
+  **without a shell** — exactly what the in-pod server does
+  (``examples/python-runtime-sandbox/main.py``). The provider supplies its own ``sh -lc``
+  wrapper when it wants a shell, so this round-trips the provider's ``shlex.join``.
+* ``max_command_chars`` models ``MAX_ARG_STRLEN``: the kernel caps a *single* execve
+  argument at 128 KiB, which is why base64 payloads have to be chunked.
 * ``ExecutionResult`` carries ``str``, not ``bytes`` — the same lossiness as the JSON
   ``execute`` endpoint.
 * ``files.write`` does **not** create parent directories, so a provider that forgets to
   ``mkdir`` first fails here the way it would against a real server.
+* Failure injection (``fail_file_reads``, ``fail_file_writes``, ``fail_get_sandbox``,
+  ``status_value``) exists so error-mapping paths can be driven deterministically instead
+  of relying on incidental I/O failures.
 """
 
 from __future__ import annotations
 
 import asyncio
+import errno
 import os
+import shlex
 import uuid
 from pathlib import Path
 
@@ -34,11 +43,14 @@ class FakeCommands:
     async def run(self, command: str, timeout: int = 60) -> ExecutionResult:
         self._sandbox.assert_live()
         self._sandbox.commands_run.append(command)
+        self._sandbox.commands_timeouts.append(timeout)
+
+        # The in-pod server splits the command string and execs the argv directly.
+        argv = shlex.split(command)
+        self._sandbox.assert_argv_within_limits(argv)
 
         proc = await asyncio.create_subprocess_exec(
-            "sh",
-            "-c",
-            command,
+            *argv,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd="/",
@@ -68,6 +80,8 @@ class FakeFilesystem:
         self._sandbox.assert_live()
         _reject_relative(path, allow_unsafe_paths)
         self._sandbox.files_read.append(path)
+        if self._sandbox.fail_file_reads is not None:
+            raise self._sandbox.fail_file_reads
         return Path(path).read_bytes()
 
     async def write(
@@ -80,6 +94,8 @@ class FakeFilesystem:
         self._sandbox.assert_live()
         _reject_relative(path, allow_unsafe_paths)
         self._sandbox.files_written.append(path)
+        if self._sandbox.fail_file_writes is not None:
+            raise self._sandbox.fail_file_writes
         if isinstance(content, str):
             content = content.encode("utf-8")
         target = Path(path)
@@ -100,8 +116,22 @@ class FakeAsyncSandbox:
         self.terminated = False
 
         self.commands_run: list[str] = []
+        self.commands_timeouts: list[int] = []
         self.files_read: list[str] = []
         self.files_written: list[str] = []
+
+        # -- knobs -------------------------------------------------------------
+        self.status_value = "SandboxReady"
+        """Reported by :meth:`status` while the sandbox is alive."""
+
+        self.status_error: BaseException | None = None
+        """When set, :meth:`status` raises it instead of returning."""
+
+        self.fail_file_reads: BaseException | None = None
+        self.fail_file_writes: BaseException | None = None
+
+        self.max_command_chars: int | None = None
+        """Per-argument ceiling, mirroring the kernel's ``MAX_ARG_STRLEN`` (128 KiB)."""
 
     @property
     def is_active(self) -> bool:
@@ -111,10 +141,27 @@ class FakeAsyncSandbox:
         if self.terminated:
             raise SandboxNotFoundError(f"sandbox '{self.sandbox_id}' has been terminated")
 
+    def assert_argv_within_limits(self, argv: list[str]) -> None:
+        if self.max_command_chars is None:
+            return
+        for arg in argv:
+            if len(arg) > self.max_command_chars:
+                raise OSError(errno.E2BIG, "Argument list too long")
+
+    def longest_command_argument(self) -> int:
+        """Longest single execve argument this sandbox has been asked to run."""
+
+        return max(
+            (len(arg) for command in self.commands_run for arg in shlex.split(command)),
+            default=0,
+        )
+
     async def status(self) -> tuple[str, str]:
+        if self.status_error is not None:
+            raise self.status_error
         if self.terminated:
             return "SandboxNotFound", "Sandbox object not found in Kubernetes."
-        return "SandboxReady", ""
+        return self.status_value, ""
 
     async def close_connection(self) -> None:
         return None
@@ -131,6 +178,8 @@ class FakeAsyncSandboxClient:
         self._sandboxes: dict[tuple[str, str], FakeAsyncSandbox] = {}
         self._warm_pools: dict[tuple[str, str], str] = {}
         self.created: list[dict[str, object]] = []
+        self.fail_get_sandbox: BaseException | None = None
+        """When set, :meth:`get_sandbox` raises it — models an API blip, not a deletion."""
 
     async def create_sandbox(
         self,
@@ -150,6 +199,7 @@ class FakeAsyncSandboxClient:
             {
                 "warmpool": warmpool,
                 "namespace": namespace,
+                "sandbox_ready_timeout": sandbox_ready_timeout,
                 "labels": labels,
                 "shutdown_after_seconds": shutdown_after_seconds,
                 "pod_labels": pod_labels,
@@ -167,6 +217,8 @@ class FakeAsyncSandboxClient:
         resolve_timeout: int = 30,
         warmpool_name: str | None = None,
     ) -> FakeAsyncSandbox:
+        if self.fail_get_sandbox is not None:
+            raise self.fail_get_sandbox
         sandbox = self._sandboxes.get((namespace, claim_name))
         if sandbox is None or sandbox.terminated:
             raise SandboxNotFoundError(f"claim '{claim_name}' not found in '{namespace}'")

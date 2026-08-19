@@ -11,6 +11,7 @@ from agents.sandbox.session.dependencies import Dependencies
 from agents.sandbox.session.manager import Instrumentation
 from agents.sandbox.session.sandbox_client import BaseSandboxClient
 from agents.sandbox.snapshot import SnapshotBase, SnapshotSpec, resolve_snapshot
+from k8s_agent_sandbox.exceptions import SandboxNotFoundError
 
 from .options import K8sSandboxClientOptions, K8sSandboxSessionState
 from .session import K8sSandboxSession
@@ -67,6 +68,11 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
             file_transfer=options.file_transfer,
             exec_timeout_default_s=options.exec_timeout_default_s,
             exposed_port_host=_exposed_port_host(options, sandbox.sandbox_id),
+            exposed_port_host_override=options.exposed_port_host,
+            sandbox_ready_timeout=options.sandbox_ready_timeout,
+            shutdown_after_seconds=options.shutdown_after_seconds,
+            labels=options.labels,
+            pod_labels=options.pod_labels,
         )
         return self._wrap_session(
             self._build_session(sandbox, state), instrumentation=self._instrumentation
@@ -100,20 +106,16 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
         if sandbox is None:
             # The claim is gone (TTL expiry, node loss, namespace cleanup). Provision a
             # replacement; start() hydrates its workspace from state.snapshot.
-            sandbox = await self._create_sandbox(
-                K8sSandboxClientOptions(
-                    warm_pool=state.warm_pool,
-                    namespace=state.namespace,
-                    exposed_ports=state.exposed_ports,
-                    file_transfer=state.file_transfer,
-                    exec_timeout_default_s=state.exec_timeout_default_s,
-                )
-            )
+            sandbox = await self._create_sandbox(_options_from_state(state))
             state.claim_name = sandbox.claim_name
             state.sandbox_id = sandbox.sandbox_id
             state.workspace_root_ready = False
             if state.exposed_port_host:
-                state.exposed_port_host = _in_cluster_host(sandbox.sandbox_id, state.namespace)
+                # A pinned host is the caller's routing decision and still holds. A derived
+                # one named the old sandbox, so it has to follow the new one.
+                state.exposed_port_host = state.exposed_port_host_override or _in_cluster_host(
+                    sandbox.sandbox_id, state.namespace
+                )
 
         inner = self._build_session(sandbox, state)
         inner._set_start_state_preserved(preserved)
@@ -145,7 +147,10 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
             # A warm-pool mismatch is a deliberate refusal by the client, not a missing
             # sandbox. Surface it rather than silently provisioning a replacement.
             raise
-        except Exception:
+        except SandboxNotFoundError:
+            # The only failure that justifies provisioning a replacement. Anything else —
+            # an unreachable API server, a bug in this provider — would orphan a sandbox
+            # that is still running, so it propagates.
             return None
 
     def _build_session(self, sandbox: Any, state: K8sSandboxSessionState) -> K8sSandboxSession:
@@ -155,6 +160,23 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
             default_timeout_s=state.exec_timeout_default_s,
         )
         return K8sSandboxSession(transport=transport, state=state)
+
+
+def _options_from_state(state: K8sSandboxSessionState) -> K8sSandboxClientOptions:
+    """Rebuild the creation options a replacement sandbox has to be provisioned with."""
+
+    return K8sSandboxClientOptions(
+        warm_pool=state.warm_pool,
+        namespace=state.namespace,
+        sandbox_ready_timeout=state.sandbox_ready_timeout,
+        shutdown_after_seconds=state.shutdown_after_seconds,
+        exposed_ports=state.exposed_ports,
+        exposed_port_host=state.exposed_port_host_override,
+        labels=state.labels,
+        pod_labels=state.pod_labels,
+        file_transfer=state.file_transfer,
+        exec_timeout_default_s=state.exec_timeout_default_s,
+    )
 
 
 def _exposed_port_host(options: K8sSandboxClientOptions, sandbox_id: str) -> str | None:

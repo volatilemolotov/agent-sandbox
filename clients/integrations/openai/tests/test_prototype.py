@@ -12,35 +12,17 @@ import shutil
 from pathlib import Path
 
 import pytest
-from agents.sandbox.errors import ExecTimeoutError, WorkspaceReadNotFoundError
+from agents.sandbox.errors import (
+    ExecTimeoutError,
+    InvalidManifestPathError,
+    WorkspaceReadNotFoundError,
+)
 from agents.sandbox.manifest import Manifest
 from agents.sandbox.snapshot import LocalSnapshotSpec
 
 from fake_k8s import FakeAsyncSandboxClient
-from openai_agents_k8s_sandbox import K8sSandboxClient, K8sSandboxClientOptions
-
-WARM_POOL = "python-sandbox-pool"
-
-
-@pytest.fixture
-def fake_client(tmp_path: Path) -> FakeAsyncSandboxClient:
-    return FakeAsyncSandboxClient(home=tmp_path / "home")
-
-
-@pytest.fixture
-def client(fake_client: FakeAsyncSandboxClient) -> K8sSandboxClient:
-    return K8sSandboxClient(fake_client)
-
-
-@pytest.fixture
-def workspace(tmp_path: Path) -> Path:
-    return tmp_path / "workspace"
-
-
-def make_options(**overrides: object) -> K8sSandboxClientOptions:
-    base: dict[str, object] = {"warm_pool": WARM_POOL, "namespace": "agents"}
-    base.update(overrides)
-    return K8sSandboxClientOptions(**base)  # type: ignore[arg-type]
+from openai_agents_k8s_sandbox import K8sSandboxClient
+from support import WARM_POOL, make_options
 
 
 async def test_start_and_exec(client: K8sSandboxClient, workspace: Path) -> None:
@@ -67,6 +49,7 @@ async def test_create_passes_lifecycle_settings(
         {
             "warmpool": WARM_POOL,
             "namespace": "agents",
+            "sandbox_ready_timeout": 180,
             "labels": None,
             "shutdown_after_seconds": 120,
             "pod_labels": {"team": "agents"},
@@ -232,5 +215,38 @@ async def test_absolute_paths_reach_the_file_endpoints(
         await session.write(workspace / "abs.txt", io.BytesIO(b"x"))
         sandbox = await fake_client.get_sandbox(session.state.claim_name, namespace="agents")
         assert any(p.startswith("/") for p in sandbox.files_written)
+
+    await client.delete(session)
+
+
+async def test_capability_contract(client: K8sSandboxClient, workspace: Path) -> None:
+    """Both are advertised as unsupported; the SDK branches on them during start()."""
+    session = await client.create(manifest=Manifest(root=str(workspace)), options=make_options())
+
+    async with session:
+        assert session.supports_pty() is False
+        assert session._inner.supports_docker_volume_mounts() is False
+
+    await client.delete(session)
+
+
+async def test_workspace_root_is_manifest_driven(
+    client: K8sSandboxClient, tmp_path: Path
+) -> None:
+    """Nothing hardcodes /workspace: relative paths resolve under whatever root is set."""
+    root = tmp_path / "srv" / "app"  # deliberately not named "workspace"
+    session = await client.create(manifest=Manifest(root=str(root)), options=make_options())
+
+    async with session:
+        assert session._inner._workspace_root_path() == root
+        assert root.is_dir()
+
+        await session.write(Path("notes.txt"), io.BytesIO(b"relative"))
+        assert (root / "notes.txt").read_bytes() == b"relative"
+        assert (await session.read(Path("notes.txt"))).read() == b"relative"
+
+        # A path outside the configured root is refused, /workspace included.
+        with pytest.raises(InvalidManifestPathError):
+            await session.write(Path("/workspace/escape.txt"), io.BytesIO(b"x"))
 
     await client.delete(session)

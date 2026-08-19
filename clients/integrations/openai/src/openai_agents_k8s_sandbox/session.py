@@ -35,7 +35,7 @@ from agents.sandbox.workspace_paths import (
 )
 
 from .options import K8sSandboxSessionState
-from .transport import SandboxTransport
+from .transport import _EXEC_CHUNK_CHARS, SandboxTransport
 
 logger = logging.getLogger(__name__)
 
@@ -185,18 +185,56 @@ class K8sSandboxSession(BaseSandboxSession):
     ) -> None:
         encoded = base64.b64encode(raw).decode("ascii")
         path_arg = sandbox_path_str(workspace_path)
-        script = 'mkdir -p "$(dirname "$1")" && printf %s "$2" | base64 -d > "$1"'
-        result = await self.exec(
-            "sh", "-lc", script, "sh", path_arg, encoded, shell=False, user=user
-        )
-        if not result.ok():
-            raise WorkspaceArchiveWriteError(
-                path=workspace_path,
-                context={
-                    "exit_code": result.exit_code,
-                    "stderr": result.stderr.decode("utf-8", errors="replace"),
-                },
+        staging_arg = f"{path_arg}.b64.part"
+
+        # The in-pod server splits the command and execs the argv directly, so the payload
+        # lands as a single execve argument — capped at MAX_ARG_STRLEN (128 KiB), which a
+        # base64 blob clears at roughly 96 KiB of input. Append it in chunks instead, the
+        # same way K8sHttpTransport does. Every chunk goes through self.exec so a `user`
+        # still gets its `sudo -u` prefix.
+        chunks = [
+            encoded[i : i + _EXEC_CHUNK_CHARS] for i in range(0, len(encoded), _EXEC_CHUNK_CHARS)
+        ] or [""]
+
+        try:
+            for index, chunk in enumerate(chunks):
+                script = (
+                    'mkdir -p "$(dirname "$1")" && printf %s "$2" > "$1"'
+                    if index == 0
+                    else 'printf %s "$2" >> "$1"'
+                )
+                result = await self.exec(
+                    "sh", "-lc", script, "sh", staging_arg, chunk, shell=False, user=user
+                )
+                if not result.ok():
+                    raise self._write_via_exec_error(workspace_path, result)
+
+            result = await self.exec(
+                "sh",
+                "-lc",
+                'base64 -d < "$1" > "$2"',
+                "sh",
+                staging_arg,
+                path_arg,
+                shell=False,
+                user=user,
             )
+            if not result.ok():
+                raise self._write_via_exec_error(workspace_path, result)
+        finally:
+            await self._rm_best_effort(Path(staging_arg))
+
+    @staticmethod
+    def _write_via_exec_error(
+        workspace_path: Path, result: ExecResult
+    ) -> WorkspaceArchiveWriteError:
+        return WorkspaceArchiveWriteError(
+            path=workspace_path,
+            context={
+                "exit_code": result.exit_code,
+                "stderr": result.stderr.decode("utf-8", errors="replace"),
+            },
+        )
 
     # -- workspace snapshots -----------------------------------------------------
 

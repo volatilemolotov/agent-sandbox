@@ -58,7 +58,13 @@ class K8sSandboxClientOptions(BaseSandboxClientOptions):
 
 
 class K8sSandboxSessionState(SandboxSessionState):
-    """Everything needed to reattach to a sandbox in a later process."""
+    """Everything needed to reattach to a sandbox in a later process.
+
+    Every field below the connection details exists because ``resume()`` may have to
+    provision a *replacement* sandbox, and that replacement has to be configured the way
+    the original was. Anything not recorded here is silently reset to a class default.
+    All of them are optional so payloads written by an earlier version still deserialize.
+    """
 
     type: Literal["k8s"] = "k8s"
 
@@ -69,3 +75,13 @@ class K8sSandboxSessionState(SandboxSessionState):
     file_transfer: FileTransfer = "http"
     exec_timeout_default_s: float = 300.0
     exposed_port_host: str | None = None
+    """Resolved host for :meth:`resolve_exposed_port`, derived unless pinned below."""
+
+    exposed_port_host_override: str | None = None
+    """The caller's explicit ``exposed_port_host``, if any. Survives a replacement; the
+    derived in-cluster name does not, because it names a sandbox that no longer exists."""
+
+    sandbox_ready_timeout: int = 180
+    shutdown_after_seconds: int | None = 3600
+    labels: dict[str, str] | None = None
+    pod_labels: dict[str, str] | None = None
