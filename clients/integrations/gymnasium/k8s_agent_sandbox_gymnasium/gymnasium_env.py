@@ -14,6 +14,7 @@
 
 import time
 import logging
+import string
 
 try:
     import gymnasium as gym
@@ -88,8 +89,14 @@ class SandboxEnv(gym.Env):
         self._step_count           = 0
 
         # Gymnasium spaces — text-native; wrap with TokenizedWrapper for RLlib/SB3
-        self.observation_space = spaces.Text(max_length=max_obs_length)
-        self.action_space      = spaces.Text(max_length=2048)
+        self.observation_space = spaces.Text(
+            max_length=max_obs_length,
+            charset=string.printable
+        )
+        self.action_space = spaces.Text(
+            max_length=2048,
+            charset=string.printable
+        )
 
     # ── Gymnasium API ──────────────────────────────────────────────────────────
 
@@ -143,7 +150,7 @@ class SandboxEnv(gym.Env):
             stderr     = str(exc)
             exit_code  = -1
             env_error  = True
-            logger.warning("Failed to run action in sandbox (%s). Exception: %s", self._sandbox.claim_name, exc)
+            logger.warning("Failed to run action in sandbox (%s). Exception: %s", getattr(self._sandbox, "claim_name", "unknown"), exc)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
 

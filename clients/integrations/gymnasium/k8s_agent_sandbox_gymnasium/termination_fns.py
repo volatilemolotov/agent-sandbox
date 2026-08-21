@@ -26,4 +26,4 @@ class SparseTaskTermination(TerminationFn):
         self.success_fn = success_fn
 
     def __call__(self, obs, info, task) -> bool:
-        return self.success_fn(obs, info)
+        return bool(self.success_fn(obs, info))

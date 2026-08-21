@@ -2,9 +2,9 @@
 
 ## Overview
 
-This integration provides gymnasium API support to Agent Sandbox Python SDK. The goal here is to imitate crucial methods like `step`, `reset`, `stop`, which gives us opportunity to fine-tune/train models as we used to with gymnasium, but using remote sandbox containers.
+This integration provides Gymnasium API support for the Agent Sandbox Python SDK. It implements standard Gymnasium methods (`step`, `reset`, `close`), enabling RL fine-tuning and evaluation workflows against remote sandbox containers.
 
-Internally, we have in the `gymnasium_env.py` we have `SandboxEnv` class, that is inherited from the `gymnasium.Env` class, that defines the required gymnasium methods and handles sandbox management via the standard `SandboxClient`. `SandboxEnv` is a flexible environment, that can be customized with various reward functions (some basic reward functions are listed in the `reward_fns.py` file).
+The `SandboxEnv` class (`gymnasium_env.py`) subclasses `gymnasium.Env` and handles sandbox lifecycle management via `SandboxClient`. It can be customized with modular reward and termination functions from `reward_fns.py` and `termination_fns.py`.
 
 To see how it works in actions, follow the steps below to deploy an example jupyter notebook that fine-tunes `Qwen/Qwen2.5-Coder-1.5B` on a dummy task.
 
