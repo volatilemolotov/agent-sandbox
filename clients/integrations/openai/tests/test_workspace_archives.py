@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from agents.run_config import SandboxArchiveLimits
 from agents.sandbox.errors import WorkspaceArchiveReadError, WorkspaceArchiveWriteError
 from agents.sandbox.manifest import Manifest
 
@@ -71,6 +72,51 @@ async def test_rejects_a_non_bytes_payload(session) -> None:
         await session.hydrate_workspace(BadStream())
 
     assert excinfo.value.context["reason"] == "non_bytes_tar_payload"
+
+
+class _CountingStream(io.IOBase):
+    """Hands out a fixed chunk on demand and records how much has been consumed."""
+
+    def __init__(self, chunk: bytes, chunks: int) -> None:
+        self.chunk = chunk
+        self.remaining = chunks
+        self.served = 0
+
+    def read(self, size: int = -1) -> bytes:  # type: ignore[override]
+        if self.remaining <= 0:
+            return b""
+        self.remaining -= 1
+        self.served += len(self.chunk)
+        return self.chunk
+
+
+async def test_rejects_an_oversized_archive_before_buffering_it_all(session) -> None:
+    """The archive is held in memory, so the ceiling has to bite mid-stream."""
+
+    limit = 64 * 1024
+    chunk = b"\0" * io.DEFAULT_BUFFER_SIZE
+    # Far more than the limit: draining all of it is exactly the failure mode.
+    stream = _CountingStream(chunk, chunks=4096)
+    session._set_archive_limits(SandboxArchiveLimits(max_input_bytes=limit))
+
+    with pytest.raises(WorkspaceArchiveWriteError) as excinfo:
+        await session.hydrate_workspace(stream)
+
+    assert excinfo.value.context["reason"] == "archive input size exceeds limit"
+    assert excinfo.value.context["limit"] == limit
+
+    # It stopped as soon as the limit was crossed rather than reading the whole stream.
+    assert stream.served <= limit + len(chunk)
+    assert stream.remaining > 0
+
+
+async def test_unlimited_by_default(session, workspace: Path) -> None:
+    """Limits are opt-in; without them hydration behaves as it always did."""
+
+    assert session._inner._max_archive_input_bytes() is None
+
+    await session.hydrate_workspace(io.BytesIO(make_tar({"./ok.txt": b"safe"})))
+    assert (workspace / "ok.txt").read_bytes() == b"safe"
 
 
 async def test_accepts_a_clean_archive(session, workspace: Path) -> None:

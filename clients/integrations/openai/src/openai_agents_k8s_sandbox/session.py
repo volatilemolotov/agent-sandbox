@@ -284,7 +284,7 @@ class K8sSandboxSession(BaseSandboxSession):
         root = self._workspace_root_path()
         error_root = posix_path_for_error(root)
 
-        archive = _drain(data, error_path=error_root)
+        archive = _drain(data, error_path=error_root, max_bytes=self._max_archive_input_bytes())
         try:
             with tarfile.open(fileobj=io.BytesIO(archive), mode="r:*") as tar:
                 validate_tarfile(tar, allow_external_symlink_targets=False)
@@ -331,6 +331,12 @@ class K8sSandboxSession(BaseSandboxSession):
     def _stage_path(self, name_hint: str) -> Path:
         return self._ARCHIVE_STAGING_DIR / f"{uuid.uuid4().hex}_{name_hint}"
 
+    def _max_archive_input_bytes(self) -> int | None:
+        # None (the default until a run opts in via SandboxArchiveLimits) means unbounded,
+        # which keeps this a no-op for callers that never configured limits.
+        limits = self._archive_limits
+        return limits.max_input_bytes if limits is not None else None
+
     async def _rm_best_effort(self, path: Path) -> None:
         try:
             await self.exec("rm", "-f", "--", sandbox_path_str(path), shell=False)
@@ -338,8 +344,16 @@ class K8sSandboxSession(BaseSandboxSession):
             pass
 
 
-def _drain(data: io.IOBase, *, error_path: Path) -> bytes:
+def _drain(data: io.IOBase, *, error_path: Path, max_bytes: int | None) -> bytes:
+    """Buffer a snapshot archive, refusing to grow past ``max_bytes``.
+
+    The whole archive is held in memory, so the ceiling is enforced per chunk rather than
+    after the fact — otherwise an oversized stream is already resident by the time anyone
+    could reject it.
+    """
+
     buf = io.BytesIO()
+    total = 0
     while True:
         chunk = data.read(io.DEFAULT_BUFFER_SIZE)
         if chunk in ("", b"", None):
@@ -349,6 +363,16 @@ def _drain(data: io.IOBase, *, error_path: Path) -> bytes:
         if not isinstance(chunk, (bytes, bytearray)):
             raise WorkspaceArchiveWriteError(
                 path=error_path, context={"reason": "non_bytes_tar_payload"}
+            )
+        total += len(chunk)
+        if max_bytes is not None and total > max_bytes:
+            raise WorkspaceArchiveWriteError(
+                path=error_path,
+                context={
+                    "reason": "archive input size exceeds limit",
+                    "limit": max_bytes,
+                    "actual": total,
+                },
             )
         buf.write(chunk)
     return buf.getvalue()
