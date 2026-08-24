@@ -14,8 +14,16 @@ from agents.sandbox.errors import ExecTimeoutError, ExecTransportError
 from agents.sandbox.manifest import Manifest
 
 from fake_k8s import FakeAsyncSandboxClient
-from openai_agents_k8s_sandbox import K8sSandboxClient
+from openai_agents_k8s_sandbox import K8sHttpTransport, K8sSandboxClient
 from support import NAMESPACE, make_options
+
+
+@pytest.fixture
+async def exec_transport(fake_client: FakeAsyncSandboxClient) -> K8sHttpTransport:
+    """A transport wired straight to a sandbox, bypassing the session."""
+
+    sandbox = await fake_client.create_sandbox("python-sandbox-pool", namespace=NAMESPACE)
+    return K8sHttpTransport(sandbox, file_transfer="exec")
 
 
 async def test_running_is_true_for_a_ready_sandbox(
@@ -121,6 +129,47 @@ async def test_backend_failure_is_a_transport_error_not_a_timeout(
             await session.exec("true")
 
     await client.delete(session)
+
+
+async def test_exec_write_removes_staging_on_success(
+    exec_transport: K8sHttpTransport, tmp_path: Path
+) -> None:
+    target = tmp_path / "payload.bin"
+
+    await exec_transport.write_file(str(target), b"x" * (64 * 1024))
+
+    assert target.read_bytes() == b"x" * (64 * 1024)
+    assert list(tmp_path.glob("*.b64.part")) == []
+
+
+async def test_exec_write_removes_staging_when_the_decode_fails(
+    exec_transport: K8sHttpTransport, tmp_path: Path
+) -> None:
+    """The chunks land, then the decode cannot write its output — staging must not leak."""
+
+    target = tmp_path / "target"
+    target.mkdir()  # a directory cannot be overwritten by a redirect
+
+    with pytest.raises(ExecTransportError) as excinfo:
+        await exec_transport.write_file(str(target), b"payload")
+
+    assert excinfo.value.context["exit_code"] != 0
+    assert list(tmp_path.glob("*.b64.part")) == []
+
+
+async def test_exec_write_preserves_the_original_error_when_staging_fails(
+    exec_transport: K8sHttpTransport, tmp_path: Path
+) -> None:
+    """A chunk write that cannot even create staging must still report the chunk failure."""
+
+    target = tmp_path / "no-such-dir" / "payload.bin"
+
+    with pytest.raises(ExecTransportError) as excinfo:
+        await exec_transport.write_file(str(target), b"payload")
+
+    # The chunk-write failure, not something raised by the cleanup that follows it.
+    assert excinfo.value.context["chunk"] == 0
+    assert list(tmp_path.glob("*.b64.part")) == []
 
 
 async def test_timeout_error_reports_the_requested_budget(

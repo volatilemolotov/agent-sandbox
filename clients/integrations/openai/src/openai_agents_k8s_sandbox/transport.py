@@ -169,23 +169,37 @@ class K8sHttpTransport:
         chunks = [
             encoded[i : i + _EXEC_CHUNK_CHARS] for i in range(0, len(encoded), _EXEC_CHUNK_CHARS)
         ] or [""]
-        for index, chunk in enumerate(chunks):
-            redirect = ">" if index == 0 else ">>"
-            result = await self._run_script(f'printf %s {chunk} {redirect} "$1"', staging)
+
+        # Cleanup lives in `finally` rather than on the decode command: a failed chunk
+        # write or a failed decode would otherwise strand a half-written base64 file next
+        # to the target, where nothing ever collects it.
+        try:
+            for index, chunk in enumerate(chunks):
+                redirect = ">" if index == 0 else ">>"
+                result = await self._run_script(f'printf %s {chunk} {redirect} "$1"', staging)
+                if not result.ok():
+                    raise ExecTransportError(
+                        command=["printf", staging],
+                        message="sandbox file write failed",
+                        context={"exit_code": result.exit_code, "chunk": index},
+                    )
+
+            result = await self._run_script('base64 -d < "$1" > "$2"', staging, path)
             if not result.ok():
                 raise ExecTransportError(
-                    command=["printf", staging],
+                    command=["base64", "-d", staging, path],
                     message="sandbox file write failed",
-                    context={"exit_code": result.exit_code, "chunk": index},
+                    context={"exit_code": result.exit_code},
                 )
+        finally:
+            await self._rm_staging_best_effort(staging)
 
-        result = await self._run_script('base64 -d < "$1" > "$2" && rm -f "$1"', staging, path)
-        if not result.ok():
-            raise ExecTransportError(
-                command=["base64", "-d", staging, path],
-                message="sandbox file write failed",
-                context={"exit_code": result.exit_code},
-            )
+    async def _rm_staging_best_effort(self, staging: str) -> None:
+        try:
+            await self._run_script('rm -f "$1"', staging)
+        except Exception:
+            # Never let cleanup replace the failure that brought us here.
+            pass
 
     @staticmethod
     def _is_timeout(exc: BaseException) -> bool:
