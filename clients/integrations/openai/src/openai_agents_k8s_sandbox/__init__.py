@@ -10,10 +10,10 @@ from .session import K8sSandboxSession
 from .transport import K8sHttpTransport, SandboxTransport
 
 __all__ = [
+    "K8sHttpTransport",
     "K8sSandboxClient",
     "K8sSandboxClientOptions",
     "K8sSandboxSession",
     "K8sSandboxSessionState",
-    "K8sHttpTransport",
     "SandboxTransport",
 ]
