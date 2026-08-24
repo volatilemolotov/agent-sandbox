@@ -186,6 +186,40 @@ async def test_exec_write_preserves_the_original_error_when_staging_fails(
     assert list(tmp_path.glob("*.b64.part")) == []
 
 
+async def test_exec_write_reports_a_staging_cleanup_failure(
+    fake_client: FakeAsyncSandboxClient, tmp_path: Path
+) -> None:
+    """A write nobody can see failed is worse than one that reports its leftover."""
+
+    sandbox = await fake_client.create_sandbox("python-sandbox-pool", namespace=NAMESPACE)
+    transport = K8sHttpTransport(sandbox, file_transfer="exec")
+    sandbox.fail_commands_matching = "rm -f"
+    target = tmp_path / "payload.bin"
+
+    with pytest.raises(ExecTransportError) as excinfo:
+        await transport.write_file(str(target), b"payload")
+
+    assert "cleanup" in excinfo.value.message
+    assert excinfo.value.context["exit_code"] == 1
+    # The payload itself did land; only the staging file could not be swept.
+    assert target.read_bytes() == b"payload"
+
+
+async def test_exec_write_cleanup_failure_never_masks_the_write_failure(
+    fake_client: FakeAsyncSandboxClient, tmp_path: Path
+) -> None:
+    sandbox = await fake_client.create_sandbox("python-sandbox-pool", namespace=NAMESPACE)
+    transport = K8sHttpTransport(sandbox, file_transfer="exec")
+    sandbox.fail_commands_matching = "rm -f"
+    target = tmp_path / "target"
+    target.mkdir()  # a directory cannot be overwritten by the decode's redirect
+
+    with pytest.raises(ExecTransportError) as excinfo:
+        await transport.write_file(str(target), b"payload")
+
+    assert excinfo.value.message == "sandbox file write failed"
+
+
 async def test_timeout_error_reports_the_requested_budget(
     client: K8sSandboxClient, workspace: Path
 ) -> None:

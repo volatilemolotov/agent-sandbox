@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import math
 import shlex
 from collections.abc import Sequence
@@ -39,6 +40,8 @@ try:  # httpx ships with k8s-agent-sandbox[async]; keep the import soft anyway.
     import httpx
 except ImportError:  # pragma: no cover - exercised only in stripped installs
     httpx = None  # type: ignore[assignment]
+
+logger = logging.getLogger(__name__)
 
 # Base64 payloads are pushed through the JSON exec endpoint one chunk per command.
 # 32 KiB of base64 keeps each rendered command well under a typical ARG_MAX.
@@ -187,6 +190,7 @@ class K8sHttpTransport:
         # Cleanup lives in `finally` rather than on the decode command: a failed chunk
         # write or a failed decode would otherwise strand a half-written base64 file next
         # to the target, where nothing ever collects it.
+        written = False
         try:
             for index, chunk in enumerate(chunks):
                 redirect = ">" if index == 0 else ">>"
@@ -205,15 +209,58 @@ class K8sHttpTransport:
                     message="sandbox file write failed",
                     context={"exit_code": result.exit_code},
                 )
+            written = True
         finally:
-            await self._rm_staging_best_effort(staging)
+            # `written` is the last statement of the block above, so raising here can only
+            # happen with nothing else in flight to mask.
+            if written:
+                await self._rm_staging_checked(staging)
+            else:
+                await self._rm_staging_best_effort(staging)
+
+    async def _rm_staging_checked(self, staging: str) -> None:
+        """Remove staging on a write that otherwise succeeded.
+
+        No other error is on its way out to carry this one, and a stranded ".b64.part"
+        sits next to the file the caller believes was written cleanly — inside the
+        workspace a snapshot would sweep.
+        """
+        context, cause = await self._rm_staging(staging)
+        if context is not None:
+            raise ExecTransportError(
+                command=["rm", "-f", staging],
+                message="sandbox staging cleanup failed",
+                context=context,
+                cause=cause,
+            )
 
     async def _rm_staging_best_effort(self, staging: str) -> None:
+        """Remove staging while another failure is already on its way out.
+
+        That failure is the one the caller needs, so a cleanup that fails too is logged
+        rather than raised: it must never replace the write or decode error.
+        """
+        context, cause = await self._rm_staging(staging)
+        if context is not None:
+            logger.warning(
+                "sandbox staging cleanup failed for %s: %s",
+                staging,
+                cause if cause is not None else context,
+            )
+
+    async def _rm_staging(self, staging: str) -> tuple[dict[str, object] | None, Exception | None]:
+        """Remove the staging file, describing a failure instead of raising it.
+
+        Returns ``(None, None)`` once the file is gone. Otherwise the context/cause pair
+        lets the caller decide whether this failure is worth raising.
+        """
         try:
-            await self._run_script('rm -f "$1"', staging)
-        except Exception:
-            # Never let cleanup replace the failure that brought us here.
-            pass
+            result = await self._run_script('rm -f "$1"', staging)
+        except Exception as e:
+            return {"reason": "cleanup command failed"}, e
+        if result.ok():
+            return None, None
+        return {"exit_code": result.exit_code}, None
 
     @staticmethod
     def _is_timeout(exc: BaseException) -> bool:

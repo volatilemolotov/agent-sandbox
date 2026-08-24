@@ -110,6 +110,34 @@ async def test_exec_write_cleans_up_its_staging_file(
     await client.delete(session)
 
 
+async def test_exec_write_reports_a_staging_cleanup_failure(
+    client: K8sSandboxClient, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    """Staging that survives the write is inside the workspace the next snapshot sweeps."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)),
+        options=make_options(file_transfer="exec"),
+    )
+
+    async with session:
+        sandbox = await _sandbox_for(fake_client, session)
+        # Set after the first write so the SDK's own helper installation is unaffected.
+        await session.write(workspace / "warm.txt", io.BytesIO(b"warm"))
+        sandbox.fail_commands_matching = f"rm -f -- {workspace}"
+
+        with pytest.raises(WorkspaceArchiveWriteError) as excinfo:
+            await session.write(workspace / "kept.txt", io.BytesIO(b"kept"))
+        sandbox.fail_commands_matching = None
+
+        assert excinfo.value.context["reason"] == "staging cleanup failed"
+        # The payload landed; what failed is the sweep of the base64 staging file.
+        assert (workspace / "kept.txt").read_bytes() == b"kept"
+        assert (workspace / "kept.txt.b64.part").exists()
+
+    await client.delete(session)
+
+
 async def test_persist_and_hydrate_over_exec_transfer(
     client: K8sSandboxClient, fake_client: FakeAsyncSandboxClient, workspace: Path
 ) -> None:

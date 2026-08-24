@@ -32,9 +32,9 @@ Deliberate fidelity choices:
   ``execute`` endpoint.
 * ``files.write`` does **not** create parent directories, so a provider that forgets to
   ``mkdir`` first fails here the way it would against a real server.
-* Failure injection (``fail_file_reads``, ``fail_file_writes``, ``fail_get_sandbox``,
-  ``status_value``) exists so error-mapping paths can be driven deterministically instead
-  of relying on incidental I/O failures.
+* Failure injection (``fail_file_reads``, ``fail_file_writes``, ``fail_commands_matching``,
+  ``fail_get_sandbox``, ``status_value``) exists so error-mapping paths can be driven
+  deterministically instead of relying on incidental I/O failures.
 """
 
 from __future__ import annotations
@@ -58,6 +58,11 @@ class FakeCommands:
         self._sandbox.assert_live()
         self._sandbox.commands_run.append(command)
         self._sandbox.commands_timeouts.append(timeout)
+
+        if self._sandbox.fail_commands_matching is not None and (
+            self._sandbox.fail_commands_matching in command
+        ):
+            return ExecutionResult(stdout="", stderr="injected command failure", exit_code=1)
 
         # The in-pod server splits the command string and execs the argv directly.
         argv = shlex.split(command)
@@ -143,6 +148,14 @@ class FakeAsyncSandbox:
 
         self.fail_file_reads: BaseException | None = None
         self.fail_file_writes: BaseException | None = None
+
+        self.fail_commands_matching: str | None = None
+        """Substring; matching commands report exit 1 instead of running.
+
+        A command that the pod runs but that fails — `rm` on a read-only mount, say — is
+        not reachable by arranging the local filesystem, since the fake runs the argv for
+        real.
+        """
 
         self.max_command_chars: int | None = None
         """Per-argument ceiling, mirroring the kernel's ``MAX_ARG_STRLEN`` (128 KiB)."""

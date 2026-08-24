@@ -30,8 +30,9 @@ from agents.run_config import SandboxArchiveLimits
 from agents.sandbox.errors import WorkspaceArchiveReadError, WorkspaceArchiveWriteError
 from agents.sandbox.manifest import Manifest
 
+from fake_k8s import FakeAsyncSandboxClient
 from openai_agents_k8s_sandbox import K8sSandboxClient
-from support import make_options, make_tar
+from support import NAMESPACE, make_options, make_tar
 
 
 @pytest.fixture
@@ -150,6 +151,36 @@ async def test_persist_maps_a_failing_tar(session, workspace: Path) -> None:
         await session.persist_workspace()
 
     assert excinfo.value.context["exit_code"] != 0
+
+
+async def test_hydrate_reports_a_staging_cleanup_failure(
+    session, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    """Staging is shared state in the pod's /tmp, so a leak there just accumulates."""
+
+    sandbox = await fake_client.get_sandbox(session.state.claim_name, namespace=NAMESPACE)
+    sandbox.fail_commands_matching = f"rm -f -- {session._inner._ARCHIVE_STAGING_DIR}"
+
+    with pytest.raises(WorkspaceArchiveWriteError) as excinfo:
+        await session.hydrate_workspace(io.BytesIO(make_tar({"./ok.txt": b"safe"})))
+    sandbox.fail_commands_matching = None
+
+    assert excinfo.value.context["reason"] == "staging cleanup failed"
+    # The extraction itself went through; only its staging tar could not be swept.
+    assert (workspace / "ok.txt").read_bytes() == b"safe"
+
+
+async def test_persist_reports_a_staging_cleanup_failure(
+    session, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    sandbox = await fake_client.get_sandbox(session.state.claim_name, namespace=NAMESPACE)
+    sandbox.fail_commands_matching = f"rm -f -- {session._inner._ARCHIVE_STAGING_DIR}"
+
+    with pytest.raises(WorkspaceArchiveReadError) as excinfo:
+        await session.persist_workspace()
+    sandbox.fail_commands_matching = None
+
+    assert excinfo.value.context["reason"] == "staging cleanup failed"
 
 
 async def test_persist_excludes_the_archive_staging_area(session, workspace: Path) -> None:

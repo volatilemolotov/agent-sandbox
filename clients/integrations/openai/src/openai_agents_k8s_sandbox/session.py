@@ -210,6 +210,7 @@ class K8sSandboxSession(BaseSandboxSession):
             encoded[i : i + _EXEC_CHUNK_CHARS] for i in range(0, len(encoded), _EXEC_CHUNK_CHARS)
         ] or [""]
 
+        written = False
         try:
             for index, chunk in enumerate(chunks):
                 script = (
@@ -235,8 +236,20 @@ class K8sSandboxSession(BaseSandboxSession):
             )
             if not result.ok():
                 raise self._write_via_exec_error(workspace_path, result)
+            written = True
         finally:
-            await self._rm_best_effort(Path(staging_arg))
+            # Staging sits next to the target, inside the workspace: leaving it behind
+            # after a write the caller believes succeeded would seed the next snapshot
+            # with it. `written` is the last statement above, so the checked branch can
+            # only raise with nothing else in flight to mask.
+            if written:
+                await self._rm_checked(
+                    Path(staging_arg),
+                    error=WorkspaceArchiveWriteError,
+                    error_path=workspace_path,
+                )
+            else:
+                await self._rm_best_effort(Path(staging_arg))
 
     @staticmethod
     def _write_via_exec_error(
@@ -285,12 +298,19 @@ class K8sSandboxSession(BaseSandboxSession):
                 },
             )
 
+        read = False
         try:
             data = await self._transport.read_file(staging_arg)
+            read = True
         except Exception as e:
             raise WorkspaceArchiveReadError(path=error_root, cause=e) from e
         finally:
-            await self._rm_best_effort(staging)
+            if read:
+                await self._rm_checked(
+                    staging, error=WorkspaceArchiveReadError, error_path=error_root
+                )
+            else:
+                await self._rm_best_effort(staging)
 
         return io.BytesIO(data)
 
@@ -321,6 +341,7 @@ class K8sSandboxSession(BaseSandboxSession):
         except Exception as e:
             raise WorkspaceArchiveWriteError(path=error_root, cause=e) from e
 
+        extracted = False
         try:
             result = await self.exec(
                 "tar", "-x", "-f", staging_arg, "-C", sandbox_path_str(root), shell=False
@@ -333,8 +354,14 @@ class K8sSandboxSession(BaseSandboxSession):
                         "stderr": result.stderr.decode("utf-8", errors="replace"),
                     },
                 )
+            extracted = True
         finally:
-            await self._rm_best_effort(staging)
+            if extracted:
+                await self._rm_checked(
+                    staging, error=WorkspaceArchiveWriteError, error_path=error_root
+                )
+            else:
+                await self._rm_best_effort(staging)
 
     # -- helpers -----------------------------------------------------------------
 
@@ -352,10 +379,52 @@ class K8sSandboxSession(BaseSandboxSession):
         return limits.max_input_bytes if limits is not None else None
 
     async def _rm_best_effort(self, path: Path) -> None:
+        """Remove staging while another failure is already propagating.
+
+        That failure is the one the caller needs, so a cleanup that fails too is logged
+        rather than raised: it must never take the original error's place.
+        """
+        context, cause = await self._rm(path)
+        if context is not None:
+            logger.warning(
+                "sandbox staging cleanup failed for %s: %s",
+                path,
+                cause if cause is not None else context,
+            )
+
+    async def _rm_checked(
+        self,
+        path: Path,
+        *,
+        error: type[WorkspaceArchiveReadError] | type[WorkspaceArchiveWriteError],
+        error_path: Path,
+    ) -> None:
+        """Remove staging on a path where nothing else failed.
+
+        No other error is on its way out to carry this one, so an archive that cannot be
+        cleaned up is reported in the error class the surrounding operation already uses.
+        """
+        context, cause = await self._rm(path)
+        if context is not None:
+            raise error(path=error_path, context=context, cause=cause)
+
+    async def _rm(self, path: Path) -> tuple[dict[str, object] | None, Exception | None]:
+        """Remove a file, describing a failure instead of raising it.
+
+        Returns ``(None, None)`` once the file is gone. Otherwise the context/cause pair
+        lets the caller decide whether this failure is worth raising.
+        """
         try:
-            await self.exec("rm", "-f", "--", sandbox_path_str(path), shell=False)
-        except Exception:
-            pass
+            result = await self.exec("rm", "-f", "--", sandbox_path_str(path), shell=False)
+        except Exception as e:
+            return {"reason": "staging cleanup failed"}, e
+        if result.ok():
+            return None, None
+        return {
+            "reason": "staging cleanup failed",
+            "exit_code": result.exit_code,
+            "stderr": result.stderr.decode("utf-8", errors="replace"),
+        }, None
 
 
 def _drain(data: io.IOBase, *, error_path: Path, max_bytes: int | None) -> bytes:
