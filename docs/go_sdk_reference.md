@@ -635,6 +635,14 @@ type Options struct {
     // TracerProvider sets the OpenTelemetry TracerProvider for span creation.
     // If nil, falls back to otel.GetTracerProvider (noop by default).
     TracerProvider trace.TracerProvider
+
+    // DisablePodIPRouting suppresses the X-Sandbox-Pod-IP header even when a
+    // pod IP is available. Use in environments with strict network policies,
+    // service meshes, or secure overlays where direct pod-to-pod IP routing is
+    // restricted but service-based DNS routing works correctly.
+    // Note: this only affects router-based transports that send X-Sandbox-* headers.
+    // Default: false (header is sent when router headers are enabled and a pod IP is present).
+    DisablePodIPRouting bool
 }
 ```
 
