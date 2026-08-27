@@ -101,7 +101,22 @@ PYTHON_TEST_SUITES = [
             (os.path.join("clients", "python", "agentic-sandbox-client"), ""),
             (os.path.join("clients", "integrations", "gymnasium"), "[test]"),
         ]
-    }
+    },
+    {
+        "name": "integrations-nemo-gym",
+        "dir": os.path.join("clients", "integrations", "nemo-gym"),
+        # The integration itself needs Python >= 3.13. nemo-gym publishes
+        # requires-python >=3.13.14 — no released 3.13.x satisfies that (3.14+
+        # does) — so pre-install it past its floor; the editable install below
+        # then sees the requirement already satisfied. Drop the pre_install
+        # when nemo-gym relaxes its floor.
+        "min_python": (3, 13),
+        "pre_installs": [["--ignore-requires-python", "nemo-gym>=0.5.0"]],
+        "editable_installs": [
+            (os.path.join("clients", "python", "agentic-sandbox-client"), "[async]"),
+            (os.path.join("clients", "integrations", "nemo-gym"), "[test]"),
+        ],
+    },
 ]
 
 
@@ -134,6 +149,13 @@ def run_python_tests(repo_root, artifact_dir):
             print(f"WARNING: Python test directory not found, skipping: {test_dir}")
             continue
 
+        min_python = suite.get("min_python")
+        if min_python and sys.version_info < min_python:
+            wanted = ".".join(str(part) for part in min_python)
+            running = ".".join(str(part) for part in sys.version_info[:3])
+            print(f"WARNING: Skipping {suite['name']} tests: requires Python >= {wanted}, running {running}")
+            continue
+
         venv_dir = os.path.join(repo_root, "bin", f"python-venv-{suite['name']}")
         venv_python = os.path.join(venv_dir, "bin", "python")
         venv_pip = os.path.join(venv_dir, "bin", "pip")
@@ -150,6 +172,13 @@ def run_python_tests(repo_root, artifact_dir):
         env = os.environ.copy()
         if not os.environ.get("PIP_EXTRA_INDEX_URL"):
             env.pop("PIP_EXTRA_INDEX_URL", None)
+
+        # Pre-installs run before editable installs so the resolver sees these
+        # requirements as already satisfied (e.g. forcing a package past a broken
+        # published requires-python floor).
+        for pre_install_args in suite.get("pre_installs", []):
+            subprocess.check_call(
+                [venv_pip, "install", "--quiet", *pre_install_args], env=env)
 
         req_name = suite.get("requirements")
         req_file = os.path.join(test_dir, req_name) if req_name else None
