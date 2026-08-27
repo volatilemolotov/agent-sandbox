@@ -1,0 +1,56 @@
+apiVersion: agents.x-k8s.io/v1beta1
+kind: Sandbox
+metadata:
+  name: nemoclaw
+  namespace: default
+spec:
+  podTemplate:
+    spec:
+      containers:
+      - name: workspace
+        image: ghcr.io/nvidia/nemoclaw/sandbox-base:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: OPENSHELL_GATEWAY_URL
+          value: "http://openshell.default.svc.cluster.local:8080"
+        - name: OPENSHELL_GATEWAY
+          value: "k8s-cluster"
+        - name: OPENCLAW_HIDE_BANNER
+          value: "1"
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            echo "Starting NemoClaw Workspace..."
+
+            # INSTALL OPENSHELL CLI
+            if ! command -v openshell &> /dev/null; then
+              echo "Installing OpenShell CLI..."
+              curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh
+            fi
+
+            # INSTALL NEMOCLAW CLI
+            if ! command -v nemoclaw &> /dev/null; then
+              echo "Installing NemoClaw CLI..."
+              rm -rf /tmp/nemoclaw-source
+              git clone --depth 1 https://github.com/NVIDIA/NemoClaw.git /tmp/nemoclaw-source
+              cd /tmp/nemoclaw-source
+              npm install -g .
+              echo "NemoClaw CLI installed successfully."
+            fi
+
+            # UPGRADE OPENCLAW & MIGRATE DATABASE
+            echo "Upgrading OpenClaw and migrating state database..."
+            npm install -g openclaw@2026.8.1-beta.3
+            openclaw doctor --fix
+
+            # STANDARD PLAINTEXT REGISTRATION
+            if [ -n "$OPENSHELL_GATEWAY_URL" ]; then
+              echo "Configuring OpenShell to connect to Gateway: $OPENSHELL_GATEWAY_URL"
+              openshell gateway add "$OPENSHELL_GATEWAY_URL" --name k8s-cluster
+              openshell gateway select k8s-cluster
+            else
+              echo "WARNING: OPENSHELL_GATEWAY_URL is not set."
+            fi
+
+            echo "Workspace is ready. Sleeping infinitely..."
+            exec sleep infinity
