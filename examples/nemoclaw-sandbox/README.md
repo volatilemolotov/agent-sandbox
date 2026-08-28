@@ -45,7 +45,9 @@ helm upgrade --install openshell \
 kubectl -n default rollout status statefulset/openshell
 ```
 
-Apply nemoclaw-in-sandbox.yaml manifest by running the command below. This will create a sandbox that installs openclaw and openshell CLI.
+Apply `nemoclaw-in-sandbox.yaml` manifest by running the command below. This will create a sandbox that installs openclaw and openshell CLI.
+
+> **Note the version:** At this moment, the current stable version of `OpenClaw` [causes a bug with sandbox name rejection](https://github.com/NVIDIA/OpenShell/issues/2651). At this moment, [the fix provided in the beta version](https://github.com/NVIDIA/OpenShell/issues/2651#issuecomment-5334730653). It should be available later in a stable version.
 
 ```bash
 kubectl apply -f nemoclaw-in-sandbox.yaml
