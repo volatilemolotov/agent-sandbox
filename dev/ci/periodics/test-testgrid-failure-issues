@@ -43,6 +43,7 @@ LABEL = "kind/failing-test"
 SKIP_TAB_PREFIXES = ("presubmit-", "pull-")
 MAX_FAILING_TESTS_LISTED = 5
 MAX_FAILURE_MESSAGE_LENGTH = 200
+HTTP_TIMEOUT_SECONDS = 30
 
 # (testgrid dashboard, repo to file issues in). The repo must match the
 # repo this workflow runs in, since it authenticates with the GitHub
@@ -58,7 +59,7 @@ def _request(method, url, token, body=None):
     req.add_header("Authorization", f"Bearer {token}")
     req.add_header("Accept", "application/vnd.github+json")
     req.add_header("User-Agent", "agent-sandbox-testgrid-failure-issues")
-    with urllib.request.urlopen(req) as resp:
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -73,7 +74,7 @@ def _token():
 
 def fetch_summary(dashboard):
     url = f"{TESTGRID_ROOT}/{dashboard}/summary"
-    with urllib.request.urlopen(url) as resp:
+    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT_SECONDS) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -179,7 +180,7 @@ def main():
     for dashboard, repo in DASHBOARD_REPOS:
         try:
             summary = fetch_summary(dashboard)
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError) as e:
             print(f"error fetching TestGrid summary for {dashboard}: {e}", file=sys.stderr)
             exit_code = 1
             continue
@@ -189,7 +190,7 @@ def main():
                 continue
             try:
                 handle_tab(repo, token, dashboard, tab, tab_data, dry_run)
-            except (urllib.error.URLError, urllib.error.HTTPError) as e:
+            except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
                 print(f"error handling {dashboard}/{tab}: {e}", file=sys.stderr)
                 exit_code = 1
 
