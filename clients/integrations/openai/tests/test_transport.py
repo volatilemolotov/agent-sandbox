@@ -21,6 +21,9 @@ matters.
 
 from __future__ import annotations
 
+import base64
+import os
+import shlex
 from pathlib import Path
 
 import pytest
@@ -29,6 +32,7 @@ from agents.sandbox.manifest import Manifest
 
 from fake_k8s import FakeAsyncSandboxClient
 from openai_agents_k8s_sandbox import K8sHttpTransport, K8sSandboxClient
+from openai_agents_k8s_sandbox.transport import _EXEC_CHUNK_CHARS
 from support import NAMESPACE, make_options
 
 
@@ -153,6 +157,41 @@ async def test_exec_write_removes_staging_on_success(
     await exec_transport.write_file(str(target), b"x" * (64 * 1024))
 
     assert target.read_bytes() == b"x" * (64 * 1024)
+    assert list(tmp_path.glob("*.b64.part")) == []
+
+
+async def test_exec_write_passes_chunks_as_arguments(
+    fake_client: FakeAsyncSandboxClient, tmp_path: Path
+) -> None:
+    """Chunks ride argv, not the script text: today's alphabet is not a guarantee."""
+
+    sandbox = await fake_client.create_sandbox("python-sandbox-pool", namespace=NAMESPACE)
+    transport = K8sHttpTransport(sandbox, file_transfer="exec")
+    payload = os.urandom(64 * 1024)
+    encoded = base64.b64encode(payload).decode("ascii")
+
+    await transport.write_file(str(tmp_path / "payload.bin"), payload)
+
+    # Each chunk write renders as ["sh", "-lc", <script>, "sh", <staging>, <chunk>], so
+    # the tail of the argv is the chunk itself and the script never carries base64.
+    writes = [shlex.split(command) for command in sandbox.commands_run if "printf" in command]
+    assert [argv[5:] for argv in writes] == [
+        [encoded[i : i + _EXEC_CHUNK_CHARS]]
+        for i in range(0, len(encoded), _EXEC_CHUNK_CHARS)
+    ]
+    assert all(encoded[:64] not in argv[2] for argv in writes)
+
+
+async def test_exec_write_handles_an_empty_payload(
+    exec_transport: K8sHttpTransport, tmp_path: Path
+) -> None:
+    """No chunks to send: the staging file still has to be created and decoded."""
+
+    target = tmp_path / "empty.bin"
+
+    await exec_transport.write_file(str(target), b"")
+
+    assert target.read_bytes() == b""
     assert list(tmp_path.glob("*.b64.part")) == []
 
 

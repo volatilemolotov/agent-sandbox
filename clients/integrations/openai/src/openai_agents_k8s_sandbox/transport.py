@@ -181,8 +181,9 @@ class K8sHttpTransport:
         encoded = base64.b64encode(data).decode("ascii")
         staging = f"{path}.b64.part"
 
-        # base64's alphabet contains no shell metacharacters, so the chunks are safe to
-        # interpolate; the destination paths still go through argv.
+        # Chunks and destinations both travel as argv, never as script text. Standard
+        # base64 has no shell metacharacters, but that is a property of the alphabet in
+        # use today: switching to the URL-safe one would otherwise break this quietly.
         chunks = [
             encoded[i : i + _EXEC_CHUNK_CHARS] for i in range(0, len(encoded), _EXEC_CHUNK_CHARS)
         ] or [""]
@@ -193,8 +194,8 @@ class K8sHttpTransport:
         written = False
         try:
             for index, chunk in enumerate(chunks):
-                redirect = ">" if index == 0 else ">>"
-                result = await self._run_script(f'printf %s {chunk} {redirect} "$1"', staging)
+                script = 'printf %s "$2" > "$1"' if index == 0 else 'printf %s "$2" >> "$1"'
+                result = await self._run_script(script, staging, chunk)
                 if not result.ok():
                     raise ExecTransportError(
                         command=["printf", staging],
