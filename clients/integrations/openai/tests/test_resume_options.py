@@ -217,3 +217,18 @@ async def test_delete_refuses_foreign_session(client: K8sSandboxClient) -> None:
 
     with pytest.raises(TypeError, match="K8sSandboxSession"):
         await client.delete(foreign)  # type: ignore[arg-type]
+
+
+async def test_delete_refuses_an_unwrapped_session(
+    client: K8sSandboxClient, workspace: Path
+) -> None:
+    """`_inner` is the wrapper's attribute; the session it wraps has none of its own."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)), options=make_options()
+    )
+
+    with pytest.raises(TypeError, match="K8sSandboxSession"):
+        await client.delete(session._inner)
+
+    await client.delete(session)

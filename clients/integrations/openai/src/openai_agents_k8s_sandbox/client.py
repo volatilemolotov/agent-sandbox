@@ -93,9 +93,14 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
         )
 
     async def delete(self, session: SandboxSession) -> SandboxSession:
-        inner = session._inner
+        # `_inner` belongs to the SDK's session wrapper, which only create()/resume() hand
+        # out. Reaching for it directly would raise AttributeError on anything else --
+        # including a bare K8sSandboxSession -- before the check below could say why.
+        inner = getattr(session, "_inner", None)
         if not isinstance(inner, K8sSandboxSession):
-            raise TypeError("K8sSandboxClient.delete expects a K8sSandboxSession")
+            raise TypeError(
+                "K8sSandboxClient.delete expects a K8sSandboxSession from create() or resume()"
+            )
 
         try:
             await inner.shutdown()
