@@ -25,7 +25,9 @@ spec:
             # INSTALL OPENSHELL CLI
             if ! command -v openshell &> /dev/null; then
               echo "Installing OpenShell CLI..."
-              curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | sh
+              curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh -o /tmp/openshell-install.sh
+              sh /tmp/openshell-install.sh
+              rm -f /tmp/openshell-install.sh
             fi
 
             # INSTALL NEMOCLAW CLI

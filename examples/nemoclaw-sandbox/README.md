@@ -13,7 +13,7 @@ By the end of this guide, you will have a local Kubernetes cluster running a san
 Before starting, ensure you have the following command-line tools installed on your local machine:
 
 * **[Docker](https://docs.docker.com/get-docker/):** Required to run our local Kubernetes cluster.
-* **[KinD (Kubernetes IN Docker)](https://www.google.com/search?q=https://kind.sigs.k8s.io/docs/user/quick-start/%23installation):** Used to spin up the local `agent-sandbox` cluster.
+* **[KinD (Kubernetes IN Docker)](https://kind.sigs.k8s.io/docs/user/quick-start/#installation):** Used to spin up the local `agent-sandbox` cluster.
 * **[kubectl](https://kubernetes.io/docs/tasks/tools/):** The Kubernetes command-line tool, used to apply manifests and interact with our sandbox pods.
 * **[Helm](https://helm.sh/docs/intro/install/):** The Kubernetes package manager, required to install the OpenShell OCI chart.
 
