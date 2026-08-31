@@ -66,10 +66,18 @@ def _request(method, url, token, body=None):
 def _token():
     """GITHUB_TOKEN env var (GitHub Actions) or mounted secret file (Prow)."""
     env_token = os.environ.get("GITHUB_TOKEN")
-    if env_token:
-        return env_token
-    with open(TOKEN_PATH) as f:
-        return f.read().strip()
+    if env_token is not None:
+        if env_token:
+            return env_token
+
+    try:
+        with open(TOKEN_PATH) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"no GitHub token found: GITHUB_TOKEN is unset and {TOKEN_PATH} "
+            "does not exist"
+        ) from None
 
 
 def fetch_summary(dashboard):
@@ -158,17 +166,18 @@ def close_issue(repo, token, issue, dashboard, tab, dry_run):
 
 
 def handle_tab(repo, token, dashboard, tab, tab_data, dry_run):
-    marker = MARKER_TEMPLATE.format(dashboard=dashboard, tab=tab)
     status = tab_data.get("overall_status")
+    # Only FAILING and PASSING can change anything (file or close an issue).
+    # Skipping the search lookup for every other status (FLAKY, STALE,
+    # PENDING, NO_RESULTS, ...) avoids burning search-API rate limit on tabs
+    # this run has no action for anyway.
+    if status not in ("FAILING", "PASSING"):
+        return
+    marker = MARKER_TEMPLATE.format(dashboard=dashboard, tab=tab)
     issue = find_open_tracking_issue(repo, token, marker)
     if status == "FAILING" and issue is None:
         file_issue(repo, token, dashboard, tab, tab_data, dry_run)
     elif status == "PASSING" and issue is not None:
-        # Only a definite PASSING counts as recovered. Anything else
-        # (FLAKY, STALE, PENDING, NO_RESULTS, ...) leaves the existing
-        # issue open rather than closing it: STALE in particular can mean
-        # the job stopped reporting entirely, which is worse than a known
-        # failure, not a fix.
         close_issue(repo, token, issue, dashboard, tab, dry_run)
 
 
