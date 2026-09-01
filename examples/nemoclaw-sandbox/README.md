@@ -65,7 +65,7 @@ Run the following commands to setup your openclaw and configure it to use opensh
 ```bash
 openclaw onboard --mode local
 
-openclaw plugins install @openclaw/openshell-sandbox@2026.8.1-beta.3
+openclaw plugins install @openclaw/openshell-sandbox@2026.8.1-beta.3 # TODO: Later should be updated to a stable version to fix this issue https://github.com/NVIDIA/OpenShell/issues/2710. Currently we create openshell-wrapper.sh to fix this problem.
 
 openclaw config set agents.defaults.sandbox.mode all
 openclaw config set agents.defaults.sandbox.backend openshell
