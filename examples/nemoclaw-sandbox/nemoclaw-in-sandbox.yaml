@@ -9,7 +9,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: workspace
-        image: ghcr.io/nvidia/nemoclaw/sandbox-base:f6348560
+        image: ghcr.io/nvidia/nemoclaw/sandbox-base:v0.0.71
         imagePullPolicy: IfNotPresent
         env:
         - name: OPENSHELL_GATEWAY_URL
