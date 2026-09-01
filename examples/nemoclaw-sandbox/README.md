@@ -111,6 +111,9 @@ To test openclaw, run the following commands:
 ```bash
 openclaw gateway run &
 
+# Poll status every 2 seconds until it reports "ok"
+while ! openclaw gateway status 2>/dev/null | grep -q "ok"; do sleep 2; done
+
 openclaw agent --agent main --session-key agent:main:t1 --message "Write a Python script that prints 'Hello from the sandbox' and execute it."
 ```
 

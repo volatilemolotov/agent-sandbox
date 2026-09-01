@@ -6,9 +6,10 @@ metadata:
 spec:
   podTemplate:
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: workspace
-        image: ghcr.io/nvidia/nemoclaw/sandbox-base:latest
+        image: ghcr.io/nvidia/nemoclaw/sandbox-base:f6348560
         imagePullPolicy: IfNotPresent
         env:
         - name: OPENSHELL_GATEWAY_URL
@@ -20,6 +21,7 @@ spec:
         command: ["/bin/bash", "-c"]
         args:
           - |
+            set -euo pipefail
             echo "Starting NemoClaw Workspace..."
 
             # INSTALL OPENSHELL CLI
@@ -55,5 +57,17 @@ spec:
               echo "WARNING: OPENSHELL_GATEWAY_URL is not set."
             fi
 
+            # CREATE COMPLETION MARKER
+            touch /tmp/nemoclaw-ready
+
             echo "Workspace is ready. Sleeping infinitely..."
             exec sleep infinity
+        readinessProbe:
+          exec:
+            command:
+              - test
+              - -f
+              - /tmp/nemoclaw-ready
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 30
