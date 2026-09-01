@@ -51,6 +51,7 @@ Apply `nemoclaw-in-sandbox.yaml` manifest by running the command below. This wil
 
 ```bash
 kubectl apply -f nemoclaw-in-sandbox.yaml
+kubectl wait --for=condition=Ready pod/nemoclaw -n default --timeout=5m
 ```
 
 
