@@ -4,9 +4,9 @@ Runs OpenAI Agents SDK `SandboxAgent` workloads on
 [Kubernetes Agent Sandbox](https://github.com/kubernetes-sigs/agent-sandbox), as an
 out-of-tree sandbox provider.
 
-This is **Option A** from [k8s-agent-sandbox-integration-options.md](k8s-agent-sandbox-integration-options.md):
-a separate package rather than a PR to `openai-agents-python`, because OpenAI maintainers
-have [declined new in-tree third-party providers](https://github.com/openai/openai-agents-python/issues/3468).
+It ships as a separate package rather than as a PR to `openai-agents-python`, whose
+maintainers
+[do not currently accept in-tree third-party providers](https://github.com/openai/openai-agents-python/issues/3468).
 
 Status: prototype. Exercised end-to-end against an in-process fake pod; **not yet run
 against a live cluster** — see [Before trusting it](#before-trusting-it).
@@ -42,8 +42,6 @@ run_config = RunConfig(
 
 result = await Runner.run(agent, "summarize the repo", run_config=run_config)
 ```
-
-A runnable script is in [examples/k8s_runner.py](examples/k8s_runner.py).
 
 ## Cluster prerequisites
 
