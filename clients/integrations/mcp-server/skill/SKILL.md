@@ -5,19 +5,19 @@ description: "An MCP server skill for managing Kubernetes sandboxes. Enables cre
 
 # Kubernetes Agent Sandbox Manager (MCP)
 
-Use this skill when a task requires running code, executing untrusted scripts, or performing heavy parallel workloads in an isolated Kubernetes environment.
+> **⚠️ SECURITY WARNING:** This MCP server does not have built-in authentication. It exposes tools that can create sandboxes, execute arbitrary commands, and read or write files using the permissions of its Kubernetes service account. Before proceeding, ensure that the server is strictly isolated on a private network or secured behind an authenticating proxy.
 
-This skill connects to the official `kubernetes-sigs/agent-sandbox` MCP server, deployed as a service inside the same Kubernetes cluster as this OpenClaw Gateway. It is registered via mcporter — see `mcp-config.json` in this skill's directory.
+Use this skill when a task requires running code, executing untrusted scripts, or performing heavy parallel workloads in an isolated Kubernetes environment. This skill connects to the official `kubernetes-sigs/agent-sandbox` MCP server. It can be configured using `mcp-config.json` in this skill's directory.
 
 ## Architecture & State
 Unlike basic shell execution, this sandbox is **stateful**.
-When you create a sandbox, a persistent Kubernetes Pod is provisioned and identified by a `sandbox_claim_name`. You can run multiple sequential commands against the same `sandbox_claim_name` (e.g., install a package, then run a script). You must hold onto the `sandbox_claim_name` value in context for the lifetime of the task — there is currently no reliable way to recover it if lost (see Troubleshooting).
+When you create a sandbox, a persistent Kubernetes Pod is provisioned and identified by a `sandbox_claim_name`. You can run multiple sequential commands against the same `sandbox_claim_name` (e.g., install a package, then run a script). You must hold onto the `sandbox_claim_name` value in context for the lifetime of the task, you can acquire it using labels assigned during the sandbox creation.
 
 ## Available MCP Tools
 
 - **`create_sandbox`**
-  - **Arguments:** `warmpool` (string), `namespace` (string), `sandbox_ready_timeout` (int, optional), `labels` (dict[string, string], optional), `shutdown_after_seconds` (int, optional), `pod_labels` (dict[string, string], optional), `pod_annotations` (dict[string, string], optional).
-  - **Returns:** JSON object with `sandbox_claim_name` and `status`.
+  - **Arguments:** `warmpool` (string), `namespace` (string), `sandbox_ready_timeout` (int, optional), `labels` (dict[string, string], optional), `shutdown_after_seconds` (int, optional, defaults to 300 — the sandbox self-deletes after 5 minutes unless raised), `pod_labels` (dict[string, string], optional), `pod_annotations` (dict[string, string], optional).
+  - **Returns:** JSON object with `sandbox_claim_name`.
   - **Purpose:** Create a new sandbox.
 
 - **`execute_command`**
@@ -46,11 +46,11 @@ When you create a sandbox, a persistent Kubernetes Pod is provisioned and identi
   - **Purpose:** Get the readiness status of a sandbox. Use this before executing commands or transferring files to confirm the sandbox is Ready (e.g. after creation, resume, or warm-pool adoption).
 
 - **`list_files`**
-  - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `timeout` (int, optional), max_entries, (int, optional).
+  - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `timeout` (int, optional), `max_entries`, (int, optional, default value is 1000, maximum is 10000).
   - **Returns:** JSON object containing fields `entries`, `total_entries`, and `truncated`.
   - **Purpose:** List the contents of a directory in a sandbox. At most max_entries entries are returned (1000 by default). When the directory holds more, the response is truncated and 'truncated' is True while 'total_entries' reports the full count.
 
-- **`upload_files`**
+- **`upload_file`**
   - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `content` (string), `binary` (bool, optional), `timeout` (int, optional).
   - **Returns:** JSON object containing field `bytes_written`.
   - **Purpose:** Upload file to a sandbox.
