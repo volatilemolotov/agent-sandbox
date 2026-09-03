@@ -275,6 +275,24 @@ async def test_timeout_error_reports_the_requested_budget(
     await client.delete(session)
 
 
+async def test_timeout_error_marks_the_budget_as_client_side(
+    client: K8sSandboxClient, workspace: Path
+) -> None:
+    """The execute payload carries no timeout, so the pod keeps running the command."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)), options=make_options()
+    )
+
+    async with session:
+        with pytest.raises(ExecTimeoutError) as excinfo:
+            await session.exec("sleep 5", timeout=1)
+
+        assert excinfo.value.context["enforced_by"] == "client"
+
+    await client.delete(session)
+
+
 async def test_timeout_error_reports_the_default_when_none_was_requested(
     client: K8sSandboxClient, workspace: Path
 ) -> None:
