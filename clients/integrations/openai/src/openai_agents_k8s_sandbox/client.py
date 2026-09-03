@@ -83,6 +83,7 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
             namespace=options.namespace,
             warm_pool=options.warm_pool,
             file_transfer=options.file_transfer,
+            read_fallback=options.read_fallback,
             exec_timeout_default_s=options.exec_timeout_default_s,
             exposed_port_host=_exposed_port_host(options, sandbox.sandbox_id),
             exposed_port_host_override=options.exposed_port_host,
@@ -209,6 +210,7 @@ def _options_from_state(state: K8sSandboxSessionState) -> K8sSandboxClientOption
         labels=state.labels,
         pod_labels=state.pod_labels,
         file_transfer=state.file_transfer,
+        read_fallback=state.read_fallback,
         exec_timeout_default_s=state.exec_timeout_default_s,
     )
 

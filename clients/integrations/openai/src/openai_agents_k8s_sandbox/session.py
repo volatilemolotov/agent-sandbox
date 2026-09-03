@@ -128,6 +128,8 @@ class K8sSandboxSession(BaseSandboxSession):
         try:
             data = await self._transport.read_file(sandbox_path_str(workspace_path))
         except Exception as e:
+            if not self.state.read_fallback:
+                raise
             # Fall back to exec so a missing file is reported as WorkspaceReadNotFoundError
             # rather than an opaque transport error. Log it: a download endpoint that
             # always fails would otherwise look like a merely slow sandbox.

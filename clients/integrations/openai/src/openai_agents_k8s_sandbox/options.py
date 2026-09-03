@@ -66,6 +66,11 @@ class K8sSandboxClientOptions(BaseSandboxClientOptions):
 
     file_transfer: FileTransfer = "http"
 
+    read_fallback: bool = True
+    """Whether a failed download retries over exec. ``False`` surfaces the transport error
+    instead, for callers who would rather see a broken endpoint than silently read every
+    file over the slower, ARG_MAX-bounded path."""
+
     exec_timeout_default_s: float = 300.0
     """Timeout applied when the SDK passes ``timeout=None``. The in-pod HTTP API has no
     unbounded mode, so a finite default is required."""
@@ -87,6 +92,7 @@ class K8sSandboxSessionState(SandboxSessionState):
     namespace: str
     warm_pool: str
     file_transfer: FileTransfer = "http"
+    read_fallback: bool = True
     exec_timeout_default_s: float = 300.0
     exposed_port_host: str | None = None
     """Resolved host for :meth:`resolve_exposed_port`, derived unless pinned below."""

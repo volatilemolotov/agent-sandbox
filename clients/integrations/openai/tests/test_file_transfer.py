@@ -28,7 +28,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from agents.sandbox.errors import WorkspaceArchiveWriteError
+from agents.sandbox.errors import ExecTransportError, WorkspaceArchiveWriteError
 from agents.sandbox.manifest import Manifest
 
 from fake_k8s import FakeAsyncSandbox, FakeAsyncSandboxClient
@@ -134,6 +134,29 @@ async def test_exec_write_reports_a_staging_cleanup_failure(
         # The payload landed; what failed is the sweep of the base64 staging file.
         assert (workspace / "kept.txt").read_bytes() == b"kept"
         assert (workspace / "kept.txt.b64.part").exists()
+
+    await client.delete(session)
+
+
+async def test_read_fallback_can_be_turned_off(
+    client: K8sSandboxClient, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    """Opting out means a broken download endpoint is visible, not silently routed."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)),
+        options=make_options(read_fallback=False),
+    )
+
+    async with session:
+        target = workspace / "payload.txt"
+        await session.write(target, io.BytesIO(b"unreadable over http"))
+
+        sandbox = await _sandbox_for(fake_client, session)
+        sandbox.fail_file_reads = RuntimeError("download endpoint exploded")
+
+        with pytest.raises(ExecTransportError):
+            await session.read(target)
 
     await client.delete(session)
 
