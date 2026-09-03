@@ -21,6 +21,7 @@ supposed to be a continuation, not a fresh sandbox with default settings.
 
 from __future__ import annotations
 
+import logging
 import types
 import uuid
 from pathlib import Path
@@ -235,6 +236,27 @@ async def test_delete_surfaces_a_failed_claim_deletion(
 
     sandbox.fail_terminate = None
     await client.delete(session)
+
+
+async def test_delete_logs_a_failed_teardown(
+    client: K8sSandboxClient, workspace: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Deletion carries on, but a crash in shutdown() must not vanish."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)), options=make_options()
+    )
+
+    async def broken_shutdown() -> None:
+        raise RuntimeError("transport gone")
+
+    session._inner.shutdown = broken_shutdown  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.WARNING, logger="openai_agents_k8s_sandbox.client"):
+        await client.delete(session)
+
+    assert "teardown failed" in caplog.text
+    assert "transport gone" in caplog.text
 
 
 async def test_delete_accepts_an_already_deleted_claim(

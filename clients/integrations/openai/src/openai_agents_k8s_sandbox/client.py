@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
 
@@ -30,6 +31,8 @@ from k8s_agent_sandbox.exceptions import SandboxNotFoundError
 from .options import K8sSandboxClientOptions, K8sSandboxSessionState
 from .session import K8sSandboxSession
 from .transport import K8sHttpTransport
+
+logger = logging.getLogger(__name__)
 
 
 class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
@@ -107,7 +110,11 @@ class K8sSandboxClient(BaseSandboxClient[K8sSandboxClientOptions]):
         except Exception:
             # Teardown is best-effort; the claim deletion below is what actually frees
             # the pod and its PVC.
-            pass
+            logger.warning(
+                "sandbox teardown failed during delete for %s; continuing",
+                inner.state.claim_name,
+                exc_info=True,
+            )
 
         # delete_sandbox() logs a failed deletion and returns normally, reporting a leaked
         # pod and PVC as a clean delete. terminate() does the same work and raises.
