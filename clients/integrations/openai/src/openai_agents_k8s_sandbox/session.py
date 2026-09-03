@@ -300,8 +300,11 @@ class K8sSandboxSession(BaseSandboxSession):
 
         read = False
         try:
+            await self._reject_oversized_stage(staging_arg, error_root)
             data = await self._transport.read_file(staging_arg)
             read = True
+        except WorkspaceArchiveReadError:
+            raise
         except Exception as e:
             raise WorkspaceArchiveReadError(path=error_root, cause=e) from e
         finally:
@@ -371,6 +374,32 @@ class K8sSandboxSession(BaseSandboxSession):
 
     def _stage_path(self, name_hint: str) -> Path:
         return self._ARCHIVE_STAGING_DIR / f"{uuid.uuid4().hex}_{name_hint}"
+
+    async def _reject_oversized_stage(self, staging_arg: str, error_path: Path) -> None:
+        """Size the staged tar in the pod before it is pulled into this process.
+
+        `read_file()` has no streaming form, so the whole archive lands in memory; and an
+        archive above the input ceiling is one `hydrate_workspace()` would refuse anyway.
+        """
+
+        limit = self._max_archive_input_bytes()
+        if limit is None:
+            return
+
+        result = await self.exec("sh", "-lc", 'wc -c < "$1"', "sh", staging_arg, shell=False)
+        measured = result.stdout.decode("utf-8", errors="replace").strip()
+        if not result.ok() or not measured.isdigit():
+            raise WorkspaceArchiveReadError(
+                path=error_path,
+                context={"reason": "archive size probe failed", "exit_code": result.exit_code},
+            )
+
+        size = int(measured)
+        if size > limit:
+            raise WorkspaceArchiveReadError(
+                path=error_path,
+                context={"reason": "archive size exceeds limit", "limit": limit, "actual": size},
+            )
 
     def _max_archive_input_bytes(self) -> int | None:
         # None (the default until a run opts in via SandboxArchiveLimits) means unbounded,

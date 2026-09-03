@@ -125,6 +125,28 @@ async def test_rejects_an_oversized_archive_before_buffering_it_all(session) -> 
     assert stream.remaining > 0
 
 
+async def test_persist_rejects_an_oversized_workspace(session, workspace: Path) -> None:
+    """The snapshot is buffered whole, and hydrate would refuse it on the way back in."""
+
+    limit = 4 * 1024
+    await session.write(workspace / "big.bin", io.BytesIO(b"x" * (64 * 1024)))
+    session._set_archive_limits(SandboxArchiveLimits(max_input_bytes=limit))
+
+    with pytest.raises(WorkspaceArchiveReadError) as excinfo:
+        await session.persist_workspace()
+
+    assert excinfo.value.context["reason"] == "archive size exceeds limit"
+    assert excinfo.value.context["limit"] == limit
+    assert excinfo.value.context["actual"] > limit
+
+
+async def test_persist_stays_within_a_generous_limit(session, workspace: Path) -> None:
+    session._set_archive_limits(SandboxArchiveLimits(max_input_bytes=8 * 1024 * 1024))
+    await session.write(workspace / "kept.txt", io.BytesIO(b"kept"))
+
+    assert (await session.persist_workspace()).read()
+
+
 async def test_unlimited_by_default(session, workspace: Path) -> None:
     """Limits are opt-in; without them hydration behaves as it always did."""
 
