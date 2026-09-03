@@ -293,7 +293,7 @@ async def test_timeout_error_reports_the_requested_budget(
 async def test_timeout_error_marks_the_budget_as_client_side(
     client: K8sSandboxClient, workspace: Path
 ) -> None:
-    """The execute payload carries no timeout, so the pod keeps running the command."""
+    """The error records which side enforced the budget."""
 
     session = await client.create(
         manifest=Manifest(root=str(workspace)), options=make_options()
