@@ -201,7 +201,8 @@ class K8sSandboxSession(BaseSandboxSession):
     ) -> None:
         encoded = base64.b64encode(raw).decode("ascii")
         path_arg = sandbox_path_str(workspace_path)
-        staging_arg = f"{path_arg}.b64.part"
+        # Unique per write, for the same reason K8sHttpTransport stages under a uuid.
+        staging_arg = f"{path_arg}.{uuid.uuid4().hex}.b64.part"
 
         # The in-pod server splits the command and execs the argv directly, so the payload
         # lands as a single execve argument — capped at MAX_ARG_STRLEN (128 KiB), which a

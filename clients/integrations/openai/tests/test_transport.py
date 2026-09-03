@@ -182,6 +182,21 @@ async def test_exec_write_passes_chunks_as_arguments(
     assert all(encoded[:64] not in argv[2] for argv in writes)
 
 
+async def test_exec_write_spares_a_file_named_like_staging(
+    exec_transport: K8sHttpTransport, tmp_path: Path
+) -> None:
+    """A fixed suffix would overwrite this file and then delete it during cleanup."""
+
+    target = tmp_path / "payload.bin"
+    lookalike = tmp_path / "payload.bin.b64.part"
+    lookalike.write_bytes(b"not staging")
+
+    await exec_transport.write_file(str(target), b"payload")
+
+    assert target.read_bytes() == b"payload"
+    assert lookalike.read_bytes() == b"not staging"
+
+
 async def test_exec_write_handles_an_empty_payload(
     exec_transport: K8sHttpTransport, tmp_path: Path
 ) -> None:

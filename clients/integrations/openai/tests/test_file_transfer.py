@@ -133,7 +133,27 @@ async def test_exec_write_reports_a_staging_cleanup_failure(
         assert excinfo.value.context["reason"] == "staging cleanup failed"
         # The payload landed; what failed is the sweep of the base64 staging file.
         assert (workspace / "kept.txt").read_bytes() == b"kept"
-        assert (workspace / "kept.txt.b64.part").exists()
+        assert list(workspace.glob("kept.txt.*.b64.part"))
+
+    await client.delete(session)
+
+
+async def test_exec_write_spares_a_file_named_like_staging(
+    client: K8sSandboxClient, workspace: Path
+) -> None:
+    """A real file whose name looks like staging is not this write's scratch space."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)),
+        options=make_options(file_transfer="exec"),
+    )
+
+    async with session:
+        await session.write(workspace / "payload.bin.b64.part", io.BytesIO(b"not staging"))
+        await session.write(workspace / "payload.bin", io.BytesIO(b"payload"))
+
+        assert (workspace / "payload.bin").read_bytes() == b"payload"
+        assert (workspace / "payload.bin.b64.part").read_bytes() == b"not staging"
 
     await client.delete(session)
 

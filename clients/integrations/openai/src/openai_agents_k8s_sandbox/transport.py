@@ -28,6 +28,7 @@ import base64
 import logging
 import math
 import shlex
+import uuid
 from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
@@ -181,7 +182,9 @@ class K8sHttpTransport:
 
     async def _write_file_via_exec(self, path: str, data: bytes) -> None:
         encoded = base64.b64encode(data).decode("ascii")
-        staging = f"{path}.b64.part"
+        # Unique per write: a fixed suffix would clobber a real file of that name, and two
+        # writers to one path would interleave into the same staging file.
+        staging = f"{path}.{uuid.uuid4().hex}.b64.part"
 
         # Chunks and destinations both travel as argv, never as script text. Standard
         # base64 has no shell metacharacters, but that is a property of the alphabet in
