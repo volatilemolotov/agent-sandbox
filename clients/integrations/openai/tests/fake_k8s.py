@@ -160,6 +160,9 @@ class FakeAsyncSandbox:
         self.max_command_chars: int | None = None
         """Per-argument ceiling, mirroring the kernel's ``MAX_ARG_STRLEN`` (128 KiB)."""
 
+        self.fail_terminate: BaseException | None = None
+        """When set, :meth:`terminate` raises it — models a refused claim deletion."""
+
     @property
     def is_active(self) -> bool:
         return not self.terminated
@@ -194,6 +197,8 @@ class FakeAsyncSandbox:
         return None
 
     async def terminate(self) -> None:
+        if self.fail_terminate is not None:
+            raise self.fail_terminate
         self.terminated = True
 
 
@@ -260,8 +265,14 @@ class FakeAsyncSandboxClient:
     async def delete_sandbox(self, claim_name: str, namespace: str = "default") -> None:
         sandbox = self._sandboxes.pop((namespace, claim_name), None)
         self._warm_pools.pop((namespace, claim_name), None)
-        if sandbox is not None:
+        if sandbox is None:
+            return
+        try:
             await sandbox.terminate()
+        except Exception:
+            # Modelled, not a bug: the real client logs deletion failures and returns
+            # normally, which is why the provider deletes via terminate() instead.
+            pass
 
     def drop_claim(self, claim_name: str, namespace: str = "default") -> None:
         """Simulate the claim disappearing underneath us (TTL expiry, node loss)."""

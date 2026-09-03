@@ -219,6 +219,37 @@ async def test_delete_refuses_foreign_session(client: K8sSandboxClient) -> None:
         await client.delete(foreign)  # type: ignore[arg-type]
 
 
+async def test_delete_surfaces_a_failed_claim_deletion(
+    client: K8sSandboxClient, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    """A claim the API server refused to delete leaves a pod and a PVC running."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)), options=make_options()
+    )
+    sandbox = await fake_client.get_sandbox(session.state.claim_name, namespace=NAMESPACE)
+    sandbox.fail_terminate = RuntimeError("claim deletion refused")
+
+    with pytest.raises(RuntimeError, match="claim deletion refused"):
+        await client.delete(session)
+
+    sandbox.fail_terminate = None
+    await client.delete(session)
+
+
+async def test_delete_accepts_an_already_deleted_claim(
+    client: K8sSandboxClient, fake_client: FakeAsyncSandboxClient, workspace: Path
+) -> None:
+    """Nothing is left to free, so deleting twice is not an error."""
+
+    session = await client.create(
+        manifest=Manifest(root=str(workspace)), options=make_options()
+    )
+    fake_client.drop_claim(session.state.claim_name, namespace=NAMESPACE)
+
+    await client.delete(session)
+
+
 async def test_delete_refuses_an_unwrapped_session(
     client: K8sSandboxClient, workspace: Path
 ) -> None:
