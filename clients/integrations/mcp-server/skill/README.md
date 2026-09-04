@@ -3,7 +3,7 @@
 ## Prerequisites
 - A Kubernetes cluster.
 - [k8s-agent-sandbox CRDs and Router installed](https://github.com/kubernetes-sigs/agent-sandbox).
-- The [mcp-server](https://github.com/kubernetes-sigs/agent-sandbox/tree/main/clients/integrations/mcp-server) deployed and reachable — see that repo's own deployment docs for how to run it.
+- The [mcp-server](../README.md) deployed and reachable — see its deployment documentation for how to run it.
 - Any sandbox warmpool deployed to the Kubernetes cluster.
 
 ## Setup

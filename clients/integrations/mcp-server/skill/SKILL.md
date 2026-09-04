@@ -11,7 +11,7 @@ Use this skill when a task requires running code, executing untrusted scripts, o
 
 ## Architecture & State
 Unlike basic shell execution, this sandbox is **stateful**.
-When you create a sandbox, a persistent Kubernetes Pod is provisioned and identified by a `sandbox_claim_name`. You can run multiple sequential commands against the same `sandbox_claim_name` (e.g., install a package, then run a script). You must hold onto the `sandbox_claim_name` value in context for the lifetime of the task, you can acquire it using labels assigned during the sandbox creation.
+When you create a sandbox, a persistent Kubernetes Pod is provisioned and identified by a `sandbox_claim_name`. You can run multiple sequential commands against the same `sandbox_claim_name` (e.g., install a package, then run a script). You must retain the `sandbox_claim_name` value in context for the lifetime of the task.
 
 ## Available MCP Tools
 
@@ -46,14 +46,14 @@ When you create a sandbox, a persistent Kubernetes Pod is provisioned and identi
   - **Purpose:** Get the readiness status of a sandbox. Use this before executing commands or transferring files to confirm the sandbox is Ready (e.g. after creation, resume, or warm-pool adoption).
 
 - **`list_files`**
-  - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `timeout` (int, optional), `max_entries`, (int, optional, default value is 1000, maximum is 10000).
+  - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `timeout` (int, optional), `max_entries` (int, optional, default value is 1000, maximum is 10000).
   - **Returns:** JSON object containing fields `entries`, `total_entries`, and `truncated`.
-  - **Purpose:** List the contents of a directory in a sandbox. At most max_entries entries are returned (1000 by default). When the directory holds more, the response is truncated and 'truncated' is True while 'total_entries' reports the full count.
+  - **Purpose:** List the contents of a directory in a sandbox. At most `max_entries` entries are returned (1000 by default). When the directory holds more, the response is truncated and 'truncated' is True while 'total_entries' reports the full count.
 
 - **`upload_file`**
   - **Arguments:** `sandbox_claim_name` (string), `namespace` (string), `path` (string), `content` (string), `binary` (bool, optional), `timeout` (int, optional).
   - **Returns:** JSON object containing field `bytes_written`.
-  - **Purpose:** Upload file to a sandbox.
+  - **Purpose:** Upload a file to a sandbox.
 
 ## Strict Usage Workflow
 
@@ -65,7 +65,7 @@ ALWAYS follow this exact sequence when using the sandbox:
 
 ### Example Workflow Concept
 *(Do not write Python wrappers for this, use the provided MCP tools directly)*
-1. Tool Call: `create_sandbox(warmpool="simple-sandbox-warmpool", namespace="default")` → returns `{"sandbox_claim_name": "sbx-12345", "status": "success"}`
+1. Tool Call: `create_sandbox(warmpool="simple-sandbox-warmpool", namespace="default")` → returns `{"sandbox_claim_name": "sbx-12345"}`
 2. Tool Call: `execute_command(sandbox_claim_name="sbx-12345", namespace="default", command="pip install requests")`
 3. Tool Call: `execute_command(sandbox_claim_name="sbx-12345", namespace="default", command="python -c 'import requests; print(requests.get(\"https://example.com\").status_code)'")`
 4. Tool Call: `delete_sandbox(sandbox_claim_name="sbx-12345", namespace="default")`
