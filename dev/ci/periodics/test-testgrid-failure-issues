@@ -87,20 +87,27 @@ def fetch_summary(dashboard):
 
 
 def find_open_tracking_issue(repo, token, marker):
-    # GitHub's full-text search tokenizes "in:body" queries, so a quoted
-    # marker containing "/" and ":" (as ours does, unlike a single fixed
-    # string) isn't guaranteed to match as one literal unit -- it could
-    # under- or over-match against a different tab's marker. The search API
-    # is used only to narrow candidates; matches are confirmed below by an
-    # exact substring check against the real body, which the search results
-    # already include.
-    query = f'repo:{repo} is:issue is:open in:body "{marker}"'
-    url = f"{API_ROOT}/search/issues?q={urllib.parse.quote(query)}"
-    results = _request("GET", url, token)
-    for item in results.get("items", []):
-        if marker in (item.get("body") or ""):
-            return item
-    return None
+    # Listing open LABEL-labeled issues directly (rather than querying
+    # GitHub's search API) keeps this deterministic: search indexing lag or
+    # tokenization of the marker's "/" and ":" characters could otherwise
+    # make a currently open tracking issue invisible to a search query,
+    # which would file a duplicate on the next run instead of finding the
+    # issue that's already there. Matches are still confirmed below by an
+    # exact substring check against the real body.
+    page = 1
+    while True:
+        url = (
+            f"{API_ROOT}/repos/{repo}/issues"
+            f"?labels={urllib.parse.quote(LABEL, safe='')}&state=open"
+            f"&per_page=100&page={page}"
+        )
+        items = _request("GET", url, token)
+        for item in items:
+            if "pull_request" not in item and marker in (item.get("body") or ""):
+                return item
+        if len(items) < 100:
+            return None
+        page += 1
 
 
 def issue_body(dashboard, tab, tab_data, marker):
@@ -168,9 +175,9 @@ def close_issue(repo, token, issue, dashboard, tab, dry_run):
 def handle_tab(repo, token, dashboard, tab, tab_data, dry_run):
     status = tab_data.get("overall_status")
     # Only FAILING and PASSING can change anything (file or close an issue).
-    # Skipping the search lookup for every other status (FLAKY, STALE,
-    # PENDING, NO_RESULTS, ...) avoids burning search-API rate limit on tabs
-    # this run has no action for anyway.
+    # Skipping the lookup for every other status (FLAKY, STALE, PENDING,
+    # NO_RESULTS, ...) avoids an API call for tabs this run has no action
+    # for anyway.
     if status not in ("FAILING", "PASSING"):
         return
     marker = MARKER_TEMPLATE.format(dashboard=dashboard, tab=tab)

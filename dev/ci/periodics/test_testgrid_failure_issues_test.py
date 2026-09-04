@@ -40,11 +40,10 @@ _loader.exec_module(tgfi)
 class FakeGitHub:
     """In-memory stand-in for the GitHub REST calls the script makes.
 
-    Search intentionally ignores the query text and returns every open
-    issue, so tests exercise the script's own exact-marker check rather
-    than depending on GitHub's (unavailable here) full-text search
-    relevance -- that check is what actually guarantees correctness (see
-    find_open_tracking_issue's docstring comment).
+    The list-issues call is paginated the same way the real endpoint is
+    (bounded by per_page, more pages while a page comes back full), so
+    tests can exercise find_open_tracking_issue's pagination loop directly
+    instead of trusting it by inspection.
     """
 
     def __init__(self):
@@ -52,8 +51,14 @@ class FakeGitHub:
         self._next_number = 1
 
     def request(self, method, url, token, body=None):
-        if method == "GET" and "/search/issues" in url:
-            return {"items": [i for i in self.issues if i["state"] == "open"]}
+        if method == "GET" and "/issues?" in url:
+            # "[?&]" (not a bare substring match) so this doesn't match the
+            # "page=100" tail of "per_page=100" and misread the page number.
+            page = int(re.search(r"[?&]page=(\d+)", url).group(1))
+            per_page = int(re.search(r"per_page=(\d+)", url).group(1))
+            open_issues = [i for i in self.issues if i["state"] == "open"]
+            start = (page - 1) * per_page
+            return open_issues[start : start + per_page]
         if method == "POST" and url.endswith("/issues"):
             issue = {
                 "number": self._next_number,
@@ -157,10 +162,9 @@ class HandleTabTest(unittest.TestCase):
         self._handle(FAILING, dry_run=True)
         self.assertEqual(self.github.issues, [])
 
-    def test_search_false_positive_is_rejected(self):
-        # An issue that a fuzzy full-text search might surface but that does
-        # not actually contain this tab's exact marker must not be treated
-        # as the tracking issue for this tab.
+    def test_unrelated_issue_is_not_mistaken_for_tracking_issue(self):
+        # An open issue that doesn't contain this tab's exact marker (e.g.
+        # another tab's tracking issue) must not be treated as this tab's.
         self.github.issues.append({
             "number": 99,
             "state": "open",
@@ -175,6 +179,37 @@ class HandleTabTest(unittest.TestCase):
         self.assertIn(
             tgfi.MARKER_TEMPLATE.format(dashboard=DASHBOARD, tab=TAB), new_issue["body"]
         )
+
+    def test_finds_existing_issue_past_first_page(self):
+        # 150 other open issues push this tab's existing tracking issue onto
+        # the lookup's second page (per_page=100). The lookup must keep
+        # paginating and find it, rather than stopping after page one and
+        # wrongly concluding no tracking issue exists (which would file a
+        # duplicate).
+        for i in range(150):
+            self.github.issues.append({
+                "number": i,
+                "state": "open",
+                "title": "other tab",
+                "body": f"<!-- testgrid-failure:{DASHBOARD}/other-tab-{i} -->",
+                "comments": [],
+            })
+        real_marker = tgfi.MARKER_TEMPLATE.format(dashboard=DASHBOARD, tab=TAB)
+        self.github.issues.append({
+            "number": 150,
+            "state": "open",
+            "title": f"[TestGrid] {TAB} is failing",
+            "body": real_marker,
+            "comments": [],
+        })
+
+        self._handle(FAILING)
+        self.assertEqual(
+            len(self.github.issues), 151, "existing issue on page 2 must be found, not duplicated"
+        )
+
+        self._handle(PASSING)
+        self.assertEqual(self.github.issues[150]["state"], "closed")
 
 
 class IssueBodyTest(unittest.TestCase):
