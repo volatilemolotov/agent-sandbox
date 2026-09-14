@@ -113,6 +113,7 @@ To test openclaw, run the following commands:
 openclaw gateway run &
 
 # Poll status every 2 seconds until it reports "ok" or times out (approx 60 seconds)
+count=0
 MAX_RETRIES=30
 while ! openclaw gateway status 2>/dev/null | grep -q "ok"; do
   if [ $count -ge $MAX_RETRIES ]; then

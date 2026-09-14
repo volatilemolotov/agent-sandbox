@@ -36,9 +36,13 @@ spec:
             if ! command -v nemoclaw &> /dev/null; then
               echo "Installing NemoClaw CLI..."
               rm -rf /tmp/nemoclaw-source
-              git clone --depth 1 https://github.com/NVIDIA/NemoClaw.git /tmp/nemoclaw-source
-              cd /tmp/nemoclaw-source
-              npm install -g .
+              git clone https://github.com/NVIDIA/NemoClaw.git /tmp/nemoclaw-source
+              (
+                cd /tmp/nemoclaw-source
+                git checkout v0.0.123
+                npm install -g .
+              )
+              rm -rf /tmp/nemoclaw-source
               echo "NemoClaw CLI installed successfully."
             fi
 
